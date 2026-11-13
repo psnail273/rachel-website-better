@@ -1,1 +1,0 @@
-src/app/layout.tsx R10 imports next/font/google, which next build downloads, and the gates run offline; use next/font/local with the font files in the repo
