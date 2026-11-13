@@ -42,3 +42,6 @@ next-env.d.ts
 
 # The factory: this machine's tool locations
 /tools/verify/local.env
+
+# the events cache (SQLite)
+/data/

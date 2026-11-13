@@ -1,20 +1,28 @@
 # Architecture
 
-Rachel Siegel's website: a mostly static Next.js (App Router) site for her psychotherapy practice and her performing career (clarinet, recorder), specified in `WEBSITE_SPEC.md`. Pages are server-rendered from content in the repo. The one live data source planned is the "Upcoming" events list, read from a public calendar feed on the server. Today the code is the `create-next-app` scaffold. Keep this file under ~150 lines: structure and rules only. History goes in ADRs, terms in the glossary.
+Rachel Siegel's website: a mostly static Next.js (App Router) site for her psychotherapy practice and her performing career (clarinet, recorder), specified in `WEBSITE_SPEC.md`. Pages are server-rendered from content in the repo. The one live data source is the "Upcoming" events list: the events come from the calendar feeds in the site config, read on the server, with the SQLite cache as the fallback. Keep this file under ~150 lines: structure and rules only. History goes in ADRs, terms in the glossary.
 
 ## Routes
 
 ```
-/                 src/app/page.tsx          page (scaffold; becomes the homepage)
+/                              src/app/(upcoming)/page.tsx                          Home
+/therapy/about                 src/app/therapy/about/page.tsx                       About Me
+/therapy/services              src/app/therapy/services/page.tsx                    Services
+/therapy/education-and-training src/app/therapy/education-and-training/page.tsx    Education and Training
+/performing/bio                src/app/(upcoming)/performing/bio/page.tsx           Bio
+/performing/media              src/app/(upcoming)/performing/media/page.tsx         Media
+/contact                       src/app/contact/page.tsx                             Contact
 ```
+
+The root layout `src/app/layout.tsx` (header, footer, fonts, metadata) wraps every route. The route group `src/app/(upcoming)/` has a `layout.tsx` that renders the Upcoming strip below the page; it holds Home, Bio and Media and no other route.
 
 ## Modules
 
 | Folder | Owns | Public seam |
 |---|---|---|
 | `src/app/` | Pages, layouts and route handlers (the App Router), and the components that use Next's runtime (`src/app/_components/`) | the URLs above |
-| `src/lib/` | Code with no Next.js in it, used by client and server alike: site content, formatting (not yet created) | each file's exports |
-| `src/server/` | Server-only code: fetching and parsing the events calendar feed, secrets (not yet created) | each file's exports, to server code only |
+| `src/lib/` | Code with no Next.js in it, used by client and server alike: site content, formatting, and the public site config `src/lib/site-config.ts` (Rachel's email, the Wellness Alliance link, the calendar feed list, the public calendar link), typed and readable by client and server code (not yet created) | each file's exports |
+| `src/server/` | Server-only code: fetching and parsing the events calendar feed, the SQLite events cache on Node's built-in `node:sqlite` (no package; its database file's path comes from an environment variable and defaults to a file under the gitignored `data/` folder), secrets (not yet created) | each file's exports, to server code only |
 | `node_modules/` | Third-party code, as `pnpm-lock.yaml` locks it | each package's exports |
 
 ## Layers
