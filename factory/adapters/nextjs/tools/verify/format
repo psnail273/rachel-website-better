@@ -1,0 +1,130 @@
+#!/usr/bin/env bash
+# The format step: Prettier (the project's, at the version pnpm-lock.yaml locks,
+# pinned in tools/verify/pins), with the project's Prettier config.
+#   bash tools/verify/format                    the gate: check mode, nothing is written
+#   bash tools/verify/format --write [file...]  format in place (the Editor's stop
+#                                               hook); no files = all
+#
+# Both modes take every file in scope (_nextjs.sh) with an extension Prettier
+# formats here (NX_FORMAT_EXT: the code, JSON and CSS) except those on the
+# format-exclude list, tools/verify/ratchet/format_exclude.txt. That list is a
+# ratchet: it may only shrink, and an entry naming no such file is a finding. The
+# scope and that list alone decide: Prettier's ignore files (.prettierignore,
+# .gitignore) are not read, so neither can drop a file in scope unseen.
+#
+# Findings, on stdout:
+#   <file>:<line> format              the file isn't formatted; <line> is the first line that changes
+#   <file>:<line> format-error        Prettier couldn't parse the file (its message)
+#   <exclude list>:<n> format-exclude-stale   the entry names no file the step formats
+#   tools/verify/format:1 format-tool-error   Prettier failed with no file to blame (see stderr)
+#   (and node-missing or tool-missing, as _nextjs.sh has them)
+# Exits 1 on any finding.
+set -u
+
+. "$(dirname "${BASH_SOURCE[0]}")/_nextjs.sh"
+
+write=0
+targets=()
+for arg in "$@"; do
+	case "$arg" in
+		--write) write=1 ;;
+		-*)
+			echo "format: unknown option '$arg'" >&2
+			exit 2
+			;;
+		*) targets+=("${arg//\\//}") ;;
+	esac
+done
+if [ "${#targets[@]}" -gt 0 ] && [ "$write" -eq 0 ]; then
+	echo "format: files are only taken with --write" >&2
+	exit 2
+fi
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+# shellcheck disable=SC2086 # the extension list splits on purpose
+nx_files $NX_FORMAT_EXT > "$tmp/scope"
+nx_format_excluded > "$tmp/excluded"
+cut -d' ' -f2- "$tmp/excluded" | LC_ALL=C sort -u > "$tmp/excluded_paths"
+LC_ALL=C comm -23 "$tmp/scope" "$tmp/excluded_paths" > "$tmp/files"
+
+found=0
+
+# Stale exclude entries: the ratchet only shrinks, so a gone file's entry goes too.
+while read -r n path; do
+	if ! grep -qxF -- "$path" "$tmp/scope"; then
+		echo "$NX_FORMAT_EXCLUDE:$n format-exclude-stale $path is no file the format step checks; remove its entry"
+		found=1
+	fi
+done < "$tmp/excluded"
+
+if [ "$write" -eq 1 ] && [ "${#targets[@]}" -gt 0 ]; then
+	printf '%s\n' "${targets[@]}" | LC_ALL=C sort -u > "$tmp/named"
+	LC_ALL=C comm -12 "$tmp/files" "$tmp/named" > "$tmp/run"
+else
+	cp "$tmp/files" "$tmp/run"
+fi
+[ -s "$tmp/run" ] || exit "$found"
+tool_ready prettier || exit 1
+mapfile -t files < "$tmp/run"
+
+# errors <stderr file>: a format-error finding for each file Prettier names in an
+# `[error] <file>: <message> (<line>:<column>)` line, at that line (else 1).
+errors() {
+	tr -d '\r' < "$1" | awk -v list="$tmp/run" '
+		BEGIN { while ((getline f < list) > 0) ours[f] = 1 }
+		/^\[error\] [^ ]+: / {
+			rest = substr($0, 9)
+			i = index(rest, ": ")
+			file = substr(rest, 1, i - 1)
+			if (!(file in ours) || (file in told)) next
+			told[file] = 1
+			msg = substr(rest, i + 2)
+			line = 1
+			if (match(msg, /\([0-9]+:[0-9]+\)$/)) {
+				line = substr(msg, RSTART + 1, RLENGTH - 2); sub(/:.*/, "", line)
+				msg = substr(msg, 1, RSTART - 1); sub(/[ \t]+$/, "", msg)
+			}
+			print file ":" line " format-error " msg
+		}
+	'
+}
+
+# run_prettier <args...>: Prettier over the files, its stdout in $tmp/out; prints
+# a finding for each error, and sets found on one. Prettier's ignore files are not
+# read (see above). Exit 2 with no file named is a tool error.
+run_prettier() {
+	local status
+	tool prettier --ignore-path "$tmp/no-ignore" --no-error-on-unmatched-pattern "$@" "${files[@]}" > "$tmp/out" 2> "$tmp/err"
+	status=$?
+	cat "$tmp/err" >&2
+	errors "$tmp/err" > "$tmp/errors"
+	if [ -s "$tmp/errors" ]; then
+		cat "$tmp/errors"
+		found=1
+	elif [ "$status" -gt 1 ] || { [ "$status" -eq 1 ] && [ "$1" = --write ]; }; then
+		echo "tools/verify/format:1 format-tool-error Prettier exited $status naming no file (see stderr)"
+		found=1
+	fi
+}
+
+if [ "$write" -eq 1 ]; then
+	run_prettier --write --log-level warn
+	cat "$tmp/out" >&2
+	exit "$found"
+fi
+
+# --list-different names each file it would change, and exits 1 when it names one.
+run_prettier --list-different
+while IFS= read -r f; do
+	[ -n "$f" ] || continue
+	# shellcheck disable=SC2094 # it reads $f and writes $tmp/formatted
+	tool prettier --ignore-path "$tmp/no-ignore" --stdin-filepath "$f" < "$f" 2> /dev/null > "$tmp/formatted"
+	line="$(diff "$f" "$tmp/formatted" | sed -n '1s/^\([0-9]*\).*/\1/p')"
+	[ "${line:-0}" -ge 1 ] || line=1
+	echo "$f:$line format not formatted; run: bash tools/verify/format --write $f"
+	found=1
+done < <(tr -d '\r' < "$tmp/out" | sed 's#\\#/#g')
+
+exit "$found"

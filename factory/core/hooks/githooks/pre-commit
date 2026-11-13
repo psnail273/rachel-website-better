@@ -1,0 +1,4 @@
+#!/bin/sh
+# The factory's git pre-commit hook; core.hooksPath points at this folder. The
+# checks live in ../pre-commit.sh.
+exec bash "$(dirname "$0")/../pre-commit.sh"

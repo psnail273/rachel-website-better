@@ -1,0 +1,155 @@
+#!/usr/bin/env bash
+# The prepare step, after the Core's pin check:
+#   1. the scope cross-check: tools/verify/scope against each export preset's
+#      exclude_filter in export_presets.cfg;
+#   2. Godot's import (--import), which every later step needs: a fresh clone has
+#      no .godot/, and the typecheck needs its class cache.
+#
+# The cross-check looks at every tracked or new .gd file. For each preset:
+#   a test (tools/verify/test-paths) the preset ships     scope-test-shipped
+#   a file in scope, not a test, the preset leaves out    scope-not-shipped
+#   a file outside the scope the preset ships, except     scope-unchecked
+#   third-party code under addons/ (never checked)
+# A preset is matched the way Godot reads exclude_filter: comma-separated
+# patterns, case-insensitive, `*` matching across folders, each tried against the
+# path, res://<path> and the file name. A file under a folder holding a .gdignore
+# ships in no preset (Godot neither imports nor exports it). Only export_filter="all_resources" is
+# cross-checked; any other export_filter is a scope-export-filter finding. A
+# project with no export_presets.cfg ships nothing, so there is nothing to check.
+#
+# The Scenario folder (tools/verify/scenario-folder) is no step's: the cross-check
+# skips it, and it must hold a .gdignore once it holds a script, so that Godot
+# neither imports nor exports it and gdUnit4 never runs it as a test.
+#
+# Findings, on stdout (Godot's output goes to stderr):
+#   tools/verify/scope:1 scope-missing         there is no scope file
+#   tools/verify/scenario-folder:1 scenario-not-ignored
+#                                              the Scenario folder has no .gdignore
+#   export_presets.cfg:<line> scope-...        as above, at the preset's exclude_filter
+#   tools/verify/local.env:1 godot-missing     GODOT_BIN is unset or wrong
+#   project.godot:1 import-failed              Godot's import exited non-zero
+# Exits 1 on any finding.
+set -u
+
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_gdscript.sh"
+. "$dir/_godot.sh"
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+found=0
+
+# export_presets: one `<line>\t<name>\t<export_filter>\t<exclude_filter>` per
+# preset, <line> being its exclude_filter line (else its section line).
+export_presets() {
+	tr -d '\r' < export_presets.cfg | awk '
+		function value(s) { sub(/^[^=]*="?/, "", s); sub(/"$/, "", s); return s }
+		function emit() { if (sect) print line "\t" name "\t" filter "\t" exclude }
+		/^\[preset\.[0-9]+\]$/ { emit(); sect = 1; line = NR; name = ""; filter = ""; exclude = ""; next }
+		/^\[/ { emit(); sect = 0; next }
+		sect && /^name=/ { name = value($0) }
+		sect && /^export_filter=/ { filter = value($0) }
+		sect && /^exclude_filter=/ { exclude = value($0); line = NR }
+		END { emit() }
+	'
+}
+
+# excluded <path> <exclude_filter>: true when the filter leaves the path out.
+excluded() {
+	local path="$1" pattern status=1
+	local -a patterns
+	IFS=',' read -r -a patterns <<< "$2"
+	shopt -s nocasematch
+	for pattern in "${patterns[@]}"; do
+		pattern="${pattern#"${pattern%%[![:space:]]*}"}"
+		pattern="${pattern%"${pattern##*[![:space:]]}"}"
+		[ -z "$pattern" ] && continue
+		# The pattern is unquoted on purpose: it is a glob.
+		# shellcheck disable=SC2053 # each pattern is a glob on purpose
+		if [[ $path == $pattern || res://$path == $pattern || ${path##*/} == $pattern ]]; then
+			status=0
+			break
+		fi
+	done
+	shopt -u nocasematch
+	return "$status"
+}
+
+# gdignored: the stdin paths under a folder holding a .gdignore, in order.
+gdignored() {
+	git ls-files --cached --others --exclude-standard -- '*.gdignore' |
+		sed -n 's#^\(.*/\)\.gdignore$#\1#p' > "$tmp/gdignore_dirs"
+	awk -v dirs="$tmp/gdignore_dirs" '
+		BEGIN { while ((getline d < dirs) > 0) dir[++n] = d }
+		{ for (i = 1; i <= n; i++) if (index($0, dir[i]) == 1) { print; next } }
+	'
+}
+
+scope_check() {
+	if [ ! -f "$GD_SCOPE" ]; then
+		echo "$GD_SCOPE:1 scope-missing no scope file; it lists the globs of what the gates check (what ships plus the tests)"
+		return 1
+	fi
+	[ -f export_presets.cfg ] || return 0
+	local bad=0 line name filter exclude f
+	gd_all_files > "$tmp/all"
+	gd_files > "$tmp/scope"
+	gd_glob_rules "$GD_TEST_PATHS" > "$tmp/test_rules"
+	gd_filter "$tmp/test_rules" < "$tmp/all" > "$tmp/tests"
+	gdignored < "$tmp/all" > "$tmp/gdignored"
+	while IFS=$'\t' read -r line name filter exclude; do
+		if [ "$filter" != all_resources ]; then
+			echo "export_presets.cfg:$line scope-export-filter preset \"$name\" exports '$filter'; the scope cross-check needs all_resources"
+			bad=1
+			continue
+		fi
+		while IFS= read -r f; do
+			if grep -qxF -- "$f" "$tmp/gdignored" || excluded "$f" "$exclude"; then
+				if grep -qxF -- "$f" "$tmp/scope" && ! grep -qxF -- "$f" "$tmp/tests"; then
+					echo "export_presets.cfg:$line scope-not-shipped preset \"$name\" leaves out $f, which the scope checks as shipped code"
+					bad=1
+				fi
+			elif grep -qxF -- "$f" "$tmp/tests"; then
+				echo "export_presets.cfg:$line scope-test-shipped preset \"$name\" ships the test $f; add it to exclude_filter"
+				bad=1
+			elif ! grep -qxF -- "$f" "$tmp/scope"; then
+				case "$f" in addons/*) continue ;; esac
+				echo "export_presets.cfg:$line scope-unchecked preset \"$name\" ships $f, which is outside $GD_SCOPE"
+				bad=1
+			fi
+		done < "$tmp/all"
+	done < <(export_presets)
+	return "$bad"
+}
+
+scope_check || found=1
+
+# scenarios_check: the Scenario folder, once it holds a script, holds a .gdignore:
+# on disk where the folder is checked out, else tracked (an issue's worktree
+# leaves the whole folder out).
+scenarios_check() {
+	[ -n "$GD_SCENARIOS" ] || return 0
+	git ls-files --cached --others --exclude-standard -- "$GD_SCENARIOS/" > "$tmp/scenarios"
+	grep -q '\.gd$' "$tmp/scenarios" || return 0
+	if [ -d "$GD_SCENARIOS" ]; then
+		[ -f "$GD_SCENARIOS/.gdignore" ] && return 0
+	else
+		grep -qxF -- "$GD_SCENARIOS/.gdignore" "$tmp/scenarios" && return 0
+	fi
+	echo "$FACTORY_SCENARIO_FOLDER_FILE:1 scenario-not-ignored $GD_SCENARIOS/ holds Scenario scripts but no .gdignore, so Godot would import and export them; the Scenario run adds it"
+	return 1
+}
+
+scenarios_check || found=1
+
+godot_ready || exit 1
+godot --import > "$tmp/import.log" 2>&1
+status=$?
+cat "$tmp/import.log" >&2
+if [ "$status" -ne 0 ]; then
+	echo "project.godot:1 import-failed Godot's import exited $status (see stderr)"
+	found=1
+fi
+
+exit "$found"

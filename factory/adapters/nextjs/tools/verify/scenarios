@@ -1,0 +1,147 @@
+#!/usr/bin/env bash
+# The Scenario driver (factory/core/lib/scenarios.sh): runs the Scenario folder's
+# scripts against the app, built and started as the smoke step starts it, with
+# Playwright's test runner. Not a gate step; the Run runs it at a Feature's end:
+#   bash factory/core/scenarios.sh
+#
+# A Scenario is one script in the folder (tools/verify/scenario-folder): a
+# TypeScript or JavaScript file whose tests (`test(` from @playwright/test) play
+# one behaviour through in a real browser and check what must hold. Its name is
+# its path in the folder without its extension (`serve/after_a_miss` for
+# scenarios/serve/after_a_miss.ts); its status is its worst test's, at that
+# test's line (a file that declares no test is a helper, not a Scenario: a
+# Scenario may import it). The `page` a test gets opens the started app: a path
+# alone (page.goto("/")) is the app's own, as is `request`'s (request.get("/api/
+# health")). It drives the app as a user would, by what the page shows:
+#
+#   import { expect, test } from "@playwright/test";
+#
+#   test("a tap serves one ball", async ({ page }) => {
+#     await page.goto("/");
+#     await page.getByRole("button", { name: "Serve" }).click();
+#     await expect(page.getByText("Balls in play: 1")).toBeVisible();
+#   });
+#
+# Find what to click and read by role, label and text (getByRole, getByLabel,
+# getByText; getByTestId only for what the code already marks); check with
+# expect's web-first assertions (toBeVisible, toHaveText, toHaveCount, toHaveURL),
+# which wait for the page to settle, never with a fixed wait (waitForTimeout).
+# A Scenario checks what the Spec says, by the names and words the app already
+# has. It reaches the app only through the browser and HTTP: it imports no app
+# code, and the app's state is the started server's, shared by every Scenario
+# and kept between them, so each one starts from what it needs (a fresh page, a
+# route that resets, a name of its own).
+#
+# The driver lists the folder's files (git's, tracked or new, on disk; .ts, .tsx,
+# .mts, .cts, .js, .jsx, .mjs, .cjs), keeps those that declare a test (as the
+# test step finds one: _lint_checks.awk), installs the packages offline as
+# prepare does (pnpm install --offline --frozen-lockfile: the Scenario run's own
+# worktree starts with none), checks that Chromium starts, runs next build and
+# next start (_server.sh, the smoke step's), then runs Playwright once
+# per Scenario file (_scenarios.config.mjs: one worker, no retries, headless
+# Chromium, Playwright's own timeouts), so a Scenario that doesn't load fails
+# alone; _scenario_results.mjs reads each one's report. Playwright's and next's
+# output go to stderr. The server, and each Playwright run's whole process group,
+# are always stopped before it exits: on a pass, a failure, an error, and on INT,
+# TERM or HUP. FACTORY_SMOKE_TIMEOUT (local.env) bounds the server's start and
+# each stop, as it does for smoke.
+#
+# Prints one results line per Scenario, in path order; nothing when there is
+# none (no folder named, or no file in it declares a test). Exits 0 when every
+# Scenario passed, 1 when one didn't, 2 when it could not run them (the reason on
+# stderr): no Core, Node or pnpm, the offline install failing, next or
+# Playwright not installed, Chromium not starting,
+# FACTORY_SMOKE_TIMEOUT not whole seconds, next build failing or next start not
+# answering.
+set -u
+
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_nextjs.sh"
+. "$dir/_server.sh"
+
+[ -n "$NX_SCENARIOS" ] || exit 0
+
+# cannot <why>: the driver could not run the Scenarios.
+cannot() {
+	echo "scenarios: $*" >&2
+	exit 2
+}
+
+tmp="$(mktemp -d)"
+trap 'nx_stop; rm -rf "$tmp"' EXIT
+nx_on_signal
+
+# The Scenarios: the folder's code files that declare a test.
+git -c core.quotepath=off ls-files --cached --others --exclude-standard -- "$NX_SCENARIOS/" |
+	while IFS= read -r f; do
+		case " $NX_CODE_EXT " in *" ${f##*.} "*) [ -f "$f" ] && printf '%s\n' "$f" ;; esac
+	done | LC_ALL=C sort -u > "$tmp/files"
+mapfile -t files < "$tmp/files"
+scenarios=()
+for f in "${files[@]}"; do
+	[ -n "$(awk -v counts=1 -v declares=1 -v path="$f" -f "$dir/_lint_checks.awk" < "$f")" ] && scenarios+=("$f")
+done
+[ "${#scenarios[@]}" -gt 0 ] || exit 0
+
+[ "$NX_LIMIT" -ne 0 ] ||
+	cannot "FACTORY_SMOKE_TIMEOUT is '${FACTORY_SMOKE_TIMEOUT:-}', not a number of seconds from 1 to 999999 (tools/verify/local.env)"
+if ! { node_ready && pnpm_ready; } > "$tmp/ready"; then
+	sed 's/^[^ ]* [^ ]* /scenarios: /' "$tmp/ready" >&2
+	exit 2
+fi
+pnpm install --offline --frozen-lockfile >&2
+status=$?
+[ "$status" -eq 0 ] ||
+	cannot "pnpm install --offline --frozen-lockfile exited $status (above); run bash tools/verify/bootstrap, the step allowed the network, then the Scenarios again"
+for t in next playwright; do
+	if ! tool_ready "$t" > "$tmp/ready"; then
+		sed 's/^[^ ]* [^ ]* /scenarios: /' "$tmp/ready" >&2
+		exit 2
+	fi
+done
+if ! "${NODE_BIN:-node}" --input-type=module -e '
+	import { chromium } from "@playwright/test";
+	const browser = await chromium.launch({ headless: true });
+	await browser.close();
+' > "$tmp/browser.log" 2>&1 < /dev/null; then
+	cat "$tmp/browser.log" >&2
+	cannot "Chromium didn't start (above); run bash tools/verify/bootstrap, which installs it into PLAYWRIGHT_BROWSERS_PATH (tools/verify/local.env), and if it names missing system libraries: pnpm exec playwright install-deps chromium"
+fi
+
+nx_build
+status=$?
+[ "$status" -eq 0 ] || cannot "next build exited $status (above)"
+nx_start "$tmp/server.log"
+nx_await "$tmp/server.log"
+case $? in
+	1) cannot "next start exited $NX_SERVER_STATUS before it answered (above)" ;;
+	2) cannot "next start didn't answer within ${NX_LIMIT}s (FACTORY_SMOKE_TIMEOUT in tools/verify/local.env)" ;;
+esac
+
+root="$(pwd -P)"
+config="$(cd "$dir" && pwd -P)/_scenarios.config.mjs"
+export FACTORY_SCENARIO_DIR="$root/$NX_SCENARIOS" FACTORY_SCENARIO_ORIGIN="http://127.0.0.1:$NX_PORT"
+: > "$tmp/results"
+bad=0
+for i in "${!scenarios[@]}"; do
+	f="${scenarios[i]}"
+	export FACTORY_SCENARIO_FILE="$root/$f" FACTORY_SCENARIO_REPORT="$tmp/report-$i.json" FACTORY_SCENARIO_OUTPUT="$tmp/output-$i"
+	nx_client 1 tool playwright test --config "$config" >&2
+	nx_client_wait
+	status=$?
+	if [ -s "$FACTORY_SCENARIO_REPORT" ] &&
+		line="$("${NODE_BIN:-node}" "$dir/_scenario_results.mjs" "$FACTORY_SCENARIO_REPORT" "$FACTORY_SCENARIO_FILE")"; then
+		verdict="${line%%$'\t'*}"
+		at="${line#*$'\t'}"
+	else
+		echo "scenarios: $f: Playwright exited $status without a report it could read (above)" >&2
+		verdict=ERROR
+		at=1
+	fi
+	name="${f#"$NX_SCENARIOS"/}"
+	printf '%s\t%s\t%s\n' "${name%.*}" "$verdict" "$f:$at" >> "$tmp/results"
+	[ "$verdict" = PASS ] || bad=1
+done
+cat "$tmp/server.log" >&2
+cat "$tmp/results"
+exit "$bad"

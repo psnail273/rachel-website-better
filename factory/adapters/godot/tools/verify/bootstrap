@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# The bootstrap: factory/core/start.sh runs it once per worktree, and it is the
+# only step allowed the network. A Godot project fetches nothing: gdUnit4 is
+# vendored under addons/, and the tools come from tools/verify/local.env.
+exit 0

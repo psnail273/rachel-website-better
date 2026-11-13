@@ -1,0 +1,7 @@
+"use client";
+
+import { User } from "@/server/db";
+
+export function Badge({ user }: { user: User }) {
+  return <span>{user.id}</span>;
+}

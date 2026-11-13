@@ -1,0 +1,8 @@
+extends GdUnitTestSuite
+
+
+func test_main_scene_has_the_main_script_at_its_root() -> void:
+	var scene := load("res://main/main.tscn") as PackedScene
+	var main: Node = auto_free(scene.instantiate())
+	assert_str(main.name).is_equal("Main")
+	assert_object(main.get_script()).is_equal(load("res://main/main.gd"))

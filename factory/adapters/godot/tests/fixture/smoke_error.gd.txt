@@ -1,0 +1,6 @@
+extends Node
+
+
+func _ready() -> void:
+	var values: Array[int] = []
+	print(values[3])

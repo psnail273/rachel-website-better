@@ -1,0 +1,20 @@
+# Tracked tool pins: <tool> <version>. The pin check (factory/core/pins.sh) runs in
+# prepare and compares each with what tools/verify/versions finds.
+# Node: what `node --version` prints, less the v. NODE_BIN (local.env) names it
+# when it isn't on PATH.
+node 26.13.1
+# pnpm: what `pnpm --version` prints in the project. package.json's packageManager
+# field names the same version, and pnpm switches to it (bootstrap fetches it).
+pnpm 12.18.0
+# The project's own tools: the versions pnpm-lock.yaml installs. package.json
+# names each one exactly; bootstrap and prepare install them --frozen-lockfile.
+# Playwright's version also pins the Chromium build bootstrap installs for smoke;
+# dependency-cruiser is the arch step's.
+next 16.4.6
+typescript 6.0.3
+eslint 10.14.0
+prettier 3.9.10
+vitest 5.1.0
+stryker 10.1.1
+playwright 1.65.0
+dependency-cruiser 18.7.2

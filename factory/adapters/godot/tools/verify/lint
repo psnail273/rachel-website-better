@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# The lint step: GDQuest gdscript-formatter's linter (pinned in tools/verify/pins)
+# plus the adapter's own checks (_lint_checks.awk).
+#   bash tools/verify/lint
+#
+# Every .gd file in scope (_gdscript.sh) is linted with every rule on, except that
+# private-access is off for the test files (tools/verify/test-paths), which may
+# reach into what they test. In them an unused fuzzer_iterations or fuzzer_seed
+# argument isn't a finding either:
+# gdUnit4 reads those by name, and seeding is required. Findings are
+# `<file>:<line> <rule> <message>`, with the linter's rule names
+# (gdscript-formatter lint --list-rules) and the adapter's: assertion-free,
+# unseeded-fuzzer, float-exact, vector-tolerance, unnamed-tolerance, fixed-wait,
+# branched-assert and unguarded-poll. @warning_ignore (R7) is the arch step's,
+# not lint's. A max-line-length message leaves out the line's length, so a
+# Baseline entry for a long line still matches after an edit that leaves it long.
+# Exits 1 on any finding.
+#
+# fixed-wait, branched-assert and unguarded-poll judge only the test lines the
+# branch adds: those changed since the diff base ($FACTORY_BASE, else the
+# merge-base of HEAD and $FACTORY_BASE_BRANCH, default dev, as the Core's
+# lib/diff.sh has it), committed or not, and every line of a new untracked test
+# file. So a wait, an assertion or a loop already on the base branch is no
+# finding, and a cleanup issue removes those.
+# With no diff base (no commit, or no such branch), every line counts.
+set -u
+
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_gdscript.sh"
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+gd_files > "$tmp/files"
+tests_re="$(gd_tests_regex)"
+grep -E "$tests_re" "$tmp/files" > "$tmp/tests"
+grep -vE "$tests_re" "$tmp/files" > "$tmp/product"
+
+# lint_with <file list> [linter options...]: lint those files, print findings.
+# The linter prints `file:line:rule:severity: message` and exits 1 when it found
+# something; any other line, stderr output or a higher exit is an error.
+lint_with() {
+	local list="$1" status files
+	shift
+	[ -s "$list" ] || return 0
+	mapfile -t files < "$list"
+	"$GDSCRIPT_FORMATTER" lint "$@" "${files[@]}" 2> "$tmp/err" | tr -d '\r' | sed 's#\\#/#g' > "$tmp/raw"
+	status=${PIPESTATUS[0]}
+	sed -n 's#^\([^:]*\):\([0-9][0-9]*\):\([a-z][a-z-]*\):[a-z]*: *\(.*\)$#\1:\2 \3 \4#p' "$tmp/raw" |
+		sed 's#^\([^ ]*\) max-line-length Line is too long\. Found [0-9]* characters, maximum allowed is \([0-9]*\)$#\1 max-line-length Line is too long: over the maximum of \2 characters#'
+	if [ -s "$tmp/err" ] || [ "$status" -gt 1 ] ||
+		grep -vqE '^[^:]+:[0-9]+:[a-z][a-z-]*:[a-z]+: ' "$tmp/raw"; then
+		cat "$tmp/raw" "$tmp/err" >&2
+		echo "tools/verify/lint:1 lint-error the linter exited $status or printed something unexpected (see stderr)"
+	fi
+}
+
+# added_lines <file...>: `<file>:<line>` for each line of these files that is new
+# or changed since the diff base, committed or not, and `<file>:*` for each one
+# untracked, all of whose lines are new. False when there is no diff base.
+added_lines() {
+	local base="${FACTORY_BASE:-}"
+	if [ -z "$base" ]; then
+		base="$(git merge-base HEAD "${FACTORY_BASE_BRANCH:-dev}" 2> /dev/null)" || return 1
+	fi
+	git rev-parse -q --verify "$base^{commit}" > /dev/null 2>&1 || return 1
+	git -c core.quotepath=off diff --no-color --no-ext-diff --no-renames -U0 \
+		--src-prefix=a/ --dst-prefix=b/ "$base" -- "$@" | tr -d '\r' | awk '
+		/^diff --git / { head = 1; next }
+		head && /^\+\+\+ b\// { file = substr($0, 7); next }
+		/^@@/ { head = 0; split($3, r, ","); n = substr(r[1], 2) + 0; next }
+		!head && /^\+/ { print file ":" n; n++ }
+	'
+	git ls-files --others --exclude-standard -- "$@" | tr -d '\r' | sed 's/$/:*/'
+}
+
+{
+	lint_with "$tmp/product"
+	lint_with "$tmp/tests" --disable private-access |
+		grep -vE " unused-argument Function argument .(fuzzer_iterations|fuzzer_seed). is unused"
+	if [ -s "$tmp/tests" ]; then
+		mapfile -t tests < "$tmp/tests"
+		all_added=0
+		added_lines "${tests[@]}" > "$tmp/added" || all_added=1
+		awk -v added_file="$tmp/added" -v all_added="$all_added" -f "$dir/_lint_checks.awk" "${tests[@]}"
+	fi
+} > "$tmp/findings"
+
+LC_ALL=C sort "$tmp/findings"
+[ ! -s "$tmp/findings" ]

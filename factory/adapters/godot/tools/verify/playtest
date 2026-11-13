@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# The playtest step (not a gate: the run calls it after the Drift sweep). It
+# prepares a playable build and prints where it is: the Godot default exports a
+# debug APK. A project tailors it (to install on its devices, say) when it adopts.
+#   bash tools/verify/playtest
+#
+# FACTORY_PLAYTEST_PRESET (local.env) names the export preset; the default is
+# the first Android preset in export_presets.cfg. FACTORY_PLAYTEST_OUT is the
+# APK's path; the default is .godot/factory/playtest/<preset>.apk. The export
+# needs Godot's export templates and the Android SDK set up in the editor.
+#
+# stdout: the APK's project-relative path, on success, and nothing else.
+# Exits 0 with the APK written, 1 otherwise (the reason on stderr).
+set -u
+
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_godot.sh"
+
+if ! godot_ready > /dev/null; then
+	godot_ready >&2
+	exit 1
+fi
+
+preset="${FACTORY_PLAYTEST_PRESET:-}"
+if [ -z "$preset" ] && [ -f export_presets.cfg ]; then
+	preset="$(tr -d '\r' < export_presets.cfg | awk '
+		/^\[preset\.[0-9]+\]$/ { name = "" }
+		/^name="/ { name = $0; sub(/^name="/, "", name); sub(/"$/, "", name) }
+		/^platform="Android"$/ && name != "" { print name; exit }
+	')"
+fi
+if [ -z "$preset" ]; then
+	echo "playtest: no Android export preset; add one in the editor, or set FACTORY_PLAYTEST_PRESET" >&2
+	exit 1
+fi
+
+out="${FACTORY_PLAYTEST_OUT:-$GODOT_WORK/playtest/$(printf '%s' "$preset" | tr -c 'A-Za-z0-9._-' '_').apk}"
+mkdir -p "$(dirname "$out")"
+rm -f "$out"
+godot --export-debug "$preset" "$out" >&2
+status=$?
+if [ "$status" -ne 0 ] || [ ! -f "$out" ]; then
+	echo "playtest: exporting preset \"$preset\" failed (Godot exited $status)" >&2
+	exit 1
+fi
+printf '%s\n' "$out"

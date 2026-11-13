@@ -1,0 +1,6 @@
+extends Node
+
+
+func _ready() -> void:
+	var untyped = 1
+	print(untyped)

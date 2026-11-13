@@ -1,0 +1,53 @@
+#!/usr/bin/env bash
+# The test step: gdUnit4 (vendored under addons/gdUnit4, pinned in
+# tools/verify/pins) over res://tests, writing the Core's results file.
+#   bash tools/verify/test      (the runner sets FACTORY_RESULTS_FILE)
+#
+# The results file has one line per test function, `<name>\t<status>\t<file:line>`
+# (factory/core/lib/results.sh): the function's name, PASS, FAILURE (a failed
+# assertion), ERROR (a crash, or a test gdUnit4 didn't report) or SKIP, and where
+# the function is declared. A test is any `func test_*(` in a test file
+# (tools/verify/test-paths). A parameterized test is one line, with its worst
+# case's status. Names must be unique across the project: the Core reads a name
+# listed twice as an error. The adapter judges nothing; the Core does.
+#
+# gdUnit4 writes its report to .godot/factory/gdunit/, emptied first. When it
+# writes none (exit 105: a script error while it discovered the tests), every
+# test is ERROR and each script error is a test-script-error finding on stdout.
+# Other findings:
+#   tools/verify/local.env:1 godot-missing     GODOT_BIN is unset or wrong
+# Exits 0 when gdUnit4 passed, 1 otherwise.
+set -u
+
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_gdscript.sh"
+. "$dir/_godot.sh"
+
+if [ -z "${FACTORY_RESULTS_FILE:-}" ]; then
+	echo "test: FACTORY_RESULTS_FILE is not set; run it through factory/core/verify.sh" >&2
+	exit 2
+fi
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+: > "$FACTORY_RESULTS_FILE"
+godot_ready || exit 1
+
+reports="$GODOT_WORK/gdunit"
+rm -rf "$reports"
+mkdir -p "$GODOT_WORK"
+godot -s -d --remote-debug tcp://127.0.0.1:0 \
+	res://addons/gdUnit4/bin/GdUnitCmdTool.gd -a res://tests --ignoreHeadlessMode -c \
+	-rd "res://$reports" > "$tmp/log" 2>&1
+status=$?
+cat "$tmp/log" >&2
+
+# Each declared test (gdunit_declared) with its status in the report.
+gd_glob_rules "$GD_TEST_PATHS" > "$tmp/test_rules"
+gd_all_files | gd_filter "$tmp/test_rules" > "$tmp/test_files"
+gdunit_declared "$tmp/test_files" > "$tmp/declared"
+gdunit_results "$reports" "$tmp/declared" "$dir" > "$FACTORY_RESULTS_FILE" ||
+	godot_errors "$tmp/log" test-script-error 'SCRIPT ERROR' "tools/verify/test:1"
+
+[ "$status" -eq 0 ]

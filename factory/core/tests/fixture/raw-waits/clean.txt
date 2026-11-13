@@ -1,0 +1,15 @@
+# Words that are no raw wait: a comment's sleep, a variable, a key, prose.
+# sleep 30
+local timeout
+for timeout in 540 171; do
+	run_wait -Timeout "$timeout"
+	echo "cut to $((10#$timeout))s"
+done
+assert_eq 20 "$(json_get hooks.0.timeout < settings.json)" "the SessionStart timeout"
+[ -z "${FAKE_TOOL_SLEEP:-}" ] || "$FAKE_TOOL_BLOCK"
+wait_until "the lock" test -d lock
+blocking_stand_in "$TEST_TMP/tab" "$TEST_TMP/never"
+echo "it sleeps until released" # then sleep is prose here
+timeout=170
+TEST_SECONDS_LEFT=3
+fail "it took too many SECONDS"

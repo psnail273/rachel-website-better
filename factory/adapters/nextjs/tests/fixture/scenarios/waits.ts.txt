@@ -1,0 +1,13 @@
+import { existsSync, writeFileSync } from "node:fs";
+import { expect, test } from "@playwright/test";
+
+// Opens the page, writes the file SCENARIO_STARTED names, then waits, with no
+// limit, for the one SCENARIO_RELEASE names.
+test("waits for its release", async ({ page }) => {
+  test.setTimeout(0);
+  await page.goto("/");
+  writeFileSync(process.env.SCENARIO_STARTED ?? "", "");
+  await expect
+    .poll(() => existsSync(process.env.SCENARIO_RELEASE ?? ""), { timeout: 0 })
+    .toBe(true);
+});

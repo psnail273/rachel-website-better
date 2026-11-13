@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# The assertion-count probe for the Core's deviation step (its assert-drop check):
+#   bash tools/verify/assert-counts <path> < <the file's text at some commit>
+# For a TypeScript or JavaScript file (<path> ends in .ts, .tsx, .mts, .cts, .js,
+# .jsx, .mjs or .cjs), prints `<line> <func> <count>` for each test in the text,
+# in file order: the line of its `it` or `test`, its name (its describe blocks'
+# titles and its own, joined by `.`: GET_api_health.answers_ok) and how many
+# assertion calls its body makes (expect(...) and the rest _lint_checks.awk
+# lists under counts=1). Comments, strings, regular expressions and JSX text
+# don't count. Prints nothing for any other path. Exits 0; 2 on a usage error.
+set -u
+
+[ "$#" -eq 1 ] || {
+	echo "usage: bash tools/verify/assert-counts <path> < <its text>" >&2
+	exit 2
+}
+case "$1" in
+	*.ts | *.tsx | *.mts | *.cts | *.js | *.jsx | *.mjs | *.cjs)
+		exec awk -v counts=1 -v path="$1" -f "$(dirname "${BASH_SOURCE[0]}")/_lint_checks.awk"
+		;;
+	*) cat > /dev/null ;;
+esac

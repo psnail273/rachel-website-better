@@ -1,0 +1,183 @@
+#!/usr/bin/env bash
+# The mutate step: StrykerJS (the project's, pinned in tools/verify/pins) with its
+# Vitest runner, on the lines an issue's Green phase changed, writing the
+# survivors file for the Verifier.
+#   bash tools/verify/mutate    (the runner sets FACTORY_SURVIVORS_FILE and
+#                                FACTORY_MUTATE_BASE, and runs it only in the
+#                                Green phase on a changed tree: lib/mutate.sh)
+#
+# What it mutates: each code file (.ts, .tsx, .mts, .cts, .js, .jsx, .mjs, .cjs)
+# the working tree changed since $FACTORY_MUTATE_BASE, or added, that the scope
+# checks (tools/verify/scope) and that is neither a test (tools/verify/test-paths),
+# generated, nor a tool's config at the root (*.config.*: no test runs it). Only
+# its changed lines (git diff -U0's new side), as Stryker's mutate ranges
+# (<file>:<first line>-<last line>); a file new since the base whole. Each
+# mutant runs against the tests that cover it (Stryker's perTest coverage).
+#
+# The config is the project's stryker.config.json (the skeleton's names the
+# Vitest runner and its plugin, which pnpm's layout needs named), with what the
+# step decides put over it: the mutate ranges, the json reporter alone, its
+# report and Stryker's sandbox in the step's own temp folder (so nothing lands
+# in the tree), no incremental file, no break threshold, never in place, and
+# STRYKER_JOBS (local.env) as the concurrency, else half the cores (at least 1).
+# The sandbox Stryker copies the project into leaves out what git ignores (but
+# node_modules, which Stryker links), the factory's own folder, and the
+# project's secrets (.env* and tools/verify/secret-paths): a test that needs an
+# ignored file fails Stryker's first run, and the step says mutate-failed.
+#
+# The survivors file (factory/core/lib/mutate.sh) has two # notes (what ran; the
+# counts), then one line per survivor, sorted:
+#   <file>:<line> <status> <mutator>: `<code>` -> `<mutant>`; tests: <test files>
+# <status> is survived (no test failed, or none reached it: tests: none), or
+# ignored (a `// Stryker disable` comment kept it from running: the Verifier
+# judges that reason). Killed, errored and timed-out mutants are only counted.
+# _stryker_mutants.mjs says how the report is read.
+#
+# Findings, on stdout (Stryker's own output goes to stderr):
+#   <file>:<line> mutant-<status> <...>   each survivor, as in the file: the step
+#                                         still passes
+#   tools/verify/mutate:1 mutate-failed   Stryker failed or wrote no report (its
+#                                         output is on stderr); no survivors file
+#   (and node-missing or tool-missing, as _nextjs.sh has them)
+# Exits 0 with the survivors file written, whatever survived; 1 when it can't run.
+set -u
+
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_nextjs.sh"
+
+if [ -z "${FACTORY_SURVIVORS_FILE:-}" ] || [ -z "${FACTORY_MUTATE_BASE:-}" ]; then
+	echo "mutate: FACTORY_SURVIVORS_FILE or FACTORY_MUTATE_BASE is not set; run it through factory/core/verify.sh" >&2
+	exit 2
+fi
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+tool_ready stryker || exit 1
+version="$(tool stryker --version 2> /dev/null | tr -d '\r' | sed -n 's/^\([0-9][0-9.]*\)$/\1/p' | head -n 1)"
+
+jobs="${STRYKER_JOBS:-}"
+case "$jobs" in '' | *[!0-9]*) jobs=$(($(nproc 2> /dev/null || echo 2) / 2)) ;; esac
+[ "$jobs" -ge 1 ] || jobs=1
+
+# glob_literal <text>: <text> as a glob (minimatch's) that matches only itself.
+# Stryker turns a backslash into /, so a special character goes in a class of
+# its own (a ] alone is no special one); a brace, which minimatch expands
+# before it reads classes, is ? (any one character but /).
+glob_literal() {
+	printf '%s\n' "$1" | sed -e 's/[[*?()]/[&]/g' -e 's/[{}]/?/g'
+}
+
+# The sources: changed or new code files in scope, less tests, generated files
+# and the root's tool configs.
+specs=()
+for ext in $NX_CODE_EXT; do specs+=("*.$ext"); done
+# shellcheck disable=SC2086 # the extension list splits on purpose
+nx_files $NX_CODE_EXT > "$tmp/scope"
+nx_glob_rules "$NX_GENERATED" > "$tmp/generated_rules"
+{
+	git -c core.quotepath=off diff --name-only --no-renames "$FACTORY_MUTATE_BASE" -- "${specs[@]}"
+	git -c core.quotepath=off ls-files --others --exclude-standard -- "${specs[@]}"
+} | LC_ALL=C sort -u > "$tmp/changed"
+nx_tests < "$tmp/changed" > "$tmp/tests"
+nx_filter "$tmp/generated_rules" < "$tmp/changed" > "$tmp/generated"
+: > "$tmp/sources"
+while IFS= read -r f; do
+	[ -f "$f" ] && grep -qxF -- "$f" "$tmp/scope" || continue
+	grep -qxF -- "$f" "$tmp/tests" "$tmp/generated" && continue
+	case "$f" in */*) ;; *.config.*) continue ;; esac
+	printf '%s\n' "$f" >> "$tmp/sources"
+done < "$tmp/changed"
+
+# The mutate ranges, one a line: each source's changed lines, or the whole of a
+# source new since the base.
+root="$(pwd -P)"
+: > "$tmp/mutate"
+while IFS= read -r f; do
+	pattern="$(glob_literal "$root/$f")"
+	if ! git cat-file -e "$FACTORY_MUTATE_BASE:$f" 2> /dev/null; then
+		printf '%s\n' "$pattern" >> "$tmp/mutate"
+		continue
+	fi
+	git -c core.quotepath=off diff --no-color --no-ext-diff --no-renames -U0 "$FACTORY_MUTATE_BASE" -- "$f" |
+		awk -v p="$pattern" '
+			/^@@ / {
+				split($3, a, ","); first = substr(a[1], 2) + 0
+				count = (2 in a) ? a[2] + 0 : 1
+				if (count > 0) print p ":" first "-" (first + count - 1)
+			}' >> "$tmp/mutate"
+done < "$tmp/sources"
+
+if [ -s "$tmp/mutate" ]; then
+	# What Stryker's sandbox leaves out: what git ignores (node_modules is
+	# Stryker's own), the factory's folder, and the secrets.
+	{
+		git -c core.quotepath=off ls-files --others --ignored --exclude-standard --directory |
+			sed 's#/$##' | grep -vx node_modules | while IFS= read -r f; do glob_literal "/$f"; done
+		echo /factory
+		echo '/.env*'
+		if [ -f "$dir/secret-paths" ]; then
+			tr -d '\r' < "$dir/secret-paths" | grep -v -e '^[[:space:]]*$' -e '^#' | sed 's#^/*#/#'
+		fi
+	} > "$tmp/ignore"
+	"${NODE_BIN:-node}" -e '
+		const fs = require("fs");
+		const [config, mutate, ignore, jobs, tmp] = process.argv.slice(1);
+		const lines = (f) => fs.readFileSync(f, "utf8").split("\n").filter(Boolean);
+		const base = fs.existsSync(config) ? JSON.parse(fs.readFileSync(config, "utf8")) : {};
+		const out = {
+			testRunner: "vitest",
+			plugins: ["@stryker-mutator/vitest-runner"],
+			...base,
+			mutate: lines(mutate),
+			ignorePatterns: [...(base.ignorePatterns ?? []), ...lines(ignore)],
+			reporters: ["json"],
+			jsonReporter: { fileName: tmp + "/report.json" },
+			tempDirName: tmp + "/sandbox",
+			cleanTempDir: "always",
+			concurrency: Number(jobs),
+			inPlace: false,
+			incremental: false,
+			thresholds: { ...(base.thresholds ?? {}), break: null },
+			allowConsoleColors: false,
+			fileLogLevel: "off",
+		};
+		delete out.$schema;
+		delete out.maxConcurrentTestRunners;
+		fs.writeFileSync(tmp + "/stryker.config.json", JSON.stringify(out, null, 2));
+	' stryker.config.json "$tmp/mutate" "$tmp/ignore" "$jobs" "$tmp" > "$tmp/config.log" 2>&1 || {
+		cat "$tmp/config.log" >&2
+		echo "stryker.config.json:1 mutate-failed could not read stryker.config.json (see stderr)"
+		exit 1
+	}
+	tool stryker run "$tmp/stryker.config.json" > "$tmp/log" 2>&1
+	status=$?
+	cat "$tmp/log" >&2
+	if [ "$status" -ne 0 ] || [ ! -s "$tmp/report.json" ]; then
+		echo "tools/verify/mutate:1 mutate-failed Stryker exited $status mutating $(tr '\n' ' ' < "$tmp/sources" | sed 's/ $//') (its output is on stderr)"
+		exit 1
+	fi
+	if ! "${NODE_BIN:-node}" "$dir/_stryker_mutants.mjs" "$tmp/report.json" > "$tmp/mutants"; then
+		echo "tools/verify/mutate:1 mutate-failed could not read Stryker's report (see stderr)"
+		exit 1
+	fi
+else
+	: > "$tmp/mutants"
+fi
+
+LC_ALL=C sort -t "$(printf '\t')" -k1,1 -k2,2n -k3,3n -k5,5 "$tmp/mutants" > "$tmp/sorted"
+awk -F '\t' '$4 == "survived" || $4 == "ignored" { printf "%s:%s %s %s; tests: %s\n", $1, $2, $4, $5, $6 }' "$tmp/sorted" > "$tmp/survivors"
+{
+	echo "# StrykerJS ${version:-?} on the lines changed since $(git rev-parse --short "$FACTORY_MUTATE_BASE"), each mutant against the tests that cover it (tools/verify/mutate)"
+	awk -F '\t' '{ c[$4]++ } END {
+		printf "# killed %d, survived %d, errored %d, timed out %d, ignored %d\n", c["killed"], c["survived"], c["errored"], c["timed-out"], c["ignored"]
+	}' "$tmp/sorted"
+	[ -s "$tmp/mutate" ] || echo "# no changed source line to mutate"
+	cat "$tmp/survivors"
+} > "$tmp/file"
+mkdir -p "$(dirname "$FACTORY_SURVIVORS_FILE")" && cp "$tmp/file" "$FACTORY_SURVIVORS_FILE" || {
+	echo "tools/verify/mutate:1 mutate-failed could not write the survivors file $FACTORY_SURVIVORS_FILE"
+	exit 1
+}
+sed 's/^\([^ ]*\) \([a-z-]*\) /\1 mutant-\2 /' "$tmp/survivors"
+exit 0

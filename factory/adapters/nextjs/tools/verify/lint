@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# The lint step: ESLint (the project's, pinned in tools/verify/pins) with the
+# project's flat config, plus the adapter's own checks (_lint_checks.awk).
+#   bash tools/verify/lint
+#
+# ESLint lints every code file in scope (_nextjs.sh: .ts, .tsx, .mts, .cts, .js,
+# .jsx, .mjs, .cjs) with --no-inline-config, so an eslint-disable comment turns
+# no rule off: a finding is fixed, or the Baseline holds it. The config is the
+# project's (eslint.config.mjs; the skeleton's turns on typescript-eslint's
+# strict type-aware rules, no-floating-promises and the no-unsafe-* among them).
+# Every message is a finding, a warning too; a file in scope the config ignores
+# is one as well (lint-ignored), so the config can't drop a file unseen.
+#
+# The adapter's own checks read the test files in scope (tools/verify/test-paths):
+# assertion-free (a test that asserts nothing) and fixed-wait (a test that waits
+# a fixed time); _lint_checks.awk says what each counts.
+#
+# Findings, on stdout (ESLint's own output goes to stderr):
+#   <file>:<line> <rule> <message>     an ESLint message (_eslint_findings.mjs has
+#                                      lint-parse, lint-ignored and lint-other), or
+#                                      one of the adapter's checks
+#   tools/verify/lint:1 lint-error <message>   ESLint failed without a report
+#   (and node-missing or tool-missing, as _nextjs.sh has them)
+# Exits 1 on any finding.
+set -u
+
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_nextjs.sh"
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+# shellcheck disable=SC2086 # the extension list splits on purpose
+nx_files $NX_CODE_EXT > "$tmp/files"
+nx_tests < "$tmp/files" > "$tmp/tests"
+[ -s "$tmp/files" ] || exit 0
+tool_ready eslint || exit 1
+
+{
+	mapfile -t files < "$tmp/files"
+	tool eslint --no-inline-config --format json --output-file "$tmp/report.json" "${files[@]}" > "$tmp/log" 2>&1
+	status=$?
+	cat "$tmp/log" >&2
+	# ESLint exits 1 when it reports a problem, 2 when it couldn't lint.
+	if [ "$status" -gt 1 ] || [ ! -s "$tmp/report.json" ]; then
+		echo "tools/verify/lint:1 lint-error ESLint exited $status without a report (see stderr)"
+	elif ! "${NODE_BIN:-node}" "$dir/_eslint_findings.mjs" "$tmp/report.json"; then
+		echo "tools/verify/lint:1 lint-error could not read ESLint's report (see stderr)"
+	fi
+	if [ -s "$tmp/tests" ]; then
+		mapfile -t tests < "$tmp/tests"
+		awk -f "$dir/_lint_checks.awk" "${tests[@]}"
+	fi
+} > "$tmp/findings"
+
+LC_ALL=C sort "$tmp/findings"
+[ ! -s "$tmp/findings" ]

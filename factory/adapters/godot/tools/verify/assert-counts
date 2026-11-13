@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# The assertion-count probe for the Core's deviation step (its assert-drop check):
+#   bash tools/verify/assert-counts <path> < <the file's text at some commit>
+# For a GDScript file (<path> ends in .gd), prints `<line> <func> <count>` for
+# each func in the text, in file order: the line it starts on, its name
+# (`<Class>.<func>` in an inner class) and how many assertion calls its body
+# makes, by the lint's branched-assert pattern: assert_*(), verify(),
+# verify_no_interactions(), verify_no_more_interactions() and fail(). Comments
+# and strings don't count (_lint_checks.awk, counts=1). Prints nothing for any
+# other path. Exits 0; 2 on a usage error.
+set -u
+
+[ "$#" -eq 1 ] || {
+	echo "usage: bash tools/verify/assert-counts <path> < <its text>" >&2
+	exit 2
+}
+case "$1" in
+	*.gd) exec awk -v counts=1 -f "$(dirname "${BASH_SOURCE[0]}")/_lint_checks.awk" ;;
+	*) cat > /dev/null ;;
+esac

@@ -1,0 +1,30 @@
+extends GdUnitTestSuite
+
+
+func test_asserts() -> void:
+	assert_int(1 + 1).is_equal(2)
+
+
+func test_no_assertion() -> void:
+	var node := Node.new()
+	print(node._secret)  # assert_int(1) in a comment does not count
+	node.free()
+
+
+func test_verifies() -> void:
+	var m: Node = mock(Node)
+	verify(m, 0).queue_free()
+
+
+func test_seeded(
+	fuzzer := Fuzzers.rangei(0, 9), fuzzer_iterations := 10, fuzzer_seed := 7
+) -> void:
+	assert_int(fuzzer.next_value()).is_between(0, 9)
+
+
+func test_unseeded(fuzzer := Fuzzers.rangei(0, 9), fuzzer_iterations := 10) -> void:
+	assert_int(fuzzer.next_value()).is_between(0, 9)
+
+
+func helper_without_assertion() -> void:
+	pass

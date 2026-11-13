@@ -1,0 +1,63 @@
+== the Verifier's wait of 2026-11-13 (amend node-path), which never ended
+until ! pgrep -f "factory/core/test.sh nextjs/adopt"; do sleep 2; done
+== the wait of 2026-11-12: a script's name, after another condition
+until [ -s prime.log ] && ! pgrep -f prime-store.sh; do sleep 2; done
+== -af, in a cluster
+pgrep -af foo
+== pkill on a quoted pattern with a space
+pkill -f "some script"
+== --full
+pgrep --full bar
+== -fl
+pgrep -fl stress.sh
+== in $(...), an assignment's value
+pid=$(pgrep -f myserver)
+== in backquotes
+x=`pgrep -f myserver`
+== in the string a bash -c runs, behind a wrapper
+timeout 600 bash -c 'until ! pgrep -f "test.sh"; do sleep 2; done'
+== a regex that matches its own text
+while pgrep -f 'node .*server' > /dev/null; do sleep 1; done
+== a bracketed pattern, in a command that names the script plainly too
+bash factory/core/test.sh hooks & until ! pgrep -f "[f]actory/core/test.sh"; do sleep 2; done
+== -i matches the plain name
+echo foo; pgrep -fi "F[O]O"
+== -x on a pattern that takes in the whole line
+pgrep -fx ".*stress.*"
+== pkill with a signal number first
+pkill -9 -f foo
+== pkill with a signal name first
+pkill -TERM -f foo
+== pidwait waits on its own shell too
+pidwait -f foo
+== a redirection after the pattern
+pgrep -f "foo" 2> /dev/null || echo none
+== inside double quotes, in $(...)
+kill "$(pgrep -f "abc")"
+== on a later line of a loop
+for i in 1 2 3; do
+	pgrep -f foo && break
+done
+== after a here-doc
+cat > notes.txt << EOF
+some text
+EOF
+pgrep -f foo
+== in a subshell
+(cd /tmp && pgrep -f foo)
+== after --
+pgrep -f -- foo
+== an option's argument first
+pgrep -d , -f foo
+== behind nice and its arguments
+nice -n 10 pkill -f foo
+== -O 0: every process is older than that, the shell too
+pgrep -O 0 -f foo
+== an array, then a pgrep that runs
+arr=(a b) && pgrep -f foo
+== a bash -c running more than one command: its shell stays, and matches
+bash -c "until ! pgrep -f \"it's\"; do sleep 1; done"
+== in $(...) in an array's value: it runs
+pids=($(pgrep -f foo))
+== an array before the command, a word of its own
+arr=(x) pgrep -f foo

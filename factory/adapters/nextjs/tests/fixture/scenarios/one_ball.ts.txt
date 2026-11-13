@@ -1,0 +1,13 @@
+import { expect, test } from "@playwright/test";
+import { serve } from "./_serve";
+
+test("the page opens with no ball in play", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByText("Balls in play: 0")).toBeVisible();
+});
+
+test("a tap serves one ball", async ({ page }) => {
+  await page.goto("/");
+  await serve(page);
+  await expect(page.getByText("Balls in play: 1")).toBeVisible();
+});

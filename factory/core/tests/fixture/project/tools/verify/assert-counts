@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+# The fixture's assertion-count probe (the deviation step's assert-drop check):
+# the stub stack counts no assertions.
+# factory: no-op

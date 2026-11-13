@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# The version probe for the pin check: prints `<tool> <version>` for each tool it
+# finds, nothing for one it doesn't. Tool locations come from local.env.
+if [ -n "${GODOT_BIN:-}" ] && command -v "$GODOT_BIN" > /dev/null 2>&1; then
+	# 4.7.1.stable.official.a13da4feb -> 4.7.1.stable
+	"$GODOT_BIN" --headless --version 2> /dev/null | tr -d '\r' |
+		sed -n 's/^\([0-9][0-9.]*[0-9]\)\.\([a-z][a-z0-9]*\)\..*$/godot \1.\2/p' | head -n 1
+fi
+if [ -f addons/gdUnit4/plugin.cfg ]; then
+	tr -d '\r' < addons/gdUnit4/plugin.cfg | sed -n 's/^version="\(.*\)"$/gdunit4 \1/p'
+fi
+formatter="${GDSCRIPT_FORMATTER:-gdscript-formatter}"
+if command -v "$formatter" > /dev/null 2>&1; then
+	"$formatter" --version 2> /dev/null | tr -d '\r' | sed -n 's/^gdscript-formatter \([^ ]*\)$/gdscript-formatter \1/p'
+fi
+gdmutant="${GDMUTANT_BIN:-gdmutant}"
+if command -v "$gdmutant" > /dev/null 2>&1; then
+	"$gdmutant" --version 2> /dev/null | tr -d '\r' | sed -n 's/^gdmutant \([^ ]*\)$/gdmutant \1/p'
+fi
+exit 0

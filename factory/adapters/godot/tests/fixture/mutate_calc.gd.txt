@@ -1,0 +1,13 @@
+extends RefCounted
+
+
+static func less_one(n: int) -> int:
+	return n - 1
+
+
+static func double(n: int) -> int:
+	return n * 2
+
+
+static func triple(n: int) -> int:
+	return n * 3

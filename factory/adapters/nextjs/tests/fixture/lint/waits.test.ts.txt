@@ -1,0 +1,52 @@
+import { expect, it, vi } from "vitest";
+
+const ratio = 10 / 2 / 5;
+const slash = /\/\*/;
+
+it("sleeps in a promise", async () => {
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  expect(ratio).toBe(1);
+});
+
+it("yields a turn", async () => {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise<void>((resolve) => setTimeout(resolve));
+  expect(slash.test("/*")).toBe(true);
+});
+
+it("awaits timers/promises", async () => {
+  await setTimeout(50);
+  await timers.setTimeout(50);
+  expect(1).toBe(1);
+});
+
+it("awaits a sleep helper", async () => {
+  await sleep(10);
+  await delay(10);
+  expect(1).toBe(1);
+});
+
+it("waits in other ways", async ({ page }) => {
+  await page.waitForTimeout(100);
+  Atomics.wait(cells, 0, 0, 10);
+  await scheduler.wait(10);
+  expect(1).toBe(1);
+});
+
+it("gives its reasons", async () => {
+  // fixed-wait: the debounce must not fire within 50 ms
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  await sleep(10); // fixed-wait: the event must stay silent
+  expect(1).toBe(1);
+});
+
+it("waits for the state", async () => {
+  await vi.waitFor(() => {
+    expect(1).toBe(1);
+  });
+  const timer = setTimeout(() => undefined, 1000);
+  clearTimeout(timer);
+  // await sleep(10) in a comment
+  const text = "await sleep(10)";
+  expect(text).toBe(`await sleep(${String(10)})`);
+});

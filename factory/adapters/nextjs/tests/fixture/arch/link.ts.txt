@@ -1,0 +1,8 @@
+// import { useRouter } from "next/router";
+import { Metadata } from "next";
+import Link from "next/link";
+export { notFound } from "next/navigation";
+
+export const hint = 'require("next/headers")';
+export const meta: Metadata = {};
+export { Link };

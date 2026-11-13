@@ -1,0 +1,45 @@
+import { describe, expect, it, vi } from "vitest";
+
+describe("cart", () => {
+  describe("total", () => {
+    it("adds the prices", () => {
+      expect(1 + 2).toBe(3);
+    });
+
+    it("applies the discount", () => {
+      expect(10 - 1).toBe(8);
+    });
+  });
+
+  it("loads the prices", () => {
+    throw new TypeError("prices is not a function");
+  });
+
+  it.skip("rounds the total", () => {
+    expect(1).toBe(1);
+  });
+
+  it.todo("taxes the total");
+
+  it("counts\tits\nchecks", () => {
+    expect.assertions(2);
+    expect(1).toBe(1);
+  });
+
+  it("refuses an empty cart", async () => {
+    await expect(Promise.resolve(0)).rejects.toThrow("empty");
+  });
+
+  it("settles", async () => {
+    await expect.poll(() => 1, { timeout: 50, interval: 5 }).toBe(2);
+  });
+
+  it("waits for a store that is never made", async () => {
+    const store: { size: number } | null = null as { size: number } | null;
+    await vi.waitFor(() => store!.size, { timeout: 50, interval: 5 });
+  });
+
+  it.each([1, 2])("keeps item %i", (n) => {
+    expect(n).toBeGreaterThan(1);
+  });
+});

@@ -1,0 +1,5 @@
+import { NextResponse } from "next/server";
+
+export function proxy(): NextResponse {
+  return NextResponse.next();
+}

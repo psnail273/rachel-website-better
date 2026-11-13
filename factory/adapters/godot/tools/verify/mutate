@@ -1,0 +1,300 @@
+#!/usr/bin/env bash
+# The mutate step: gdmutant (pinned in tools/verify/pins) on the GDScript lines an
+# issue's Green phase changed, writing the survivors file for the Verifier.
+#   bash tools/verify/mutate    (the runner sets FACTORY_SURVIVORS_FILE and
+#                                FACTORY_MUTATE_BASE, and runs it only in the
+#                                Green phase on a changed tree: lib/mutate.sh)
+#
+# What it mutates: each .gd file the working tree changed since
+# $FACTORY_MUTATE_BASE (or added) that the scope checks (tools/verify/scope) and
+# that is neither a test (tools/verify/test-paths) nor generated, only on the
+# changed lines (gdmutant's --since).
+#
+# Against which tests: a source's own test file, tests/<dir>/<name>_test.gd for
+# <dir>/<name>.gd; with none, its test folder tests/<dir>/; with none, all of
+# tests/. Each test target is one gdmutant run, over the sources that share it.
+# The own file keeps a run to seconds: every test against every mutant costs
+# minutes (#88's probe), so a survivor another file's test kills is the
+# Verifier's to justify.
+#
+# Kept apart: gdmutant runs on a copy of the project, never on the project
+# itself, and always with --jobs (GDMUTANT_JOBS, else half the cores; at least
+# 2), so each worker mutates a copy of its own and the real files are never
+# written (Godot's import cache and gdUnit4's res://reports/ included). The
+# copies live in the run's own temp folder, and every Godot it starts gets user
+# data of its own there, one folder per project copy, through a wrapper given as
+# gdmutant's --godot: user:// is under XDG_DATA_HOME, which no worker shares with
+# another or with the session. Only Linux Godot (WSL's too) reads XDG_DATA_HOME
+# for user://, and gdmutant can start the bash wrapper only where bash runs
+# scripts, so the step refuses to run on any other system (macOS, Git Bash): a
+# project there declares it a no-op.
+#
+# The copy holds what Godot and the tests need, since gdmutant copies all of it
+# once per worker (gitignored Android builds and exports made that 1.3 GB a
+# worker in a main checkout): each file git tracks, or would (untracked and not
+# ignored), as it is on disk, less the factory's own folder (factory/, which
+# Godot ignores; a source there that the scope takes back in is still copied);
+# and from .godot/ the import cache, less the export credentials, the export and
+# shader caches and the steps' scratch ($GODOT_WORK). Nor the project's secrets
+# (.env* and tools/verify/secret-paths): no test reads one, and no agent may. A
+# symlink stays one when what it names is in the copy, else it becomes a copy of
+# what it names. Nothing else git ignores is copied: a test that needs such a
+# file fails gdmutant's baseline run, and the step says mutate-failed. The copy's
+# .git links to the project's repository (its objects, refs and config, and
+# copies of its HEAD and index), so --since finds the same changed lines;
+# gdmutant runs in the copy, on the sources named relative to the project root,
+# as the survivors file names them.
+#
+# The survivors file (factory/core/lib/mutate.sh) has two # notes (what ran; the
+# counts), then one line per survivor:
+#   <file>:<line> <status> <mutator>: `<code>` -> `<mutant>`; tests: <target>
+# <status> is survived (no test failed, or none reached the line), or ignored (a
+# `# gdmutant: ignore` in the code kept it from running: the Verifier judges that
+# reason). Killed, errored (it doesn't compile, or the run errored) and timed-out
+# mutants are only counted. <code> is the changed text, up to the line's end and
+# then ... when the change runs over more lines; a tab in it shows as \t.
+#
+# Findings, on stdout:
+#   <file>:<line> mutant-<status> <...>        each survivor, as in the file: the
+#                                              step still passes
+#   tools/verify/local.env:1 gdmutant-missing  GDMUTANT_BIN, else gdmutant on PATH,
+#                                              doesn't run
+#   tools/verify/local.env:1 godot-missing     GODOT_BIN is unset or wrong
+#   tools/verify/mutate:1 mutate-unsupported   not Linux: user:// can't be kept apart
+#   tools/verify/mutate:1 mutate-failed        gdmutant failed, or the copy it
+#                                              runs on couldn't be made (the
+#                                              output is on stderr); no survivors
+#                                              file
+# prepare's pin check holds gdmutant's version. Exits 0 with the survivors file
+# written, whatever survived; 1 when it can't run.
+set -u
+
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_gdscript.sh"
+. "$dir/_godot.sh"
+
+if [ -z "${FACTORY_SURVIVORS_FILE:-}" ] || [ -z "${FACTORY_MUTATE_BASE:-}" ]; then
+	echo "mutate: FACTORY_SURVIVORS_FILE or FACTORY_MUTATE_BASE is not set; run it through factory/core/verify.sh" >&2
+	exit 2
+fi
+
+system="$(uname -s 2> /dev/null)"
+if [ "$system" != Linux ]; then
+	echo "tools/verify/mutate:1 mutate-unsupported this is ${system:-an unknown system}, not Linux: the step keeps each Godot's user:// apart through XDG_DATA_HOME, which only Linux Godot reads; where it can't run, declare it a no-op"
+	exit 1
+fi
+
+GDMUTANT_BIN="${GDMUTANT_BIN:-gdmutant}"
+GD_TESTS_DIR="tests"
+# Absolute, as gdmutant and its Godots run in the project's copy.
+case "$GDMUTANT_BIN" in /*) ;; */*) GDMUTANT_BIN="$PWD/$GDMUTANT_BIN" ;; esac
+case "$GODOT_BIN" in /*) ;; */*) GODOT_BIN="$PWD/$GODOT_BIN" ;; esac
+
+tmp="$(mktemp -d)"
+trap 'chmod -R u+w "$tmp" 2> /dev/null; rm -rf "$tmp"' EXIT
+
+version="$("$GDMUTANT_BIN" --version 2> /dev/null | tr -d '\r' | sed -n 's/^gdmutant \([^ ]*\)$/\1/p')"
+if [ -z "$version" ]; then
+	echo "tools/verify/local.env:1 gdmutant-missing '$GDMUTANT_BIN' doesn't run; install gdmutant (pinned in tools/verify/pins), or set GDMUTANT_BIN in tools/verify/local.env"
+	exit 1
+fi
+godot_ready || exit 1
+
+jobs="${GDMUTANT_JOBS:-}"
+case "$jobs" in '' | *[!0-9]*) jobs=$(($(nproc 2> /dev/null || echo 4) / 2)) ;; esac
+[ "$jobs" -ge 2 ] || jobs=2
+
+# The sources: changed or new .gd files in the scope, less tests and generated files.
+gd_glob_rules "$GD_TEST_PATHS" > "$tmp/test_rules"
+gd_glob_rules "$dir/generated" > "$tmp/generated_rules"
+gd_files > "$tmp/scope"
+{
+	git diff --name-only --no-renames "$FACTORY_MUTATE_BASE" -- '*.gd'
+	git ls-files --others --exclude-standard -- '*.gd'
+} | LC_ALL=C sort -u > "$tmp/changed"
+gd_filter "$tmp/test_rules" < "$tmp/changed" > "$tmp/tests"
+gd_filter "$tmp/generated_rules" < "$tmp/changed" > "$tmp/generated"
+: > "$tmp/targets"
+while IFS= read -r f; do
+	[ -f "$f" ] && grep -qxF -- "$f" "$tmp/scope" || continue
+	grep -qxF -- "$f" "$tmp/tests" "$tmp/generated" && continue
+	case "$f" in */*) sub="${f%/*}/" ;; *) sub="" ;; esac
+	name="${f##*/}"
+	if [ -f "$GD_TESTS_DIR/$sub${name%.gd}_test.gd" ]; then
+		target="$GD_TESTS_DIR/$sub${name%.gd}_test.gd"
+	elif [ -n "$sub" ] && [ -d "$GD_TESTS_DIR/${sub%/}" ]; then
+		target="$GD_TESTS_DIR/${sub%/}"
+	else
+		target="$GD_TESTS_DIR"
+	fi
+	printf '%s\t%s\n' "$target" "$f" >> "$tmp/targets"
+done < "$tmp/changed"
+
+# secret_paths: the project's secrets, one a line: its .env* files and what each
+# line of tools/verify/secret-paths globs, at the project root, less *.example.
+secret_paths() {
+	local IFS= line glob entry globs=('.env*')
+	if [ -f "$dir/secret-paths" ]; then
+		while IFS= read -r line || [ -n "$line" ]; do
+			line="${line%$'\r'}"
+			case "$line" in '' | '#'*) continue ;; esac
+			globs+=("$line")
+		done < "$dir/secret-paths"
+	fi
+	# Unquoted, a line globs; with IFS empty, a space in it doesn't split it.
+	for glob in "${globs[@]}"; do
+		for entry in $glob; do
+			[ -e "$entry" ] || [ -L "$entry" ] || continue
+			[[ "$entry" == *.example ]] || printf '%s\n' "${entry%/}"
+		done
+	done
+}
+
+# is_secret <path>: whether <path>, or a folder it is in, is in secrets.
+declare -A secrets=()
+is_secret() {
+	local p="$1"
+	while :; do
+		[ -z "${secrets[$p]:-}" ] || return 0
+		case "$p" in */*) p="${p%/*}" ;; *) return 1 ;; esac
+	done
+}
+
+# stage_project <dir>: the copy gdmutant runs on, in <dir> (the header's "The
+# copy"), with its git directory beside it in <dir>.git.
+stage_project() {
+	local f root real git_dir
+	mkdir -p "$1" "$1.git" || return 1
+	while IFS= read -r f; do secrets[$f]=1; done < <(secret_paths)
+	git ls-files -z --cached --others --exclude-standard > "$tmp/listed" || return 1
+	{
+		while IFS= read -r -d '' f; do
+			case "$f" in factory/* | .godot | .godot/*) continue ;; esac
+			[ -e "$f" ] && printf '%s\0' "$f"
+		done < "$tmp/listed"
+		cut -f 2 "$tmp/targets" | grep '^factory/' | tr '\n' '\0'
+		# -H: a .godot/ that is a symlink is listed as the folder it names.
+		[ ! -d .godot ] || find -H .godot \( -path .godot/export_credentials.cfg -o -path .godot/exported \
+			-o -path .godot/shader_cache -o -path "$GODOT_WORK" \) -prune -o ! -type d -print0
+	} > "$tmp/found" || return 1
+	while IFS= read -r -d '' f; do
+		[ "${#secrets[@]}" -eq 0 ] || ! is_secret "$f" || continue
+		printf '%s\0' "$f"
+		case "$f" in */*) printf '%s\0' "$1/${f%/*}" >&3 ;; esac
+	done < "$tmp/found" > "$tmp/copied" 3> "$tmp/folders"
+	# Each folder made first, so cp --parents can't make one read-only before
+	# its last file is in.
+	LC_ALL=C sort -zu "$tmp/folders" | xargs -0 -r mkdir -p -- || return 1
+	xargs -0 -r cp -PR --parents --preserve=timestamps -t "$1" -- < "$tmp/copied" || return 1
+	# A symlink stays one when what it names is in the copy, as git and
+	# gdmutant see it in the project; else it becomes a copy of what it names.
+	root="$(cd "$1" && pwd -P)" && find "$1" -type l -print0 > "$tmp/links" || return 1
+	while IFS= read -r -d '' f; do
+		real="$(realpath -e -- "$f" 2> /dev/null)" && case "$real" in "$root"/*) continue ;; esac
+		rm -f -- "$f" && cp -LR --preserve=timestamps -- "${f#"$1"/}" "$f" || return 1
+	done < "$tmp/links"
+	# The index as it is (assume-unchanged and the like included), and a split
+	# index's shared files.
+	git_dir="$(git rev-parse --path-format=absolute --git-dir)" &&
+		git rev-parse --path-format=absolute --git-common-dir > "$1.git/commondir" &&
+		cp -- "$(git rev-parse --git-path HEAD)" "$1.git/HEAD" &&
+		printf 'gitdir: %s\n' "$1.git" > "$1/.git" &&
+		f="$(git rev-parse --git-path index)" || return 1
+	[ ! -f "$f" ] || cp -- "$f" "$1.git/index" || return 1
+	for f in "$git_dir"/sharedindex.*; do
+		[ ! -f "$f" ] || cp -- "$f" "$1.git/" || return 1
+	done
+}
+stage="$tmp/project"
+if [ -s "$tmp/targets" ] && ! stage_project "$stage" >&2; then
+	echo "tools/verify/mutate:1 mutate-failed could not copy the project for gdmutant (the output is on stderr)"
+	exit 1
+fi
+
+# The Godot gdmutant runs: the real one, with user data of its own for each
+# project path it is given (the step's copy, or a worker's).
+cat > "$tmp/godot" << 'SH'
+#!/usr/bin/env bash
+path="" prev=""
+for arg in "$@"; do
+	[ "$prev" = --path ] && path="$arg"
+	prev="$arg"
+done
+home="$MUTATE_USER_ROOT/$(printf '%s' "$path" | cksum | tr ' ' '-')"
+mkdir -p "$home/data" "$home/config" "$home/cache"
+export XDG_DATA_HOME="$home/data" XDG_CONFIG_HOME="$home/config" XDG_CACHE_HOME="$home/cache"
+exec "$MUTATE_GODOT" "$@"
+SH
+chmod +x "$tmp/godot"
+mkdir -p "$tmp/work" "$tmp/user/session"
+export MUTATE_GODOT="$GODOT_BIN" MUTATE_USER_ROOT="$tmp/user" TMPDIR="$tmp/work"
+export XDG_DATA_HOME="$tmp/user/session" XDG_CONFIG_HOME="$tmp/user/session" XDG_CACHE_HOME="$tmp/user/session"
+
+# One gdmutant run per test target; each JSON report is read into
+# `<file>\t<line>\t<column>\t<status>\t<mutation>\t<target>` lines.
+: > "$tmp/mutants"
+n=0
+while IFS= read -r target; do
+	n=$((n + 1))
+	mapfile -t sources < <(awk -F '\t' -v t="$target" '$1 == t { print $2 }' "$tmp/targets")
+	(cd "$stage" && exec "$GDMUTANT_BIN" run --runner gdunit4 --godot "$tmp/godot" --project "$stage" \
+		--tests "res://$target" --since "$FACTORY_MUTATE_BASE" --jobs "$jobs" \
+		--progress none --no-require-clean --json "$tmp/report-$n.json" "${sources[@]}") >&2
+	status=$?
+	if [ "$status" -ne 0 ] || [ ! -f "$tmp/report-$n.json" ]; then
+		echo "tools/verify/mutate:1 mutate-failed gdmutant exited $status mutating ${sources[*]} against res://$target (its output is on stderr)"
+		exit 1
+	fi
+	# gdmutant writes Stryker's JSON one key to a line: each mutant's id,
+	# mutatorName, replacement, location (start, then end: line, column) and
+	# status, in that order. Columns count from 1, the end's past the change.
+	awk -v target="$target" '
+		function str(s) {
+			sub(/^[^:]*: "/, "", s); sub(/",?$/, "", s)
+			gsub(/\\\\/, "\001", s); gsub(/\\"/, "\"", s); gsub(/\001/, "\\\\", s)
+			return s
+		}
+		function num(s) { sub(/^[^:]*: /, "", s); sub(/,$/, "", s); return s + 0 }
+		function code(file, line, from, to,   text, n, out) {
+			if (!((file, line) in src)) {
+				n = 0
+				while ((getline text < file) > 0) { sub(/\r$/, "", text); src[file, ++n] = text }
+				close(file)
+			}
+			out = src[file, line]
+			return to > from ? substr(out, from, to - from) : substr(out, from) "..."
+		}
+		/^ *"[^"]+\.gd": \{$/ { file = $0; sub(/^ *"/, "", file); sub(/": \{$/, "", file) }
+		/^ *"id": / { mutator = ""; repl = ""; at = "" }
+		/^ *"mutatorName": / { mutator = str($0) }
+		/^ *"replacement": / { repl = str($0) }
+		/^ *"start": \{$/ { at = "start" }
+		/^ *"end": \{$/ { at = "end" }
+		/^ *"line": / { if (at == "start") sl = num($0); else el = num($0) }
+		/^ *"column": / { if (at == "start") sc = num($0); else ec = num($0) }
+		/^ *"status": / {
+			s = str($0)
+			s = s == "Killed" ? "killed" : s == "Survived" || s == "NoCoverage" ? "survived" : s == "Timeout" ? "timed-out" : s == "Ignored" ? "ignored" : "errored"
+			change = mutator ": `" code(file, sl, sc, el == sl ? ec : 0) "` -> `" repl "`"
+			gsub(/\t/, "\\t", change)
+			printf "%s\t%d\t%d\t%s\t%s\t%s\n", file, sl, sc, s, change, target
+		}
+	' "$tmp/report-$n.json" >> "$tmp/mutants"
+done < <(cut -f 1 "$tmp/targets" | LC_ALL=C sort -u)
+
+LC_ALL=C sort -t "$(printf '\t')" -k1,1 -k2,2n -k3,3n -k5,5 "$tmp/mutants" > "$tmp/sorted"
+awk -F '\t' '$4 == "survived" || $4 == "ignored" { printf "%s:%s %s %s; tests: %s\n", $1, $2, $4, $5, $6 }' "$tmp/sorted" > "$tmp/survivors"
+{
+	echo "# gdmutant $version on the GDScript lines changed since $(git rev-parse --short "$FACTORY_MUTATE_BASE"), each source against its own tests (tools/verify/mutate)"
+	awk -F '\t' '{ c[$4]++ } END {
+		printf "# killed %d, survived %d, errored %d, timed out %d, ignored %d\n", c["killed"], c["survived"], c["errored"], c["timed-out"], c["ignored"]
+	}' "$tmp/sorted"
+	[ -s "$tmp/targets" ] || echo "# no changed GDScript source to mutate"
+	cat "$tmp/survivors"
+} > "$tmp/file"
+mkdir -p "$(dirname "$FACTORY_SURVIVORS_FILE")" && cp "$tmp/file" "$FACTORY_SURVIVORS_FILE" || {
+	echo "tools/verify/mutate:1 mutate-failed could not write the survivors file $FACTORY_SURVIVORS_FILE"
+	exit 1
+}
+sed 's/^\([^ ]*\) \([a-z-]*\) /\1 mutant-\2 /' "$tmp/survivors"
+exit 0

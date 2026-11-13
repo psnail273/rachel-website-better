@@ -1,0 +1,7 @@
+# A test file that turns extglob on and writes git config at load: the check that
+# sources it must not reach the runner's config.
+shopt -s extglob
+git config --global review.probe changed
+test_glob() {
+	case foo in @(foo|bar)) true ;; *) false ;; esac
+}

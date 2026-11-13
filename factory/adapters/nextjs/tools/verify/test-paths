@@ -1,0 +1,5 @@
+# Which files are tests: one glob per line, the scope's syntax. The red gate, the
+# Lock and the lint step's own checks read it.
+**/*.test.ts
+**/*.test.tsx
+tests/**

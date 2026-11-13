@@ -1,0 +1,9 @@
+import "server-only";
+
+export interface User {
+  id: number;
+}
+
+export function loadUser(id: number): User {
+  return { id };
+}

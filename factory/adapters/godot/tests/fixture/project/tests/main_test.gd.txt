@@ -1,0 +1,6 @@
+extends GdUnitTestSuite
+
+
+func test_main_script_loads() -> void:
+	var script := load("res://main.gd") as Script
+	assert_bool(script.can_instantiate()).is_true()

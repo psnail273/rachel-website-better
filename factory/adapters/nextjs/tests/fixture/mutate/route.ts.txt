@@ -1,0 +1,3 @@
+export function GET(_request: Request, { params }: { params: { id: string } }): Response {
+  return Response.json({ id: params.id, open: true });
+}

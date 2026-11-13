@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+# Prints the version of each tool it finds. The fixture's tool reports the
+# version local.env gives it, and nothing when local.env doesn't set one.
+[ -n "${FAKETOOL_VERSION:-}" ] && echo "faketool $FAKETOOL_VERSION"
+exit 0

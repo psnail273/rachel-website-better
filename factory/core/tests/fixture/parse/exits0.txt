@@ -1,0 +1,5 @@
+# A test file that ends its loading with exit 0: none of its tests is listed.
+exit 0
+test_never() {
+	true
+}

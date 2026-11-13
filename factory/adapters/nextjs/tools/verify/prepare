@@ -1,0 +1,164 @@
+#!/usr/bin/env bash
+# The prepare step, after the Core's pin check:
+#   1. the packages, reinstalled offline from pnpm's store exactly as
+#      pnpm-lock.yaml has them (pnpm install --offline --frozen-lockfile), so a
+#      lockfile a branch changed is installed before any step reads it, and a
+#      package the store lacks fails here, not halfway through a gate (bootstrap,
+#      the network step, fetches it);
+#   2. next typegen, which writes the route types (.next/types/, next-env.d.ts)
+#      that tsc and ESLint's type-aware rules read;
+#   3. the scope cross-check: tools/verify/scope against what tsc compiles for
+#      tsconfig.json (tsc --listFilesOnly), which is what ships: the files
+#      tsconfig.json includes and every file they import.
+#
+# The cross-check looks at every TypeScript file (.ts, .tsx, .mts, .cts):
+#   one in scope that tsc doesn't compile                   scope-not-typechecked
+#   one tsc compiles that is outside the scope, except      scope-unchecked
+#   node_modules/ and the generated files
+#   (tools/verify/generated)
+# A project with no tsconfig.json has nothing to cross-check.
+#
+# The Scenario folder (tools/verify/scenario-folder) is no step's: no step's file
+# list holds it (_nextjs.sh), the cross-check skips it, and no tool a gate step
+# runs may reach it. Where it is on disk (an issue's worktree leaves it out),
+#   a file in it that tsc compiles, in the cross-check's    scenario-not-ignored
+#   list (typecheck and next build would read it)
+#   a file in it that Vitest would run (vitest list         scenario-not-ignored
+#   --filesOnly, run only then; test and mutate would)
+#
+# Findings, on stdout (the tools' output goes to stderr):
+#   tools/verify/scope:1 scope-missing         there is no scope file
+#   tsconfig.json:<line> scenario-not-ignored    as above, at its exclude
+#   <vitest config>:<line> scenario-not-ignored  as above, at its first exclude
+#   tsconfig.json:<line> scope-...             as above, at its include
+#   tools/verify/local.env:1 node-missing      no Node (NODE_BIN, or on PATH)
+#   tools/verify/local.env:1 pnpm-missing      no pnpm (PNPM_BIN, or on PATH)
+#   pnpm-lock.yaml:1 install-failed            the offline install failed
+#   package.json:1 tool-missing                a tool isn't in node_modules/.bin
+#   package.json:1 typegen-failed              next typegen exited non-zero
+#   tsconfig.json:1 scope-list-failed          tsc couldn't list what it compiles
+# Exits 1 on any finding.
+set -u
+
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_nextjs.sh"
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+found=0
+
+if [ ! -f "$NX_SCOPE" ]; then
+	echo "$NX_SCOPE:1 scope-missing no scope file; it lists the globs of what the gates check (what ships plus the tests)"
+	found=1
+fi
+
+node_ready || exit 1
+pnpm_ready || exit 1
+if [ ! -f pnpm-lock.yaml ]; then
+	echo "pnpm-lock.yaml:1 install-failed no pnpm-lock.yaml; the gates install exactly what it locks: make it with pnpm install and commit it"
+	exit 1
+fi
+pnpm install --offline --frozen-lockfile > "$tmp/install.log" 2>&1
+status=$?
+cat "$tmp/install.log" >&2
+if [ "$status" -ne 0 ]; then
+	echo "pnpm-lock.yaml:1 install-failed pnpm install --offline --frozen-lockfile exited $status (see stderr); run bash tools/verify/bootstrap, the step allowed the network, then prepare again"
+	exit 1
+fi
+
+if tool_ready next; then
+	tool next typegen > "$tmp/typegen.log" 2>&1
+	status=$?
+	cat "$tmp/typegen.log" >&2
+	if [ "$status" -ne 0 ]; then
+		echo "package.json:1 typegen-failed next typegen exited $status (see stderr)"
+		found=1
+	fi
+else
+	found=1
+fi
+
+# scope_check: the cross-check (see the header).
+scope_check() {
+	[ -f "$NX_SCOPE" ] && [ -f tsconfig.json ] || return 0
+	tool_ready tsc || return 1
+	local status here real line bad=0 f
+	tool tsc --listFilesOnly -p tsconfig.json > "$tmp/listed" 2> "$tmp/list.err"
+	status=$?
+	if [ "$status" -ne 0 ]; then
+		cat "$tmp/listed" "$tmp/list.err" >&2
+		echo "tsconfig.json:1 scope-list-failed tsc --listFilesOnly exited $status (see stderr); typecheck names the error"
+		return 1
+	fi
+	here="$(pwd)/"
+	real="$(pwd -P)/"
+	nx_glob_rules "$NX_GENERATED" > "$tmp/generated_rules"
+	tr -d '\r' < "$tmp/listed" | awk -v a="$here" -v b="$real" '
+		index($0, a) == 1 { print substr($0, length(a) + 1); next }
+		index($0, b) == 1 { print substr($0, length(b) + 1) }
+	' | grep -v -e '^node_modules/' -e '/node_modules/' | LC_ALL=C sort -u > "$tmp/compiled_tsc"
+	# The Scenario folder's files are scenarios_check's.
+	if [ -n "$NX_SCENARIOS" ]; then
+		awk -v d="$NX_SCENARIOS/" 'index($0, d) == 1' "$tmp/compiled_tsc" > "$tmp/compiled_scenarios"
+		awk -v d="$NX_SCENARIOS/" 'index($0, d) != 1' "$tmp/compiled_tsc" > "$tmp/compiled_all"
+	else
+		cp "$tmp/compiled_tsc" "$tmp/compiled_all"
+	fi
+	nx_filter "$tmp/generated_rules" < "$tmp/compiled_all" > "$tmp/compiled_generated"
+	LC_ALL=C comm -23 "$tmp/compiled_all" "$tmp/compiled_generated" > "$tmp/compiled"
+	# shellcheck disable=SC2086 # the extension list splits on purpose
+	nx_files $NX_TS_EXT > "$tmp/scope"
+	line="$(json_line tsconfig.json include)"
+	while IFS= read -r f; do
+		echo "tsconfig.json:$line scope-not-typechecked $f is in $NX_SCOPE, but tsc doesn't compile it; add it to tsconfig.json's include"
+		bad=1
+	done < <(LC_ALL=C comm -23 "$tmp/scope" "$tmp/compiled")
+	while IFS= read -r f; do
+		echo "tsconfig.json:$line scope-unchecked tsc compiles $f, which is outside $NX_SCOPE (tsconfig.json's include or an import reaches it); scope it, or keep it out of both"
+		bad=1
+	done < <(LC_ALL=C comm -13 "$tmp/scope" "$tmp/compiled")
+	return "$bad"
+}
+
+scope_check || found=1
+
+# scenarios_check: no file of the Scenario folder on disk reaches tsc (from the
+# cross-check's list) or Vitest (see the header).
+scenarios_check() {
+	[ -n "$NX_SCENARIOS" ] && [ -d "$NX_SCENARIOS" ] || return 0
+	local f config="" bad=0
+	if [ -s "$tmp/compiled_scenarios" ]; then
+		while IFS= read -r f; do
+			echo "tsconfig.json:$(json_line tsconfig.json exclude) scenario-not-ignored tsc compiles $f, in the Scenario folder, so typecheck and next build would read it; add \"$NX_SCENARIOS\" to tsconfig.json's exclude"
+		done < "$tmp/compiled_scenarios"
+		bad=1
+	fi
+	[ -n "$(find "$NX_SCENARIOS" -type f -print -quit)" ] || return "$bad"
+	tool_ready vitest > /dev/null || return "$bad"
+	tool vitest list --filesOnly --json="$tmp/vitest_list.json" > "$tmp/vitest_list.log" 2>&1 ||
+		{
+			cat "$tmp/vitest_list.log" >&2
+			return "$bad"
+		}
+	for f in vitest.config.ts vitest.config.mts vitest.config.cts vitest.config.js vitest.config.mjs vitest.config.cjs; do
+		[ -f "$f" ] && config="$f" && break
+	done
+	[ -n "$config" ] || config=package.json
+	while IFS= read -r f; do
+		echo "$config:$(awk '/exclude/ { print NR; f = 1; exit } END { if (!f) print 1 }' "$config") scenario-not-ignored Vitest would run $f, in the Scenario folder, as a test; add \"$NX_SCENARIOS/**\" to its test.exclude"
+		bad=1
+	done < <("${NODE_BIN:-node}" -e '
+		const [file, root, folder] = process.argv.slice(1);
+		for (const { file: f } of JSON.parse(require("fs").readFileSync(file, "utf8"))) {
+			for (const base of [root, require("fs").realpathSync(root)]) {
+				if (f.startsWith(base + "/") && f.slice(base.length + 1).startsWith(folder + "/")) { console.log(f.slice(base.length + 1)); break; }
+			}
+		}
+	' "$tmp/vitest_list.json" "$(pwd)" "$NX_SCENARIOS" | LC_ALL=C sort -u)
+	return "$bad"
+}
+
+scenarios_check || found=1
+
+exit "$found"

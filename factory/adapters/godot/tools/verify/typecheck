@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# The typecheck step: Godot's own parser and static checks, in one process.
+#   bash tools/verify/typecheck
+#
+# A SceneTree script (_typecheck.gd.txt, run from outside the project so it is
+# never imported or exported) loads every .gd file in scope (_gdscript.sh) with
+# the cache off, the way --check-only does, and fails one that doesn't load. It
+# needs prepare's import first.
+#
+# Only a warning set to Error (2) gates headlessly, so project.godot must set
+# every debug/gdscript/warnings/* level to Error, except those named in
+# LEFT_OFF below, and its directory_rules may exclude no folder but res://addons.
+# A parse error in one script also fails the scripts that depend on it: read the
+# first finding first.
+#
+# Findings, on stdout (Godot's output goes to stderr):
+#   <file>:<line> typecheck <message>          Godot's parse or compile error
+#   <file>:1 typecheck-load <message>          the script didn't load, with no error naming it
+#   project.godot:<line> typecheck-warning-level <message>   a warning below Error
+#   project.godot:<line> typecheck-directory-rule <message>  a folder excluded from the warnings
+#   tools/verify/local.env:1 godot-missing     GODOT_BIN is unset or wrong
+# Exits 1 on any finding.
+set -u
+
+# The warnings that stay below Error: too noisy, and against the style guide.
+LEFT_OFF="return_value_discarded,inferred_declaration"
+
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_gdscript.sh"
+. "$dir/_godot.sh"
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+godot_ready || exit 1
+
+gd_files > "$tmp/files"
+cp "$dir/_typecheck.gd.txt" "$tmp/typecheck.gd" || exit 2
+godot -s "$(godot_os_path "$tmp/typecheck.gd")" -- "$(godot_os_path "$tmp/files")" "$LEFT_OFF" \
+	> "$tmp/out" 2> "$tmp/err"
+status=$?
+tr -d '\r' < "$tmp/out" > "$tmp/marks"
+cat "$tmp/out" "$tmp/err" >&2
+
+found=0
+if [ "$status" -ne 0 ]; then
+	echo "tools/verify/typecheck:1 typecheck-error the typecheck script exited $status (see stderr)"
+	found=1
+fi
+
+# project_line <key>: the line of project.godot's <key>= in [debug], else of the
+# [debug] header, else 1.
+project_line() {
+	[ -f project.godot ] || {
+		echo 1
+		return
+	}
+	tr -d '\r' < project.godot | awk -v key="$1" '
+		/^\[/ { sect = $0 }
+		sect == "[debug]" && $0 == "[debug]" && !header { header = NR }
+		sect == "[debug]" && index($0, key "=") == 1 { found = NR }
+		END { print found ? found : (header ? header : 1) }
+	'
+}
+
+level_name() {
+	case "$1" in 0) echo Ignore ;; 1) echo Warn ;; *) echo "level $1" ;; esac
+}
+
+while read -r mark a b; do
+	case "$mark" in
+		TYPECHECK-LEVEL)
+			echo "project.godot:$(project_line "gdscript/warnings/$a") typecheck-warning-level debug/gdscript/warnings/$a is $(level_name "$b") ($b); the gate needs Error (2)"
+			found=1
+			;;
+		TYPECHECK-RULE)
+			echo "project.godot:$(project_line gdscript/warnings/directory_rules) typecheck-directory-rule debug/gdscript/warnings/directory_rules excludes $a; only res://addons may be excluded"
+			found=1
+			;;
+	esac
+done < "$tmp/marks"
+
+godot_errors "$tmp/err" typecheck 'SCRIPT ERROR' "tools/verify/typecheck:1" > "$tmp/errors"
+cat "$tmp/errors"
+[ -s "$tmp/errors" ] && found=1
+while read -r mark path; do
+	[ "$mark" = TYPECHECK-FAIL ] || continue
+	found=1
+	awk -v p="$path:" 'index($0, p) == 1 { f = 1 } END { exit !f }' "$tmp/errors" && continue
+	echo "$path:1 typecheck-load the script didn't load (a script it depends on may be the cause; see stderr)"
+done < "$tmp/marks"
+
+exit "$found"

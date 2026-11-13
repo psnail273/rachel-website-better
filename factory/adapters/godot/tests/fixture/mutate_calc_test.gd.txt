@@ -1,0 +1,14 @@
+extends GdUnitTestSuite
+
+const Calc := preload("res://src/calc.gd")
+
+
+func test_double() -> void:
+	# Where this Godot keeps user://, one file per process: the mutate step's
+	# test of user data kept apart reads them.
+	var where := OS.get_environment("MUTATE_USER_LOG")
+	if where != "":
+		var record := FileAccess.open("%s/%d" % [where, OS.get_process_id()], FileAccess.WRITE)
+		record.store_line(OS.get_user_data_dir())
+		record.close()
+	assert_int(Calc.double(3)).is_equal(6)

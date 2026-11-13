@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# The smoke step: the app built for production and started, then `/` loaded in a
+# headless browser.
+#   bash tools/verify/smoke
+#
+#   1. next build (offline: NEXT_TELEMETRY_DISABLED, and arch's R10 keeps fonts
+#      local);
+#   2. next start on 127.0.0.1, on a port the OS picks free (--port 0; the step
+#      reads the port from the URL next start prints), so runs side by side
+#      never meet; the step polls until the port takes a connection (1 and 2
+#      are _server.sh's, shared with the Scenario driver);
+#   3. _smoke_page.mjs loads `/` in Chromium (Playwright, the project's
+#      @playwright/test; bootstrap installs the browser into
+#      PLAYWRIGHT_BROWSERS_PATH) and waits for its network to go quiet.
+# The server is always stopped, its whole process group, before the step exits:
+# on a pass, a finding, an error, and on INT, TERM or HUP.
+#
+# FACTORY_SMOKE_TIMEOUT (local.env; seconds, default 60) bounds each wait: the
+# server's start, the page's load, and the stop of the server and the browser
+# after TERM, when each is killed.
+#
+# Findings, on stdout (next's output goes to stderr):
+#   package.json:1 smoke-build <message>       next build failed
+#   package.json:1 smoke-start <message>       next start exited, or didn't
+#                                              answer in time
+#   package.json:1 smoke-console <message>     a console error on the page
+#   package.json:1 smoke-page-error <message>  an uncaught error on the page
+#   package.json:1 smoke-response <message>    the page, or a request it made,
+#                                              answered other than 2xx (a
+#                                              redirect is followed)
+#   package.json:1 smoke-request-failed <...>  a request got no answer
+#   package.json:1 smoke-load <message>        the page never loaded
+#   tools/verify/local.env:1 browser-missing   Chromium didn't start
+#   tools/verify/local.env:1 smoke-setting     FACTORY_SMOKE_TIMEOUT isn't a whole
+#                                              number of seconds, 1 to 999999
+#   (and node-missing or tool-missing, as _nextjs.sh has them)
+# Every message leaves the server's port out. Exits 1 on any finding.
+#
+# A project with no pages (a library, an API alone) declares the step a no-op:
+# it keeps this script as the marker line alone (factory/core/lib/steps.sh).
+set -u
+
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_nextjs.sh"
+. "$dir/_server.sh"
+
+if [ "$NX_LIMIT" -eq 0 ]; then
+	echo "tools/verify/local.env:1 smoke-setting FACTORY_SMOKE_TIMEOUT is '${FACTORY_SMOKE_TIMEOUT:-}', not a number of seconds from 1 to 999999"
+	exit 1
+fi
+tool_ready next || exit 1
+
+tmp="$(mktemp -d)"
+trap 'nx_stop; rm -rf "$tmp"' EXIT
+nx_on_signal
+
+nx_build
+status=$?
+if [ "$status" -ne 0 ]; then
+	echo "package.json:1 smoke-build next build exited $status (see stderr)"
+	exit 1
+fi
+
+nx_start "$tmp/server.log"
+nx_await "$tmp/server.log"
+case $? in
+	1)
+		echo "package.json:1 smoke-start next start exited $NX_SERVER_STATUS before it answered (see stderr)"
+		exit 1
+		;;
+	2)
+		echo "package.json:1 smoke-start next start didn't answer within ${NX_LIMIT}s (FACTORY_SMOKE_TIMEOUT in tools/verify/local.env)"
+		exit 1
+		;;
+esac
+
+# The browser script closes Chromium on TERM, so nx_stop stops it alone.
+nx_client 0 "${NODE_BIN:-node}" "$dir/_smoke_page.mjs" "http://127.0.0.1:$NX_PORT" / "$NX_LIMIT" > "$tmp/findings"
+nx_client_wait
+status=$?
+cat "$tmp/server.log" >&2
+cat "$tmp/findings"
+if [ "$status" -ne 0 ] && [ ! -s "$tmp/findings" ]; then
+	echo "package.json:1 smoke-load the browser script (tools/verify/_smoke_page.mjs) exited $status (see stderr)"
+	exit 1
+fi
+[ -s "$tmp/findings" ] && exit 1
+exit 0

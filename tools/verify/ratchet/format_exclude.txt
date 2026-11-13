@@ -1,0 +1,3 @@
+# Files the format step skips, one project-relative path per line: files
+# Prettier can't format without breaking them (a formatter bug).
+# A ratchet: it may only shrink. Adding a path is a Deviation.

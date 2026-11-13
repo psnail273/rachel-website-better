@@ -1,0 +1,9 @@
+# A test file with a syntax error on line 6: bash loads the tests above it and
+# drops the rest.
+test_before() {
+	true
+}
+test_broken() { if then; }
+test_after() {
+	true
+}

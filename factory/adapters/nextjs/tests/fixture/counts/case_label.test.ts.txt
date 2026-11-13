@@ -1,0 +1,7 @@
+import { describe, expect, test } from "vitest";
+
+switch (0) {
+  case console.info("registering"), describe("suite", () => {
+    test("works", () => { expect(true).toBe(true); });
+  }): break;
+}

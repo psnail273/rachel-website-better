@@ -1,0 +1,5 @@
+export function total(): number {
+  return 1;
+}
+
+export const = 2;

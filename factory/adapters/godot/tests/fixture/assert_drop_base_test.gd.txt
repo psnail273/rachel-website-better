@@ -1,0 +1,26 @@
+extends GdUnitTestSuite
+
+const PITCH_TOLERANCE := 0.01
+
+
+func _cues() -> Array:
+	return [["serve", 1.0], ["break", 1.2]]
+
+
+func test_sound_cues_go_up() -> void:
+	var cues := _cues()
+	assert_int(cues.size()).is_equal(2)
+	assert_str(cues[0][0]).is_equal("serve")
+	assert_float(cues[0][1]).is_equal_approx(1.0, PITCH_TOLERANCE)
+	assert_str(cues[1][0]).is_equal("break")
+	assert_float(cues[1][1]).is_equal_approx(1.2, PITCH_TOLERANCE)
+
+
+func test_serve_cue_comes_first() -> void:
+	assert_str(_cues()[0][0]).is_equal("serve")
+	assert_int(_cues().size()).is_greater(0)
+
+
+func test_break_cue_comes_last() -> void:
+	assert_str(_cues()[-1][0]).is_equal("break")
+	assert_int(_cues().size()).is_equal(2)

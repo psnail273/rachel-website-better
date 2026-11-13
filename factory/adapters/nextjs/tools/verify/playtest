@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# The playtest step (not a gate: the run calls it after the Drift sweep). It
+# builds the app for production (next build, offline) and prints how to start it
+# locally; the human starts it and opens the URL. A project tailors it (to deploy
+# a preview, say) when it adopts.
+#   bash tools/verify/playtest
+#
+# FACTORY_PLAYTEST_PORT (local.env) is the port the start command names; the
+# default is 3000.
+#
+# stdout, on success, and nothing else: one line,
+#   pnpm exec next start --port <port>   then open http://localhost:<port>
+# When local.env names Node or pnpm by a path (NODE_BIN, PNPM_BIN), the command
+# puts their folders first on PATH: PATH=<folders>:"$PATH" pnpm exec ....
+# The build's output goes to stderr.
+# Exits 0 with the app built, 1 otherwise (the reason on stderr).
+set -u
+
+. "$(dirname "${BASH_SOURCE[0]}")/_nextjs.sh"
+
+port="${FACTORY_PLAYTEST_PORT:-3000}"
+case "$port" in
+	'' | *[!0-9]*)
+		echo "playtest: FACTORY_PLAYTEST_PORT is '$port', not a port number" >&2
+		exit 1
+		;;
+esac
+if ! tool_ready next > /dev/null; then
+	tool_ready next | sed 's/^[^ ]* [^ ]* /playtest: /' >&2
+	exit 1
+fi
+tool next build >&2
+status=$?
+if [ "$status" -ne 0 ]; then
+	echo "playtest: next build exited $status" >&2
+	exit 1
+fi
+prefix=""
+for bin in "${NODE_BIN:-}" "${PNPM_BIN:-}"; do
+	case "$bin" in */*) prefix="$prefix$(printf '%q' "$(dirname "$bin")"):" ;; esac
+done
+[ -z "$prefix" ] || prefix="PATH=$prefix\"\$PATH\" "
+printf '%spnpm exec next start --port %s   then open http://localhost:%s\n' "$prefix" "$port" "$port"

@@ -1,0 +1,18 @@
+import { expect, test } from "@playwright/test";
+import { serve } from "./_serve";
+
+test("a tap serves one ball", async ({ page }) => {
+  await page.goto("/");
+  await serve(page);
+  await expect(page.getByText("Balls in play: 1")).toBeVisible();
+});
+
+test("a second tap serves no second ball", async ({ page }) => {
+  await page.goto("/");
+  await serve(page);
+  await serve(page);
+  await expect(
+    page.getByText(/^Balls in play:/),
+    "one ball in play",
+  ).toHaveText("Balls in play: 1", { timeout: 1000 });
+});

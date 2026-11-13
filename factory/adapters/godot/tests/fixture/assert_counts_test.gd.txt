@@ -1,0 +1,87 @@
+class_name CountsFixture
+extends GdUnitTestSuite
+## A doc comment's assert_int(1).is_equal(1) is no call.
+
+const LABEL := "assert_str(x) and fail( in a string are no calls"
+
+
+class Recorder:
+	var calls: Array = []
+
+	func call_at(i: int) -> int:
+		return calls[i] if i < calls.size() else -1
+
+	class Inner:
+		func check() -> void:
+			fail("a nested class's func is its own")
+
+
+func _check_each(values: Array) -> void:
+	for v in values:
+		assert_int(v).is_positive()
+
+
+static func _helper() -> int:
+	return 1
+
+
+func test_counts_every_call_on_a_line() -> void:
+	assert_int(1).is_equal(1); assert_int(2).is_equal(2)
+	verify(Recorder.new(), 1)
+	verify_no_interactions(Recorder.new())
+	verify_no_more_interactions(Recorder.new())
+	var cues := {
+"serve": 1,
+	}
+	assert_that(
+		cues["serve"]
+	).is_equal(1)
+
+
+func test_skips_comments_and_strings() -> void:
+	# assert_int(0).is_equal(0)
+	var text := """
+assert_str("inside a triple-quoted string").is_empty()
+func not_a_func() -> void:
+"""
+	assert_str(text).is_not_empty()  # assert_bool(true).is_true()
+
+
+func test_counts_its_lambdas() -> void:
+	var check := func(v: int) -> void:
+		assert_int(v).is_equal(3)
+	check.call(3)
+	[1].map(
+		func named(v: int) -> int:
+			assert_int(v).is_equal(1)
+			return v
+	)
+
+
+var _after_the_funcs := 0
+
+
+func test_after_a_member() -> void:
+	assert_bool(_after_the_funcs == 0).is_true()
+
+
+@rpc func check_events() -> void:
+	assert_bool(true).is_true()
+	assert_bool(true).is_true()
+
+
+@warning_ignore("unused_parameter") static func assert_valid(_v: int) -> bool:
+	return true
+
+
+func test_café() -> void:
+	assert_bool(assert_valid(1)).is_true()
+
+
+func test_cafè() -> void:
+	assert_int(1).is_equal(1)
+
+
+func test_joined_header\
+() -> void:
+	assert_int(1).is_equal(1)

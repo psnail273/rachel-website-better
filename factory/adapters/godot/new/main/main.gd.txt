@@ -1,0 +1,6 @@
+extends Node
+## The main scene's root, where the game starts.
+
+
+func _ready() -> void:
+	print("main ready")

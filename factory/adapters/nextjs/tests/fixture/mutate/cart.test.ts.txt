@@ -1,0 +1,11 @@
+import { expect, it } from "vitest";
+
+import { discount, total } from "@/lib/cart";
+
+it("totals no prices", () => {
+  expect(total([])).toBe(0);
+});
+
+it("takes ten off a big order", () => {
+  expect(discount(150)).toBe(140);
+});

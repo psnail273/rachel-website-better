@@ -1,0 +1,8 @@
+import { expect, it } from "vitest";
+
+import { GET } from "./route";
+
+it("names the order", async () => {
+  const response = GET(new Request("http://localhost/orders/7"), { params: { id: "7" } });
+  expect(await response.json()).toMatchObject({ id: "7" });
+});

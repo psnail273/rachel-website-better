@@ -1,0 +1,85 @@
+== a bracketed pattern, the fix
+pgrep -f "[f]actory/core/test.sh"
+== by process name, no -f
+pgrep node
+== by exact process name
+pgrep -x node
+== a pattern from a variable: it can't be known
+pgrep -f "$pat"
+== a pattern with an expansion inside
+pgrep -f "server-$port"
+== pgrep in a string
+echo "pgrep -f foo"
+== pgrep in a comment
+# pgrep -f foo
+ls
+== no pgrep at all
+ls -la
+== pgrep in a here-doc's body
+cat << 'EOF'
+pgrep -f foo
+EOF
+== pgrep as another command's argument
+git log --grep pgrep -f foo
+== -A leaves out pgrep's ancestors, its shell among them
+pgrep -fA foo
+== -v leaves out what matches
+pgrep -f foo -v
+== -P selects by parent
+pgrep -P "$pid" -f foo
+== anchored at the start: the shell's command line starts elsewhere
+pgrep -f "^node"
+== anchored at the end: the shell's command line ends elsewhere
+pgrep -f "foo$"
+== -x on a pattern that is only part of the line
+pgrep -fx foo
+== the Next.js verify skill's check
+pgrep -fl 'next (dev|start)'
+== the Godot verify skill's check
+pgrep -l godot
+== the Next.js tests' children of a PID
+for p in $(pgrep -P "$1"); do kill "$p"; done
+== a quote, which Claude Code's eval writes as '"'"' in the shell's command line
+pgrep -f "it's"
+== an invalid regex: pgrep refuses it itself
+pgrep -f "("
+== a command that doesn't parse
+pgrep -f 'unterminated
+== ANSI-C quoting: not read
+pgrep -f $'foo'
+== an unquoted glob: not read
+pgrep -f foo*
+== an option pgrep doesn't know
+pgrep --bogus -f foo
+== the wait on a PID, the fix
+while kill -0 "$pid" 2> /dev/null; do sleep 2; done
+== -u from a variable: it can't be known
+pgrep -u "$USER" -f foo
+== -u naming another user
+pgrep -u factory-no-such-user -f 'postgres: checkpointer'
+== -U naming another user, attached
+pgrep -Ufactory-no-such-user -f foo
+== --euid naming other users
+pgrep --euid=factory-no-such-user,factory-other -f foo
+== -G naming another group
+pgrep -G factory-no-such-group -f foo
+== -O: the shell, started just now, is younger
+pkill -O 3600 -f 'next dev'
+== -O attached, in a cluster
+pgrep -afO3600 node
+== exec: pgrep takes the shell's place
+exec pgrep -f foo
+== the one simple command a bash -c runs: that shell execs it
+bash -c "pgrep -f \"it's\""
+== an array's value runs nothing
+arr=(pgrep -f foo); echo "${arr[@]}"
+== an array over lines, a ) and a pgrep in its comments
+pats=(
+  "next dev"   # (1) pgrep -f "next dev" finds the server
+  "vitest"     # (2) the tests
+)
+for p in "${pats[@]}"; do echo "$p"; done
+== an array holding an escaped quote and a )
+arr=("a\")" "; pgrep -f foo; ") # "
+== text after an array's ) is the same word: bash runs -f, no pgrep
+arr=(x)pgrep -f foo

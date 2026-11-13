@@ -1,0 +1,16 @@
+# Each line below the comments waits raw, as raw-waits.sh flags it.
+# sleep in a comment is not flagged; the lines after it are.
+sleep 1
+	run_cmd timeout 3 bash slow.sh
+start=$SECONDS
+SECONDS=0
+[ "${SECONDS}" -lt 10 ] || fail "too slow"
+[ -f done ] || sleep 0.1
+x=1 && timeout 5 git ls-remote
+bash -c 'sleep 30; :' tab editor-t &
+fake_ssh "sleep 30"
+printf '#!/bin/sh\nsleep 5\n' > stand-in
+until [ -f done ]; do sleep 0.1; done
+PATH="$x:$PATH" run_cmd timeout 3 probe
+echo "$(sleep 1)"
+(( SECONDS > 5 )) && exit 1

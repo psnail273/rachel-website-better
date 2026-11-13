@@ -1,0 +1,11 @@
+import { afterAll, describe, expect, it } from "vitest";
+
+describe("session", () => {
+  afterAll(() => {
+    throw new Error("could not close the session");
+  });
+
+  it("opens", () => {
+    expect(true).toBe(true);
+  });
+});

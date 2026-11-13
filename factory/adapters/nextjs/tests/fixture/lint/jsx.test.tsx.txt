@@ -1,0 +1,55 @@
+import assert from "node:assert";
+import { renderToStaticMarkup } from "react-dom/server";
+import { expect, it } from "vitest";
+
+type Pick = <T>(items: T[]) => T;
+
+it("renders the sleep example", () => {
+  const html = renderToStaticMarkup(<code>await sleep(100)</code>);
+  expect(html).toContain("await sleep(100)");
+});
+
+it("renders a fragment and attributes", () => {
+  const view = (
+    <>
+      <p title="it('x', () => {})">Don't wait: setTimeout(done, 50)</p>
+      <List items={[1, 2]} render={(n) => <li key={n}>{n}</li>} />
+    </>
+  );
+  expect(view).toBeTruthy();
+});
+
+it("asserts through a member chain", () => {
+  assert.strict.equal(2 + 2, 4);
+});
+
+const first = <T,>(items: T[]): T | undefined => items[0];
+const pick: Pick = (items) => items[0];
+
+it("renders without asserting", () => {
+  renderToStaticMarkup(<p>{first([1]) ?? pick([2])}</p>);
+});
+
+it("sleeps in a JSX handler", async () => {
+  const button = <button onClick={async () => { await sleep(10); }}>go</button>;
+  expect(button).toBeTruthy();
+});
+
+it("compares", () => {
+  const a = 1;
+  const b = 2;
+  expect(a < b && b > a).toBe(true);
+});
+
+it("renders a regex source", () => {
+  const view = <div>{1}{/await sleep(100)/.source}</div>;
+  const text = `${1}${/await sleep(100)/.source}`;
+  expect([view, text]).toBeTruthy();
+});
+
+it("formats generic functions", () => {
+  const defaulted = String.raw`${<T = number>(x: T) => x}`;
+  const constant = <const T,>(x: T) => x;
+  const bounded = <T extends object>(x: T) => x;
+  expect([defaulted, constant, bounded]).not.toContain("</T>");
+});

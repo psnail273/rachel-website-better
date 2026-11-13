@@ -1,0 +1,35 @@
+import { assert, describe, expect, it, test } from "vitest";
+
+import { order } from "./order";
+
+describe("orders", () => {
+  describe("GET /api/orders", () => {
+    it("lists the orders", async () => {
+      const response = await order.list();
+      expect(await response.json()).toEqual([{ id: expect.any(Number) }]);
+    });
+
+    it("refuses a stranger", () => {
+      expect.soft(order.forbidden()).toBe(true);
+      expect(order.forbidden).not.toThrow();
+      expect.assertions(2);
+    });
+  });
+
+  it.each([1, 2])("totals %i items", (n) => {
+    expect(order.total(n)).toBeGreaterThan(0);
+  });
+
+  test(`keeps ${"the"} receipt`, () => {
+    function expectPaid(receipt: { paid: boolean }) {
+      expect(receipt.paid).toBe(true);
+    }
+    expectPaid(order.receipt());
+    assert.ok(order.receipt());
+  });
+});
+
+it("reads no strings as code", () => {
+  const text = "expect(1).toBe(1)";
+  expect(text).toMatch(/expect\(/);
+});

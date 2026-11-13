@@ -1,0 +1,5 @@
+extends Node
+
+
+func peek(other: Node) -> Variant:
+	return other._secret

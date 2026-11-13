@@ -1,0 +1,8 @@
+export function total(prices: number[]): number {
+  return prices.reduce((sum, price) => sum + price, 0);
+}
+
+// Ten off an order over 100.
+export function discount(sum: number): number {
+  return sum > 100 ? sum - 10 : sum;
+}

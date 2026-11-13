@@ -1,0 +1,8 @@
+# The Scenario folder (factory/core/lib/scenarios.sh): the Features' scripted
+# play-throughs, which the Editor neither reads nor writes. One line, relative to
+# the project root. No gate step reads it (_nextjs.sh leaves it out of every
+# step's files), and the skeleton's tsconfig.json, vitest.config.ts and
+# eslint.config.mjs leave it out, so tsc, next build and Vitest never meet it;
+# prepare finds one that doesn't. The Scenario driver, tools/verify/scenarios,
+# runs it.
+scenarios/

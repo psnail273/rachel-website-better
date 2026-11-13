@@ -1,0 +1,17 @@
+extends GdUnitTestSuite
+
+# Doesn't hold: the game serves no ball on the tap that dismisses a clear.
+
+
+func test_the_level_starts_with_no_ball() -> void:
+	var runner := scene_runner("res://src/serve.tscn")
+	assert_int(runner.get_property("served")).is_equal(0)
+
+
+func test_the_tap_after_a_clear_serves_a_ball() -> void:
+	var runner := scene_runner("res://src/serve.tscn")
+	runner.set_property("level_cleared", true)
+	runner.simulate_action_pressed("ui_accept")
+	@warning_ignore("redundant_await")
+	await runner.await_input_processed()
+	assert_int(runner.get_property("served")).is_equal(1)

@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# The Next.js arch step: ARCHITECTURE.md's sync check plus one check per
+# `arch:<id>` (factory/core/lib/architecture.sh). Seeded into a project as
+# tools/verify/arch; the Core runner runs it from the project root with
+# FACTORY_CORE set.
+#   bash tools/verify/arch
+#
+# Add a check: write a check_<name> function that prints `file:line message` per
+# violation, and register it in the list at the bottom. The rule number comes
+# from the ARCHITECTURE.md rule that cites the id, so a check never hardcodes one.
+#
+# The checks read the imports of the scoped code files (tools/verify/scope):
+# dependency-cruiser (depcruise, the project's, pinned in tools/verify/pins)
+# lists what each file imports once compiled, so an import of types alone
+# counts as none, and resolves each as the build would (tsconfig.json's paths,
+# extensions, index files); _arch_imports.mjs reads each file with TypeScript's
+# parser for the line a finding names, and says what each check finds.
+#
+# Findings, on stdout: `file:line R<n> message` for each violation, the sync
+# check's arch-sync, and (from _nextjs.sh) node-missing or tool-missing.
+# dependency-cruiser's own output goes to stderr. Exits 1 on any finding.
+set -u
+
+: "${FACTORY_CORE:?the arch step runs under the Core runner (factory/core/verify.sh)}"
+. "$FACTORY_CORE/lib/steps.sh"
+. "$FACTORY_CORE/lib/findings.sh"
+. "$FACTORY_CORE/lib/architecture.sh"
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_nextjs.sh"
+
+ARCH_DOC=ARCHITECTURE.md
+ARCH_TMP="$(mktemp -d)"
+trap 'rm -rf "$ARCH_TMP"' EXIT
+
+# arch_imports: _arch_imports.mjs's lines, `<check>\t<finding>`, worked out once
+# (each check runs in a subshell, so the file is the cache). Exits non-zero, the
+# reason on stderr, when dependency-cruiser or the reader fails.
+arch_imports() {
+	local status
+	if [ ! -f "$ARCH_TMP/imports" ]; then
+		# shellcheck disable=SC2086 # the extension list splits on purpose
+		nx_files $NX_CODE_EXT > "$ARCH_TMP/scope"
+		nx_tests < "$ARCH_TMP/scope" > "$ARCH_TMP/tests"
+		if [ -s "$ARCH_TMP/scope" ]; then
+			local -a files args=(--no-config --do-not-follow node_modules --exclude '^\.next/' --output-type json)
+			mapfile -t files < "$ARCH_TMP/scope"
+			[ ! -f tsconfig.json ] || args+=(--ts-config tsconfig.json)
+			tool depcruise "${args[@]}" -- "${files[@]}" > "$ARCH_TMP/graph.json" 2> "$ARCH_TMP/depcruise.err"
+			status=$?
+			if [ "$status" -ne 0 ]; then
+				cat "$ARCH_TMP/depcruise.err" >&2
+				echo "arch: depcruise exited $status (above)" >&2
+				return 1
+			fi
+		else
+			echo '{"modules":[]}' > "$ARCH_TMP/graph.json"
+		fi
+		"${NODE_BIN:-node}" "$dir/_arch_imports.mjs" "$ARCH_TMP/graph.json" "$ARCH_TMP/scope" "$ARCH_TMP/tests" > "$ARCH_TMP/imports.new" || return 1
+		mv "$ARCH_TMP/imports.new" "$ARCH_TMP/imports"
+	fi
+	cat "$ARCH_TMP/imports"
+}
+
+# imports_check <check>: that check's findings from arch_imports.
+imports_check() {
+	local lines
+	lines="$(arch_imports)" || return 1
+	printf '%s\n' "$lines" | awk -F'\t' -v c="$1" '$1 == c { print $2 }' | LC_ALL=C sort
+}
+
+check_client_server() { imports_check client-server; }
+check_next_in_app() { imports_check next-in-app; }
+check_fonts_local() { imports_check fonts-local; }
+
+tool_ready depcruise || exit 1
+
+factory_arch_check client-server check_client_server
+factory_arch_check next-in-app check_next_in_app
+factory_arch_check fonts-local check_fonts_local
+
+factory_arch_main "$ARCH_DOC"

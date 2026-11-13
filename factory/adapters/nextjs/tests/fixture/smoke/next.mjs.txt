@@ -1,0 +1,47 @@
+#!/usr/bin/env node
+// A stand-in for next, for the smoke step's tests: `next build` exits 0, and
+// `next start --hostname <host> --port <port>` serves the files of the folder
+// STAND_IN_SITE names (`/` is index.html; a file <f>.status beside one holds
+// its status, else 200, and <f>.location its Location header; with a file
+// <f>.hang beside it, a request for it writes <f>.hit and never gets an answer;
+// a file that isn't there answers 404), then prints the
+// URL as next start does. It writes its pid to the file STAND_IN_PID names.
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
+import { join } from "node:path";
+
+const [command, ...args] = process.argv.slice(2);
+if (command === "build") process.exit(0);
+if (command !== "start") process.exit(64);
+const option = (name) => args[args.indexOf(name) + 1];
+const site = process.env.STAND_IN_SITE;
+if (process.env.STAND_IN_PID)
+  writeFileSync(process.env.STAND_IN_PID, String(process.pid));
+const server = createServer((request, response) => {
+  const path = new URL(request.url, "http://stand-in").pathname;
+  const file = join(site, path === "/" ? "index.html" : path);
+  if (!existsSync(file)) {
+    response.writeHead(404);
+    response.end("not here");
+    return;
+  }
+  if (existsSync(`${file}.hang`)) {
+    writeFileSync(`${file}.hit`, "");
+    return;
+  }
+  const status = existsSync(`${file}.status`)
+    ? Number(readFileSync(`${file}.status`, "utf8"))
+    : 200;
+  const headers = {
+    "content-type": file.endsWith(".html") ? "text/html" : "text/plain",
+  };
+  if (existsSync(`${file}.location`))
+    headers.location = readFileSync(`${file}.location`, "utf8").trim();
+  response.writeHead(status, headers);
+  response.end(readFileSync(file));
+});
+server.listen(Number(option("--port")), option("--hostname"), () => {
+  console.log(
+    `- Local:         http://${option("--hostname")}:${server.address().port}`,
+  );
+});

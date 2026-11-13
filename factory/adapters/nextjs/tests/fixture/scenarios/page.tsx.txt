@@ -1,0 +1,23 @@
+"use client";
+
+import { useState } from "react";
+
+// The Scenario driver's fixture app: each tap on Serve serves a ball, so a
+// second tap serves a second one (the Spec, say, wants one ball at a time).
+export default function Home() {
+  const [balls, setBalls] = useState(0);
+  return (
+    <main>
+      <h1>Breakout</h1>
+      <button
+        type="button"
+        onClick={() => {
+          setBalls(balls + 1);
+        }}
+      >
+        Serve
+      </button>
+      <p>Balls in play: {balls}</p>
+    </main>
+  );
+}

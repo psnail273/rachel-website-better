@@ -1,0 +1,76 @@
+extends GdUnitTestSuite
+
+const WAIT_SECONDS: float = 3.0
+const MAX_FRAMES: int = 600
+
+
+func test_bounded_polls() -> void:
+	var done: bool = false
+	var timer: SceneTreeTimer = get_tree().create_timer(WAIT_SECONDS, true, false, true)
+	while not done and timer.time_left > 0.0:
+		await get_tree().process_frame
+	var cooldown: Timer = auto_free(Timer.new())
+	while not cooldown.is_stopped():
+		await cooldown.timeout
+	var frames: int = 0
+	while not done and frames < MAX_FRAMES:
+		frames += 1
+		await get_tree().process_frame
+	var tries: int = 0
+	while not done and tries <= 3:
+		tries += 1
+		await get_tree().process_frame
+	var deadline: int = Time.get_ticks_msec() + 3000
+	while not done and Time.get_ticks_msec() < deadline:
+		await get_tree().process_frame
+	while (
+		not done
+		and timer.time_left > 0.0
+	):
+		await get_tree().process_frame
+	while not done \
+			and frames < MAX_FRAMES:
+		await get_tree().process_frame
+	assert_bool(done).is_false()
+
+
+func test_unbounded_polls() -> void:
+	var done: bool = false
+	while not done:
+		await get_tree().process_frame
+	while not done: await get_tree().process_frame
+	var rounds: int = 0
+	while _flow() != 2 and rounds < 10:
+		rounds += 1
+		while _flow() == 1:
+			await _tap()
+	assert_bool(done).is_false()
+
+
+func test_loops_that_never_await() -> void:
+	var items: Array[int] = [1, 2, 3]
+	while not items.is_empty():
+		items.pop_back()
+	var node: Node = auto_free(Node.new())
+	while node != null:
+		node = node.get_parent()
+	assert_array(items).is_empty()
+
+
+func test_reasons() -> void:
+	var done: bool = false
+	while not done: # unguarded-poll: the suite timeout bounds this soak
+		await get_tree().process_frame
+	# unguarded-poll: the suite timeout bounds this soak
+	while not done:
+		await get_tree().process_frame
+	var text: String = "while not done: await get_tree().process_frame"
+	assert_str(text).is_not_empty()
+
+
+func _flow() -> int:
+	return 1
+
+
+func _tap() -> void:
+	await get_tree().process_frame

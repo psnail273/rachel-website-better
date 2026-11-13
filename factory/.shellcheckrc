@@ -1,0 +1,11 @@
+# shellcheck's config for the factory's shell scripts. The shell lint
+# (core/shell-lint.sh) passes these codes to shellcheck, with --norc, for every
+# script it lints, tools/verify/ included; shellcheck run by hand under factory/
+# reads this file itself. Each line is `disable=<code,...> # <reason>`.
+#
+# Every error and warning is fixed, or disabled at its line with a reason. The
+# info and style codes that find real bugs stay on; these are off everywhere:
+disable=SC1091 # sourced files are named at run time ("$core/lib/$lib.sh"), and each script is linted on its own
+disable=SC2015 # `a && b || c` is an idiom here on purpose: c runs when a or b fails
+disable=SC2016 # single quotes keep $ literal on purpose: awk and sed programs, and text that names variables
+disable=SC2181 # style only: a $? test on the line after the command is as clear

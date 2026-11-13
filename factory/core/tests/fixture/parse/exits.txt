@@ -1,0 +1,5 @@
+# A test file that parses, but whose loading exits: none of its tests is listed.
+[ -n "${NO_SUCH_VARIABLE:-}" ] || exit 3
+test_never() {
+	true
+}

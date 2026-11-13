@@ -1,0 +1,7 @@
+import { expect, it } from "vitest";
+
+import { total } from "@/lib/cart";
+
+it("totals no prices", () => {
+  expect(total([])).toBe(0);
+});

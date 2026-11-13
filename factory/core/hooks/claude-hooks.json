@@ -1,0 +1,59 @@
+{
+  "PreToolUse": [
+    {
+      "matcher": "^(Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Read|Grep|Glob|NotebookRead|LS)$",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"$CLAUDE_PROJECT_DIR/factory/core/hooks/claude-deny.sh\"",
+          "timeout": 60
+        }
+      ]
+    },
+    {
+      "matcher": "^Bash$",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"$CLAUDE_PROJECT_DIR/factory/core/hooks/claude-wait-guard.sh\"",
+          "timeout": 10
+        }
+      ]
+    }
+  ],
+  "SessionStart": [
+    {
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"$CLAUDE_PROJECT_DIR/factory/core/hooks/claude-update-check.sh\"",
+          "timeout": 20
+        }
+      ]
+    }
+  ],
+  "SubagentStart": [
+    {
+      "matcher": "editor-sonnet",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"$CLAUDE_PROJECT_DIR/factory/core/hooks/claude-subagent-start.sh\"",
+          "timeout": 120
+        }
+      ]
+    }
+  ],
+  "SubagentStop": [
+    {
+      "matcher": "editor-sonnet",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"$CLAUDE_PROJECT_DIR/factory/core/hooks/claude-subagent-stop.sh\"",
+          "timeout": 1800
+        }
+      ]
+    }
+  ]
+}

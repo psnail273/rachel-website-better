@@ -1,0 +1,3 @@
+# gdmutant's settings for steps_test.sh's gdmutant_limit: a fixed limit of
+# 900 s a mutant, far above any wait for a slot of isolated_godot.sh.
+timeout = 900

@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# The fixture stack has no arch checks.
+# factory: no-op

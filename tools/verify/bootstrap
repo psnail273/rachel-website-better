@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# The bootstrap: factory/core/start.sh runs it once per worktree, the adapter's
+# adopt.sh once at adoption, and it is the only step allowed the network. It
+# installs the project's packages with pnpm, exactly as pnpm-lock.yaml has them
+# (--frozen-lockfile), into node_modules/ and pnpm's store; pnpm first fetches
+# the version package.json's packageManager field pins, when the machine lacks
+# it. After it, prepare reinstalls offline from the store. Then it installs the
+# smoke step's browser, Chromium's headless shell, at the build the installed
+# Playwright (@playwright/test) pins, into PLAYWRIGHT_BROWSERS_PATH (local.env;
+# empty means Playwright's own folder, ~/.cache/ms-playwright on Linux); a
+# browser already there is kept, and then nothing is fetched. A project without
+# @playwright/test installs no browser.
+#   bash tools/verify/bootstrap
+#
+# The installs' output goes to stderr, and so does the reason one failed. It
+# installs no system libraries (that needs root): when Chromium won't start
+# without some, smoke says so, and pnpm exec playwright install-deps chromium
+# installs them.
+# Exits 0 installed, 1 otherwise.
+set -u
+
+. "$(dirname "${BASH_SOURCE[0]}")/_nextjs.sh"
+
+if ! node_ready > /dev/null || ! pnpm_ready > /dev/null; then
+	{ node_ready && pnpm_ready; } | sed 's/^[^ ]* [^ ]* /bootstrap: /' >&2
+	exit 1
+fi
+if [ ! -f pnpm-lock.yaml ]; then
+	echo "bootstrap: no pnpm-lock.yaml; the gates install exactly what it locks, so make it with pnpm install and commit it" >&2
+	exit 1
+fi
+pnpm install --frozen-lockfile >&2
+status=$?
+if [ "$status" -ne 0 ]; then
+	echo "bootstrap: pnpm install --frozen-lockfile exited $status" >&2
+	exit 1
+fi
+if [ -x node_modules/.bin/playwright ]; then
+	tool playwright install --only-shell chromium >&2
+	status=$?
+	if [ "$status" -ne 0 ]; then
+		where="${PLAYWRIGHT_BROWSERS_PATH:-}"
+		[ -n "$where" ] || where="Playwright's own folder"
+		echo "bootstrap: playwright install --only-shell chromium exited $status (into $where)" >&2
+		exit 1
+	fi
+fi

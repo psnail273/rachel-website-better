@@ -1,0 +1,25 @@
+extends GdUnitTestSuite
+
+const PITCH_TOLERANCE := 0.01
+
+
+func _cues() -> Array:
+	return [["serve", 1.0], ["break", 1.2]]
+
+
+# A sentinel past the end, so a short list fails the assertion instead of crashing.
+func _cue_at(i: int) -> Array:
+	return _cues()[i] if i < _cues().size() else ["", 0.0]
+
+
+func test_sound_cues_go_up() -> void:
+	assert_str(_cue_at(0)[0]).is_equal("serve")
+	assert_str(_cue_at(1)[0]).is_equal("break")
+	assert_float(_cue_at(1)[1]).is_equal_approx(1.2, PITCH_TOLERANCE)
+
+
+func test_serve_cue_comes_first() -> void:
+	assert_str(_cues()[0][0]).is_equal("serve")
+	assert_int(_cues().size()).is_greater(0)
+	assert_str(_cues()[-1][0]).is_equal("break")
+	assert_int(_cues().size()).is_equal(2)

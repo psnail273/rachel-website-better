@@ -1,0 +1,4 @@
+# What the project's tools generate: one glob per line, the scope's syntax. The
+# red gate and the deviation step skip these files, so they need no scope line.
+# Godot writes a .uid beside each new script.
+**/*.uid

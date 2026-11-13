@@ -1,0 +1,13 @@
+import { spawn } from "node:child_process";
+import { writeFileSync } from "node:fs";
+import { test } from "@playwright/test";
+
+// Starts a process that runs on after the Scenario (an idle Node), and writes
+// its pid to the file SCENARIO_CHILD names.
+test("leaves a process running", () => {
+  const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+    stdio: "ignore",
+  });
+  child.unref();
+  writeFileSync(process.env.SCENARIO_CHILD ?? "", String(child.pid));
+});

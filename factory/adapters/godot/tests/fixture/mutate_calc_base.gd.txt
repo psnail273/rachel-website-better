@@ -1,0 +1,5 @@
+extends RefCounted
+
+
+static func less_one(n: int) -> int:
+	return n - 1

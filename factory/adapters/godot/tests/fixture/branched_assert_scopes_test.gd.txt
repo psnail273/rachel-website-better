@@ -1,0 +1,108 @@
+extends GdUnitTestSuite
+
+
+func test_lambda_argument() -> void:
+	[1].map(
+		func(x: int) -> int:
+			if x > 0:
+				assert_int(x).is_equal(1)
+			return x
+	)
+
+
+func test_lambda_guard_in_a_loop() -> void:
+	var callbacks: Array[Callable] = []
+	for item: int in [1, 2]:
+		var callback := func(x: int) -> int:
+			if x < 0: return -1
+			return x + item
+		callbacks.append(callback)
+	assert_int(callbacks.size()).is_equal(2)
+
+
+func test_continued_inline_branch() -> void:
+	if Engine.is_editor_hint(): \
+		assert_bool(true).is_true()
+
+
+func test_match_arm_return() -> void:
+	match randi() % 2:
+		0: return
+		_: pass
+	assert_int(1).is_equal(1)
+
+
+func test_lambda_in_a_condition() -> void:
+	if [1].any(func(x: int) -> bool:
+		return x > 0
+	):
+		pass
+	assert_bool(true).is_true()
+
+
+func test_lambda_signature_over_lines() -> void:
+	for x: int in [1]:
+		[x].map(func(
+			y: int
+		) -> int:
+			if y < 0: return -1
+			return y
+		)
+	assert_bool(true).is_true()
+
+
+func test_inline_lambda_in_a_branch_of_a_lambda() -> void:
+	[1].map(func(x: int) -> int:
+		if [1].any(func(y: int) -> bool: return y > 0):
+			assert_int(x).is_equal(1)
+		return x
+	)
+
+
+func test_lambda_condition_in_a_branch_of_a_lambda() -> void:
+	[1].map(func(x: int) -> int:
+		if [1].any(func(y: int) -> bool:
+			return y > 0
+		):
+			assert_int(x).is_equal(1)
+		return x
+	)
+
+
+func test_ternary_and_dictionary_in_a_lambda() -> void:
+	[1].map(func(x: int) -> int:
+		var d := {
+			"k":
+				1,
+		}
+		var y := (
+			x if x > d["k"]
+			else absi(
+				x)
+		)
+		assert_int(y).is_equal(1)
+		return y
+	)
+
+
+func test_ternary_dictionary_key() -> void:
+	var d := {
+		1 if true
+		else absi(
+			0
+		):
+			assert_bool(true),
+	}
+
+
+func test_lambda_return_in_a_condition() -> void:
+	if [1].any(func(x: int) -> bool: return x > 0): pass
+	assert_bool(true)
+
+
+func test_lambda_guard_ends_at_its_comma() -> void:
+	consume(func(x: int) -> bool:
+		if x < 0: return false
+		return true,
+		assert_bool(true)
+	)

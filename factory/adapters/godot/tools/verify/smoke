@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# The smoke step: run the main scene headless for 300 frames. Godot exits 0 even
+# after a runtime error, so the step reads its log instead.
+#   bash tools/verify/smoke
+#
+# Findings, on stdout (the log goes to stderr and .godot/factory/smoke.log):
+#   <file>:<line> smoke-error <message>    a SCRIPT ERROR or ERROR in the log, at its
+#                                          first res:// location, else project.godot:1
+#   project.godot:1 smoke-exit <message>   Godot exited non-zero
+#   tools/verify/local.env:1 godot-missing GODOT_BIN is unset or wrong
+# Exits 1 on any finding.
+#
+# One line is left out: the engine's exit report `ERROR: <n> resources still in use
+# at exit`. A sound playing when --quit-after ends prints it, because the engine
+# frees a stopped playback only on a later frame and the run has none left. It is
+# not a leak in play, which the project's own tests guard. Every other ERROR counts.
+set -u
+
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_godot.sh"
+
+godot_ready || exit 1
+
+log="$GODOT_WORK/smoke.log"
+mkdir -p "$GODOT_WORK"
+godot --quit-after 300 > "$log" 2>&1
+status=$?
+cat "$log" >&2
+
+found=0
+checked="$GODOT_WORK/smoke.checked.log"
+sed 's/\x1b\[[0-9;]*m//g; s/\r$//' "$log" | grep -Ev '^ERROR: [0-9]+ resources still in use at exit' > "$checked"
+godot_errors "$checked" smoke-error 'SCRIPT ERROR|ERROR' "project.godot:1" > "$GODOT_WORK/smoke.findings"
+rm -f "$checked"
+cat "$GODOT_WORK/smoke.findings"
+[ -s "$GODOT_WORK/smoke.findings" ] && found=1
+rm -f "$GODOT_WORK/smoke.findings"
+if [ "$status" -ne 0 ]; then
+	echo "project.godot:1 smoke-exit Godot exited $status running the main scene (see stderr)"
+	found=1
+fi
+exit "$found"

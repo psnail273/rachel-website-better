@@ -1,0 +1,11 @@
+extends GdUnitTestSuite
+
+# Holds: a tap serves one ball.
+
+
+func test_a_tap_serves_one_ball() -> void:
+	var runner := scene_runner("res://src/serve.tscn")
+	runner.simulate_action_pressed("ui_accept")
+	@warning_ignore("redundant_await")
+	await runner.await_input_processed()
+	assert_int(runner.get_property("served")).is_equal(1)

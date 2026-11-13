@@ -1,0 +1,25 @@
+extends GdUnitTestSuite
+
+const TOLERANCE: float = 0.001
+const STEP := 0.25
+const POS_TOLERANCE := Vector2(0.01, 0.01)
+const ORIGIN := Vector2(1, 2)
+
+
+func test_pairs() -> void:
+	assert_array([&"hit", 1.5]).is_equal([&"hit", 1.5])
+	assert_array(
+		[1, 2]
+	).contains_exactly([1.0, 2])
+	assert_array(["a.5", 3]).is_equal(["b.5", 3])
+	assert_dict({"a": 1}).is_equal({"a": 1})
+	assert_float(1.0).is_equal_approx(1.0, 0.001)
+	assert_float(1.0).is_equal_approx(1.0, TOLERANCE)
+	assert_vector(Vector2.ONE).is_equal_approx(Vector2.ONE, TOLERANCE)
+	assert_vector(Vector2.ONE).is_equal_approx(Vector2.ONE, 0.5)
+	assert_vector(Vector2.ONE).is_equal_approx(Vector2.ONE, Vector2(0.1, 0.1))
+	assert_vector(Vector2.ONE).is_equal_approx(Vector2.ONE, POS_TOLERANCE)
+	assert_bool(Vector2.ONE.is_equal_approx(ORIGIN)).is_false()
+	assert_float(STEP).is_equal(0.25)
+	assert_float(1.0).is_equal_approx(1.0, \
+		1e-3)

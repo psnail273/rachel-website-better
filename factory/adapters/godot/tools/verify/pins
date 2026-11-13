@@ -1,0 +1,11 @@
+# Tracked tool pins: <tool> <version>. The pin check (factory/core/pins.sh) runs in
+# prepare and compares each with what tools/verify/versions finds.
+# Godot: what `godot --version` prints, minus the build and commit.
+godot 4.7.1.stable
+# gdUnit4: vendored under addons/gdUnit4 (its plugin.cfg version).
+gdunit4 6.2.2
+# Install: winget install --id GDQuest.GDScript.Formatter -e --version 0.27.0
+gdscript-formatter 0.27.0
+# gdmutant, for the mutate step: what `gdmutant --version` prints. From PyPI,
+# into a venv of its own with pip's --require-hashes.
+gdmutant 0.1.4

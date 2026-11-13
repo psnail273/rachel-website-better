@@ -1,0 +1,74 @@
+#!/usr/bin/env bash
+# The test step: Vitest (the project's, pinned in tools/verify/pins) with the
+# project's config (vitest.config.ts), writing the Core's results file.
+#   bash tools/verify/test      (the runner sets FACTORY_RESULTS_FILE)
+#
+# Vitest runs once (vitest run, --includeTaskLocation and --passWithNoTests) with
+# its JSON reporter, which _vitest_results.mjs reads into the results file: one
+# line per test, `<name>\t<status>\t<file:line>` (factory/core/lib/results.sh),
+# sorted by file, line and name. The name is the test file, its describe blocks
+# and its title, joined by " > " (`app/api/health/route.test.ts > GET
+# /api/health > answers ok`); the status PASS, FAILURE (it failed on an
+# assertion), ERROR (any other failure) or SKIP; the place the test's `it` or
+# `test`. _vitest_results.mjs says how each is read. A test file whose own run
+# failed (an import, its top level, a hook) is a line of its own, named by the
+# file, ERROR at line 1; so is a test file in scope (tools/verify/test-paths)
+# that declares a test, a todo too (_lint_checks.awk, counts=1 declares=1), but
+# that Vitest didn't run, as its config's include left it out. An unhandled
+# error (an uncaught exception, a rejection no one handled), which Vitest's JSON
+# report leaves out, is an ERROR line for the file that was running
+# (_vitest_errors.mjs, a reporter of the adapter's own). The adapter judges
+# nothing; the Core does.
+#
+# Findings, on stdout (Vitest's own output goes to stderr):
+#   tools/verify/test:1 test-error <message>   Vitest wrote no report, or failed
+#                                              with no failing test in it (a
+#                                              hook outside every file's suites:
+#                                              see stderr)
+#   (and node-missing or tool-missing, as _nextjs.sh has them)
+# Exits 0 when Vitest passed, 1 otherwise.
+set -u
+
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_nextjs.sh"
+
+if [ -z "${FACTORY_RESULTS_FILE:-}" ]; then
+	echo "test: FACTORY_RESULTS_FILE is not set; run it through factory/core/verify.sh" >&2
+	exit 2
+fi
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+: > "$FACTORY_RESULTS_FILE"
+tool_ready vitest || exit 1
+
+FACTORY_VITEST_ERRORS="$tmp/errors" tool vitest run --includeTaskLocation --passWithNoTests \
+	--reporter=default --reporter=json --outputFile.json="$tmp/report.json" \
+	--reporter="$(cd "$dir" && pwd -P)/_vitest_errors.mjs" > "$tmp/log" 2>&1
+status=$?
+cat "$tmp/log" >&2
+if [ ! -s "$tmp/report.json" ]; then
+	echo "tools/verify/test:1 test-error Vitest exited $status without a report (see stderr)"
+	exit 1
+fi
+
+# The test files in scope that declare a test.
+# shellcheck disable=SC2086 # the extension list splits on purpose
+nx_files $NX_CODE_EXT | nx_tests > "$tmp/test_files"
+: > "$tmp/declared"
+while IFS= read -r f; do
+	[ -n "$(awk -v counts=1 -v declares=1 -v path="$f" -f "$dir/_lint_checks.awk" < "$f")" ] && printf '%s\n' "$f" >> "$tmp/declared"
+done < "$tmp/test_files"
+
+if ! "${NODE_BIN:-node}" "$dir/_vitest_results.mjs" "$tmp/report.json" "$tmp/declared" "$tmp/errors" > "$tmp/results"; then
+	echo "tools/verify/test:1 test-error could not read Vitest's report (see stderr)"
+	exit 1
+fi
+LC_ALL=C sort -t "$(printf '\t')" -k1,1 -k2,2n -k3,3 "$tmp/results" |
+	awk -F '\t' -v OFS='\t' '{ print $3, $4, $1 ":" $2 }' > "$FACTORY_RESULTS_FILE"
+
+if [ "$status" -ne 0 ] && ! grep -qv "$(printf '\t')PASS$(printf '\t')" "$FACTORY_RESULTS_FILE"; then
+	echo "tools/verify/test:1 test-error Vitest exited $status with no failing test in its report: a hook outside every test file's suites, or an error no reporter saw (see stderr)"
+fi
+[ "$status" -eq 0 ]

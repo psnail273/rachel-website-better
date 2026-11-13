@@ -1,0 +1,3 @@
+# Files the format step skips, one project-relative path per line: files the
+# formatter can't format without changing their structure (a formatter bug).
+# A ratchet: it may only shrink. Adding a path is a Deviation.

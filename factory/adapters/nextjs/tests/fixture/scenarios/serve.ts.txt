@@ -1,0 +1,6 @@
+import type { Page } from "@playwright/test";
+
+// A helper: it declares no test, so it is no Scenario.
+export const serve = async (page: Page): Promise<void> => {
+  await page.getByRole("button", { name: "Serve" }).click();
+};

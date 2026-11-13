@@ -1,0 +1,54 @@
+extends GdUnitTestSuite
+
+
+func test_branches() -> void:
+	var items: Array[int] = [1, 2]
+	if items.is_empty():
+		assert_int(items.size()).is_equal(0)
+	elif items.size() == 1:
+		assert_int(items.size()).is_equal(1)
+	else:
+		assert_int(items.size()).is_equal(2)
+	for item: int in items:
+		assert_int(item).is_greater(0)
+	while items.size() > 3:
+		verify(items, 1)
+	match items.size():
+		2:
+			fail("two")
+	if items.size() > 5: assert_bool(true).is_true()
+
+
+func test_guard() -> void:
+	var node: Node = auto_free(Node.new())
+	assert_object(node).is_not_null()
+	if node == null:
+		return
+	assert_str(node.name).is_empty()
+
+
+func test_straight_line() -> void:
+	var guard: SceneTreeTimer = get_tree().create_timer(3.0, true, false, true)
+	while guard.time_left > 0.0:
+		await get_tree().process_frame
+	var calls: Array[int] = [3, 1]
+	calls.sort_custom(
+		func(a: int, b: int) -> bool:
+			if a == b:
+				return false
+			return a < b,
+	)
+	var check := func(value: int) -> void:
+		if value < 0:
+			return
+		calls.append(value)
+	check.call(2)
+	assert_int(_at(calls, 2)).is_equal(2)
+	var text: String = "if x: assert_int(1)"
+	assert_str(text).is_not_empty()
+
+
+func _at(list: Array[int], i: int) -> int:
+	if i >= list.size():
+		return -1
+	return list[i]

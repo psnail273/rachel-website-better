@@ -1,0 +1,1 @@
+When done: commit on the current branch and end with a short final message: what you changed, the gate's result, any Deviation, and anything you need from the Driver. The rules of your first prompt still hold.

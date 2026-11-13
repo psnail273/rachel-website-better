@@ -1,0 +1,3 @@
+# Which files are tests: one glob per line, the scope's syntax. The red gate and
+# the Lock read it, and the scope cross-check keeps these files out of exports.
+tests/**

@@ -1,0 +1,10 @@
+import { Inter } from "next/font/google";
+import { expect, test } from "vitest";
+
+// A Scenario folder's file that each gate step would fail if it reached it:
+// unformatted, a type error, an unused binding, Google's fonts, a failing test.
+const wrong: number = "a string";
+const font = Inter
+test("no gate step runs this",   () => {
+  expect(wrong).toBe(2);
+});

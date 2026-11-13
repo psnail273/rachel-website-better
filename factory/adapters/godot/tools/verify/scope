@@ -1,0 +1,8 @@
+# What the gates check: what ships plus the tests. One glob per line (`*` and `?`
+# stay in one folder, `**` crosses folders, a trailing / is the whole folder); a
+# line starting with ! takes paths back out, and the last matching line decides.
+# prepare cross-checks it against export_presets.cfg's exclude_filter.
+**
+!addons/
+!factory/
+!tools/

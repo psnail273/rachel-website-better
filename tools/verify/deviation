@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+# The deviation step is the Core's (factory/core/deviation.sh).
+exec bash "$FACTORY_CORE/deviation.sh"

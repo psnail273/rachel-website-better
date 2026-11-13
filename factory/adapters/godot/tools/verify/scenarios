@@ -1,0 +1,103 @@
+#!/usr/bin/env bash
+# The Scenario driver (factory/core/lib/scenarios.sh): runs the Scenario folder's
+# scripts against the game with gdUnit4's scene runner. Not a gate step; the Run
+# runs it at a Feature's end:
+#   bash factory/core/scenarios.sh
+#
+# A Scenario is one script in the folder (tools/verify/scenario-folder): a
+# GdUnitTestSuite whose test functions (`func test_*(`) play one behaviour through
+# and check what must hold. Its name is its path in the folder without .gd
+# (`serve/after_a_miss`); its status is its worst function's, at that function's
+# line (a script that declares no test function is a helper, not a Scenario).
+# gdUnit4's scene runner drives the real scenes headless:
+#
+#   extends GdUnitTestSuite
+#   func test_a_tap_serves_one_ball() -> void:
+#       var runner := scene_runner("res://main/main.tscn")
+#       runner.simulate_action_pressed("serve")      # or simulate_key_pressed,
+#       @warning_ignore("redundant_await")           # simulate_mouse_button_pressed
+#       await runner.await_input_processed()
+#       @warning_ignore("redundant_await")
+#       await runner.simulate_frames(30)             # let the game run
+#       assert_int(runner.get_property("balls_in_play")).is_equal(1)
+#
+# Also set_property, invoke (call a method), find_child, await_signal and
+# await_func (wait for a value), set_time_factor (run faster). The project's
+# GDScript warnings apply: the runner's methods are abstract, so each await on
+# one needs the redundant_await ignore, and an `as` cast of a property is unsafe.
+# It reads and drives the game's nodes as they are: a Scenario checks what the
+# Spec says, by the names the code already has. One quirk: the runner hands each
+# input event to the scene root's _unhandled_input directly as well as through
+# the viewport, so a root that reads input there sees it twice; drive a child
+# node, or check a count that a doubled event can't fake.
+#
+# The folder must hold a .gdignore. The driver runs gdUnit4 on each Scenario file
+# (`-a res://<folder>/<file>`, which reaches past the .gdignore), writing its
+# report to .godot/factory/scenarios/, emptied first; Godot's and gdUnit4's output
+# go to stderr. Prints one results line per Scenario; nothing when there is none.
+# Exits 0 when every Scenario passed, 1 when one didn't, 2 when it could not run
+# them: no Core, GODOT_BIN unset, no .gdignore, or Godot's import failing.
+set -u
+
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_gdscript.sh"
+. "$dir/_godot.sh"
+
+[ -n "$GD_SCENARIOS" ] || exit 0
+mapfile -t files < <(
+	git ls-files --cached --others --exclude-standard -- "$GD_SCENARIOS/" |
+		while IFS= read -r f; do
+			case "$f" in *.gd) [ -f "$f" ] && printf '%s\n' "$f" ;; esac
+		done | LC_ALL=C sort -u
+)
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+printf '%s\n' "${files[@]}" | grep . > "$tmp/files"
+gdunit_declared "$tmp/files" > "$tmp/declared"
+[ -s "$tmp/declared" ] || exit 0
+
+if [ ! -f "$GD_SCENARIOS/.gdignore" ]; then
+	echo "scenarios: $GD_SCENARIOS/ has no .gdignore; add an empty one, so Godot neither imports nor exports the Scenarios" >&2
+	exit 2
+fi
+if ! godot_ready > "$tmp/ready"; then
+	sed 's/^[^ ]* [^ ]* /scenarios: /' "$tmp/ready" >&2
+	exit 2
+fi
+if ! godot --import >&2 2>&1; then
+	echo "scenarios: Godot's import failed (above)" >&2
+	exit 2
+fi
+
+reports="$GODOT_WORK/scenarios"
+rm -rf "$reports"
+mkdir -p "$GODOT_WORK"
+args=()
+while IFS=$'\t' read -r f _; do
+	case " ${args[*]} " in *" res://$f "*) ;; *) args+=(-a "res://$f") ;; esac
+done < "$tmp/declared"
+godot -s -d --remote-debug tcp://127.0.0.1:0 \
+	res://addons/gdUnit4/bin/GdUnitCmdTool.gd "${args[@]}" --ignoreHeadlessMode -c \
+	-rd "res://$reports" > "$tmp/log" 2>&1
+cat "$tmp/log" >&2
+gdunit_results "$reports" "$tmp/declared" "$dir" > "$tmp/results" ||
+	godot_errors "$tmp/log" scenario-script-error 'SCRIPT ERROR' "$GD_SCENARIOS:1" >&2
+
+# One line per Scenario file: its worst status, at the first function with it.
+awk -F '\t' -v OFS='\t' -v folder="$GD_SCENARIOS/" '
+	function rank(s) { return s == "ERROR" ? 3 : s == "FAILURE" ? 2 : s == "SKIP" ? 1 : 0 }
+	{
+		file = $3; sub(/:[0-9]+$/, "", file)
+		if (index(file, folder) != 1) next
+		if (!(file in st)) { order[++n] = file; st[file] = $2; loc[file] = $3 }
+		else if (rank($2) > rank(st[file])) { st[file] = $2; loc[file] = $3 }
+	}
+	END {
+		for (i = 1; i <= n; i++) {
+			name = substr(order[i], length(folder) + 1); sub(/\.gd$/, "", name)
+			print name, st[order[i]], loc[order[i]]
+			if (st[order[i]] != "PASS") bad = 1
+		}
+		exit bad
+	}
+' "$tmp/results"

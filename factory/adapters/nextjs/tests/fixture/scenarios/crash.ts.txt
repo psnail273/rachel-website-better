@@ -1,0 +1,6 @@
+import { test } from "@playwright/test";
+
+test("a script that throws", async ({ page }) => {
+  await page.goto("/");
+  throw new TypeError("no ball to read");
+});

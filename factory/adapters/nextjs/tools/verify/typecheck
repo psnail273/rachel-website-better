@@ -1,0 +1,82 @@
+#!/usr/bin/env bash
+# The typecheck step: tsc (the project's TypeScript, pinned in tools/verify/pins)
+# over tsconfig.json, emitting nothing.
+#   bash tools/verify/typecheck
+#
+# tsconfig.json must turn `strict` on, itself or through its extends, and turn
+# none of the checks strict brings back off (noImplicitAny, strictNullChecks and
+# the rest): tsc --showConfig tells what it resolves to. It reads the route types
+# prepare's next typegen writes, so it needs prepare first.
+#
+# Findings, on stdout (tsc's own output goes to stderr):
+#   <file>:<line> TS<n> <message>                  a tsc error (tsconfig.json:1 for one
+#                                                  that names no file)
+#   tsconfig.json:<line> typecheck-strict <message>   strict off, or a strict check off
+#   tsconfig.json:1 typecheck-config <message>     no tsconfig.json, or tsc can't read it
+#   tools/verify/typecheck:1 typecheck-error <message>   tsc failed with no error to show
+#   (and node-missing or tool-missing, as _nextjs.sh has them)
+# Exits 1 on any finding.
+set -u
+
+. "$(dirname "${BASH_SOURCE[0]}")/_nextjs.sh"
+
+# The checks `strict` turns on, each of which tsconfig.json may turn back off.
+STRICT_FLAGS="alwaysStrict noImplicitAny noImplicitThis strictBindCallApply strictBuiltinIteratorReturn strictFunctionTypes strictNullChecks strictPropertyInitialization useUnknownInCatchVariables"
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+if [ ! -f tsconfig.json ]; then
+	echo "tsconfig.json:1 typecheck-config no tsconfig.json; tsc checks the project through it"
+	exit 1
+fi
+tool_ready tsc || exit 1
+
+found=0
+
+# The resolved config: strict on, and none of its checks off. (With strict off,
+# --showConfig lists each of them off, so strict's finding stands alone.)
+tool tsc --showConfig -p tsconfig.json > "$tmp/config" 2> "$tmp/config.err"
+status=$?
+if [ "$status" -ne 0 ]; then
+	cat "$tmp/config" "$tmp/config.err" >&2
+	echo "tsconfig.json:1 typecheck-config tsc --showConfig exited $status (see stderr)"
+	exit 1
+fi
+"${NODE_BIN:-node}" -e '
+	const options = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).compilerOptions || {};
+	if (options.strict !== true) console.log("strict");
+	else for (const flag of process.argv[2].split(" ")) if (options[flag] === false) console.log(flag);
+' "$tmp/config" "$STRICT_FLAGS" > "$tmp/strict" 2>&1 || {
+	cat "$tmp/strict" >&2
+	echo "tools/verify/typecheck:1 typecheck-error could not read tsc --showConfig's output (see stderr)"
+	exit 1
+}
+while IFS= read -r flag; do
+	if [ "$flag" = strict ]; then
+		echo "tsconfig.json:$(json_line tsconfig.json strict) typecheck-strict strict is not on; the gate needs \"strict\": true"
+	else
+		echo "tsconfig.json:$(json_line tsconfig.json "$flag") typecheck-strict $flag is off, which strict turns on; remove it"
+	fi
+	found=1
+done < "$tmp/strict"
+
+tool tsc --noEmit --pretty false -p tsconfig.json > "$tmp/out" 2>&1
+status=$?
+tr -d '\r' < "$tmp/out" > "$tmp/log"
+cat "$tmp/log" >&2
+
+# `<file>(<line>,<col>): error TS<n>: <message>`; `error TS<n>: <message>` names
+# no file. An indented line continues the message above it, and is left out.
+sed -n \
+	-e 's#^\([^ ].*\)(\([0-9][0-9]*\),[0-9][0-9]*): error \(TS[0-9][0-9]*\): \(.*\)$#\1:\2 \3 \4#p' \
+	-e 's#^error \(TS[0-9][0-9]*\): \(.*\)$#tsconfig.json:1 \1 \2#p' "$tmp/log" > "$tmp/errors"
+cat "$tmp/errors"
+if [ -s "$tmp/errors" ]; then
+	found=1
+elif [ "$status" -ne 0 ]; then
+	echo "tools/verify/typecheck:1 typecheck-error tsc exited $status with no error it could name (see stderr)"
+	found=1
+fi
+
+exit "$found"

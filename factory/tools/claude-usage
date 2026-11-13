@@ -1,0 +1,397 @@
+#!/usr/bin/env bash
+# claude-usage: the Claude tokens a project's Claude Code sessions used, per issue,
+# per amend and per session, from their transcripts; the retro reads them
+# (factory-run's retro.md), and the factory's Driver its amends' (factory-amend).
+#
+#   claude-usage issues   [--project <dir>] [--since <time>] [--until <time>]
+#   claude-usage amends   [--project <dir>] [--since <time>] [--until <time>]
+#   claude-usage sessions [--project <dir>] [--since <time>] [--until <time>]
+#
+# Claude Code keeps a project's transcripts in
+# ${CLAUDE_CONFIG_DIR:-~/.claude}/projects/<slug>/, where <slug> is the project's
+# absolute path with every character but an ASCII letter or digit turned into -
+# (/home/me/my_game: -home-me-my-game; one past U+FFFF makes two); a slug over 200
+# is cut to 200 and ends with - and a hash of the path, as Claude Code names it
+# (slug, below). The project is the main checkout of the git repo around the
+# current folder, where a Run's sessions start, or the current folder outside a
+# repo; --project names another.
+#   <session>.jsonl               a main session
+#   <session>/subagents/*.jsonl   the subagents it started
+#
+# issues: one line per issue, by number. A subagent is an issue's driver when the
+# first user message of its transcript, its prompt, has the line
+# `factory-issue: <n>` (factory-run dispatches every driver so). An issue totals
+# its drivers' transcripts:
+#   issue=<n> transcripts=<k> calls=<c> input=<n> cache-write=<n> cache-read=<n> output=<n> cost=<n>
+# amends: one line per amend, by its slug: a subagent whose prompt has no
+# `factory-issue:` line and has the line `factory-amend: <slug>` (factory-amend's
+# brief.md starts every builder's prompt so, and the builder every reviewer's) is
+# that amend's. An amend totals its subagents' transcripts:
+#   amend=<slug> transcripts=<k> calls=<c> input=<n> ... cost=<n>
+# sessions: one line per main session, by its first timestamp, totalling its own
+# transcript and its subagents that are no issue's or amend's, so issues, amends
+# and sessions together count every call once; compactions counts the records that hold a
+# compaction's summary ("isCompactSummary":true):
+#   session=<id> start=<time> compactions=<n> transcripts=<k> calls=<c> input=<n> ... cost=<n>
+# A group with no call prints no line.
+#
+# A call is one assistant message, known by its message id. Claude Code writes a
+# message as several lines that repeat its usage, so an id counts once, with its
+# largest numbers, in the first transcript to hold it (they are read oldest first).
+# Claude Code's own error notes (model <synthetic>) are no call. From the
+# message's own usage (not one inside a tool input):
+#   input        input_tokens: the prompt after the last cache breakpoint
+#   cache-write  cache_creation_input_tokens
+#   cache-read   cache_read_input_tokens
+#   output       output_tokens, thinking included
+#   cost         input-token equivalents, weighted as billed: input 1, a 5-minute
+#                cache write 1.25, a 1-hour cache write 2 (and 2 for any write
+#                cache_creation doesn't split), a cache read 0.1, output 5;
+#                rounded to a whole token
+#
+# --since and --until keep only the calls and compactions whose timestamp is at or
+# after <since> and before <until>: a UTC time as the transcripts write it, or
+# the start of one (2026-11-03, 2026-11-03T18:30).
+#
+# Bash and POSIX awk only, like the rest of the factory. Exit codes: 0 done (no
+# line when there is nothing to count), 1 no transcript folder, 2 usage.
+set -u
+
+usage() {
+	echo "usage: claude-usage issues|amends|sessions [--project <dir>] [--since <time>] [--until <time>]" >&2
+	exit 2
+}
+
+[ "$#" -ge 1 ] || usage
+case "$1" in
+	issues | amends | sessions) what="$1" ;;
+	-h | --help)
+		awk 'NR == 1 { next } !/^#/ { exit } { sub(/^# ?/, ""); print }' "${BASH_SOURCE[0]}"
+		exit 0
+		;;
+	*) usage ;;
+esac
+shift
+project="" since="" until=""
+while [ "$#" -gt 0 ]; do
+	case "$1" in
+		--project | --since | --until)
+			[ "$#" -ge 2 ] || usage
+			case "$1" in
+				--project) project="$2" ;;
+				--since) since="$2" ;;
+				--until) until="$2" ;;
+			esac
+			shift 2
+			;;
+		*) usage ;;
+	esac
+done
+time_re='^[0-9]{4}-[0-9]{2}-[0-9]{2}(T[0-9]{2}(:[0-9]{2}(:[0-9]{2}(\.[0-9]+)?)?)?Z?)?$'
+for t in "$since" "$until"; do
+	[ -z "$t" ] || [[ $t =~ $time_re ]] || {
+		echo "claude-usage: '$t' is no UTC time; give one such as 2026-11-03 or 2026-11-03T18:30" >&2
+		exit 2
+	}
+done
+
+# slug <path>: Claude Code's folder name for a project at <path>. Claude Code works
+# on the path as a JavaScript string, so on its UTF-16 code units: each one that is
+# no ASCII letter or digit becomes -, and over 200 the slug is cut to 200 and ends
+# with - and the absolute value of the path's 32-bit Java string hash, in base 36.
+# The path's bytes are read as UTF-8 whatever the locale, a byte that isn't UTF-8
+# as U+FFFD, as Node reads it.
+slug() {
+	CLAUDE_USAGE_PATH="$1" LC_ALL=C awk '
+		BEGIN {
+			for (i = 1; i < 256; i++) ord[sprintf("%c", i)] = i
+			s = ENVIRON["CLAUDE_USAGE_PATH"]
+			n = length(s)
+			for (i = 1; i <= n; i += len) {
+				b = ord[substr(s, i, 1)]
+				if (b < 128) { len = 1; cp = b }
+				else if (b >= 192 && b < 224) { len = 2; cp = b - 192 }
+				else if (b >= 224 && b < 240) { len = 3; cp = b - 224 }
+				else if (b >= 240 && b < 248) { len = 4; cp = b - 240 }
+				else { len = 1; cp = 65533 }
+				for (j = 1; j < len; j++) {
+					c = ord[substr(s, i + j, 1)]
+					if (c < 128 || c >= 192) { len = 1; cp = 65533; break }
+					cp = cp * 64 + c - 128
+				}
+				if (cp >= 65536) {
+					unit[++units] = 55296 + int((cp - 65536) / 1024)
+					unit[++units] = 56320 + (cp - 65536) % 1024
+				} else unit[++units] = cp
+			}
+			h = 0
+			out = ""
+			for (k = 1; k <= units; k++) {
+				u = unit[k]
+				h = (h * 31 + u) % 4294967296
+				out = out ((u >= 48 && u <= 57) || (u >= 65 && u <= 90) || (u >= 97 && u <= 122) ? sprintf("%c", u) : "-")
+			}
+			if (units > 200) {
+				if (h >= 2147483648) h = 4294967296 - h
+				digits = "0123456789abcdefghijklmnopqrstuvwxyz"
+				tail = h ? "" : "0"
+				for (; h > 0; h = int(h / 36)) tail = substr(digits, h % 36 + 1, 1) tail
+				out = substr(out, 1, 200) "-" tail
+			}
+			print out
+		}
+	'
+}
+
+# The project's paths: physical, then as given when that differs (a symlink).
+paths=()
+if [ -n "$project" ]; then
+	if [ -d "$project" ]; then
+		paths+=("$(cd "$project" && pwd -P)" "$(cd "$project" && pwd)")
+	elif [ "${project#/}" != "$project" ]; then
+		paths+=("$project")
+	else
+		echo "claude-usage: no folder $project; --project takes a folder, or the absolute path a moved one had" >&2
+		exit 2
+	fi
+else
+	main="$(git worktree list --porcelain 2> /dev/null | sed -n '1s/^worktree //p')"
+	[ -n "$main" ] && [ -d "$main" ] || main="."
+	paths+=("$(cd "$main" && pwd -P)" "$(cd "$main" && pwd)")
+fi
+root="${CLAUDE_CONFIG_DIR:-${HOME:?}/.claude}/projects"
+dir=""
+for p in "${paths[@]}"; do
+	if [ -d "$root/$(slug "$p")" ]; then
+		dir="$root/$(slug "$p")"
+		break
+	fi
+done
+[ -n "$dir" ] || {
+	echo "claude-usage: no transcripts for ${paths[0]} in $root/$(slug "${paths[0]}"); name the project with --project <dir>" >&2
+	exit 1
+}
+cd "$dir" || exit 1
+
+shopt -s nullglob
+files=(*.jsonl */subagents/*.jsonl)
+[ "${#files[@]}" -gt 0 ] || exit 0
+
+# Oldest first, by the first timestamp in each file (a file with none goes last),
+# so a message copied into a later transcript counts where it was first written.
+tab="$(printf '\t')"
+ordered=()
+while IFS= read -r f; do
+	ordered+=("./$f")
+done < <(
+	LC_ALL=C grep -m 1 -o -H '"timestamp":"[0-9][^"]*"' -- "${files[@]}" |
+		LC_ALL=C awk -F '"timestamp":"' -v list="$(printf '%s\n' "${files[@]}")" '
+			{
+				f = substr($1, 1, length($1) - 1)
+				if (!(f in t)) { t[f] = $2; sub(/".*/, "", t[f]) }
+			}
+			END {
+				n = split(list, all, "\n")
+				for (i = 1; i <= n; i++) if (all[i] != "") print ((all[i] in t) ? t[all[i]] : "~") "\t" all[i]
+			}
+		' | LC_ALL=C sort -t "$tab" -k1,1 -k2,2 | cut -f 2-
+)
+
+LC_ALL=C awk -v what="$what" -v since="$since" -v until="$until" '
+	# stamp(line): the timestamp of the record itself, the last one in the line
+	# (one inside its message comes earlier); "" when there is none.
+	function stamp(line,    t) {
+		if (!match(line, /.*"timestamp":"[0-9][^"]*"/)) return ""
+		t = substr(line, RSTART, RLENGTH)
+		sub(/.*"timestamp":"/, "", t)
+		return substr(t, 1, length(t) - 1)
+	}
+	function in_window(t) {
+		if (!windowed) return 1
+		return t != "" && (since == "" || t >= since) && (until == "" || t < until)
+	}
+	# issue_of(line): the <n> of the first line `factory-issue: <n>` in a user
+	# message, or "". An escaped backslash is set aside first, so each \n left
+	# is a line break.
+	function issue_of(line,    s) {
+		s = line
+		gsub(/\\\\/, "\001", s)
+		if (!match(s, /(:"|\\n)factory-issue: [1-9][0-9]*(\\[nr]|")/)) return ""
+		s = substr(s, RSTART, RLENGTH)
+		sub(/^(:"|\\n)factory-issue: /, "", s)
+		sub(/[^0-9].*$/, "", s)
+		return s
+	}
+	# amend_of(line): the <slug> of the first line `factory-amend: <slug>` in a
+	# user message, or "", as issue_of reads it.
+	function amend_of(line,    s) {
+		s = line
+		gsub(/\\\\/, "\001", s)
+		if (!match(s, /(:"|\\n)factory-amend: [A-Za-z0-9][A-Za-z0-9._-]*(\\[nr]|")/)) return ""
+		s = substr(s, RSTART, RLENGTH)
+		sub(/^(:"|\\n)factory-amend: /, "", s)
+		sub(/(\\[nr]|")$/, "", s)
+		return s
+	}
+	# record(line): an assistant record: its message id into r_id, its model into
+	# r_model, and the usage of its message (not a "usage" inside a tool input)
+	# into u_in, u_cw, u_cr, u_out and u_5m, the 5-minute part of cache_creation.
+	# The line splits at its quotes, so a string is skipped whole: inside one, a
+	# part that ends in an odd number of backslashes ended at an escaped quote, and
+	# the string goes on. True when the message has a usage, once the message
+	# closes, so its keys count in any order.
+	function record(line,    n, part, k, p, m, i, j, c, v, inside, esc, last, key, vkey, depth, parent, seen) {
+		r_id = r_model = ""
+		u_in = u_cw = u_cr = u_out = u_5m = 0
+		if (!index(line, "\"usage\":{")) return 0
+		n = split(line, part, "\"")
+		depth = inside = esc = seen = 0
+		last = vkey = ""
+		for (k = 1; k <= n; k++) {
+			p = part[k]
+			if (inside) {
+				m = length(p)
+				if (substr(p, m, 1) == "\\") {
+					for (j = m - 1; j > 0 && substr(p, j, 1) == "\\"; j--) ;
+					if ((m - j) % 2) { esc = 1; continue }
+				}
+				if (!esc && depth == 2 && parent[2] == "message") {
+					if (vkey == "id") r_id = p
+					else if (vkey == "model") r_model = p
+				}
+				last = esc ? "" : p
+				inside = esc = 0
+				continue
+			}
+			# Outside a string: a part that opens with : follows a key.
+			key = substr(p, 1, 1) == ":" ? last : ""
+			m = length(p)
+			for (i = 1; i <= m; i++) {
+				c = substr(p, i, 1)
+				if (c == "{" || c == "[") {
+					parent[++depth] = key
+					key = ""
+				} else if (c == "}" || c == "]") {
+					if (depth == 3 && parent[3] == "usage" && parent[2] == "message") seen = 1
+					else if (depth == 2 && parent[2] == "message") return seen
+					depth--
+					key = ""
+				} else if (c == ",") {
+					key = ""
+				} else if (c ~ /[-0-9]/) {
+					for (j = i; j < m && substr(p, j + 1, 1) ~ /[-+.0-9eE]/; j++) ;
+					v = substr(p, i, j - i + 1) + 0
+					i = j
+					if (depth == 3 && parent[3] == "usage" && parent[2] == "message") {
+						if (key == "input_tokens") u_in = v
+						else if (key == "cache_creation_input_tokens") u_cw = v
+						else if (key == "cache_read_input_tokens") u_cr = v
+						else if (key == "output_tokens") u_out = v
+					} else if (depth == 4 && parent[4] == "cache_creation" && parent[3] == "usage" && parent[2] == "message" && key == "ephemeral_5m_input_tokens") u_5m = v
+					key = ""
+				}
+			}
+			# The quote after the part opens a string: the value of key, if any.
+			vkey = key
+			inside = 1
+		}
+		return seen
+	}
+	# call(line): count an assistant record under its message id.
+	function call(line,    id) {
+		if (!record(line) || r_id == "" || r_model == "<synthetic>") return
+		id = r_id
+		if (id in owner) {
+			if (owner[id] != file) return
+		} else {
+			owner[id] = file
+			if (windowed) when[id] = stamp(line)
+		}
+		if (u_in > m_in[id]) m_in[id] = u_in
+		if (u_cw > m_cw[id]) m_cw[id] = u_cw
+		if (u_cr > m_cr[id]) m_cr[id] = u_cr
+		if (u_out > m_out[id]) m_out[id] = u_out
+		if (u_5m > m_5m[id]) m_5m[id] = u_5m
+	}
+	# sorted(a, n, numeric): sort a[1..n] in place, as numbers or as strings.
+	function sorted(a, n, numeric,    i, j, x) {
+		for (i = 2; i <= n; i++) {
+			x = a[i]
+			for (j = i - 1; j >= 1 && (numeric ? a[j] + 0 > x + 0 : a[j] "" > x ""); j--) a[j + 1] = a[j]
+			a[j + 1] = x
+		}
+	}
+	function whole(x) {
+		return sprintf("%.0f", x)
+	}
+	BEGIN { windowed = since != "" || until != "" }
+	FILENAME != file {
+		file = FILENAME
+		name = substr(file, 3)
+		session = name
+		sub(/(\/.*|\.jsonl)$/, "", session)
+		group[file] = "s " session
+		decided[file] = !index(name, "/subagents/")
+		first[file] = ""
+	}
+	{
+		if (first[file] == "" && match($0, /"timestamp":"[0-9][^"]*"/)) first[file] = substr($0, RSTART + 13, RLENGTH - 14)
+		if (!decided[file] && index($0, "\"type\":\"user\"") && index($0, "\"role\":\"user\"") && !index($0, "\"isMeta\":true")) {
+			decided[file] = 1
+			n = issue_of($0)
+			if (n != "") group[file] = "i " n
+			else {
+				n = amend_of($0)
+				if (n != "") group[file] = "a " n
+			}
+		}
+		if (index($0, "\"isCompactSummary\":true") && (!windowed || in_window(stamp($0)))) compactions[file]++
+		if (index($0, "\"type\":\"assistant\"")) call($0)
+	}
+	END {
+		for (id in owner) {
+			if (windowed && !in_window(when[id])) continue
+			f = owner[id]
+			g = group[f]
+			w5 = m_5m[id] + 0
+			if (w5 > m_cw[id] + 0) w5 = m_cw[id] + 0
+			calls[g]++
+			t_in[g] += m_in[id]
+			t_cw[g] += m_cw[id]
+			t_cr[g] += m_cr[id]
+			t_out[g] += m_out[id]
+			cost[g] += 100 * m_in[id] + 125 * w5 + 200 * (m_cw[id] - w5) + 10 * m_cr[id] + 500 * m_out[id]
+			if (!((g, f) in held)) {
+				held[g, f] = 1
+				transcripts[g]++
+			}
+		}
+		for (f in group) {
+			g = group[f]
+			comp[g] += compactions[f]
+			if (first[f] != "" && (!(g in start) || first[f] < start[g])) start[g] = first[f]
+		}
+		kind = substr(what, 1, 1)
+		n = 0
+		for (g in calls) {
+			if (substr(g, 1, 1) != kind) continue
+			# the sort key: the issue number, the amend slug, or the start then the session id
+			list[++n] = kind != "s" ? substr(g, 3) : start[g] " " substr(g, 3)
+		}
+		sorted(list, n, kind == "i")
+		for (i = 1; i <= n; i++) {
+			if (kind == "i") {
+				g = "i " list[i]
+				head = "issue=" list[i]
+			} else if (kind == "a") {
+				g = "a " list[i]
+				head = "amend=" list[i]
+			} else {
+				g = "s " substr(list[i], index(list[i], " ") + 1)
+				head = "session=" substr(g, 3) " start=" start[g] " compactions=" (comp[g] + 0)
+			}
+			print head " transcripts=" transcripts[g] " calls=" calls[g] " input=" whole(t_in[g]) " cache-write=" whole(t_cw[g]) \
+				" cache-read=" whole(t_cr[g]) " output=" whole(t_out[g]) " cost=" whole(int((cost[g] + 50) / 100))
+		}
+	}
+' "${ordered[@]}"

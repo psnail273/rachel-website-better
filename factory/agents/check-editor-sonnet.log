@@ -1,0 +1,9 @@
+# bash factory/agents/check-editor-sonnet.sh, 2026-10-28, Windows 11, Git Bash
+# control, by hand: the same agent file without its model: line ran on claude-opus-5-5 (models used: claude-haiku-5-5 claude-opus-5-5)
+claude: 2.1.312 (Claude Code)
+claude exit: 0
+models used: claude-haiku-5-5 claude-sonnet-5-5 
+steps run: prepare format typecheck lint prepare format typecheck lint deviation test smoke 
+PASS model: the subagent ran on claude-sonnet-5-5 with CLAUDE_CODE_SUBAGENT_MODEL=claude-opus-5-5
+PASS blocked: the SubagentStop hook blocked the stop while lint was red
+PASS fixed: the subagent fixed the finding and the gate went green

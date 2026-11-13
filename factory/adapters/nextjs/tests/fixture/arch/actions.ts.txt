@@ -1,0 +1,7 @@
+"use server";
+
+import { loadUser } from "@/server/db";
+
+export async function rename(id: number): Promise<number> {
+  return Promise.resolve(loadUser(id).id);
+}

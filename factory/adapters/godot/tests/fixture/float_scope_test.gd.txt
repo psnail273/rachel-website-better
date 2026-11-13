@@ -1,0 +1,31 @@
+extends GdUnitTestSuite
+
+const WIDE := 1e-3
+
+
+func test_one() -> void:
+	var tolerance: float = 0.1
+	assert_float(1.0).is_equal_approx(1.0, tolerance)
+
+
+func test_two() -> void:
+	var tolerance: Vector2 = Vector2(0.1, 0.1)
+	assert_vector(Vector2.ZERO).is_equal_approx(Vector2.ONE, tolerance)
+	assert_vector(Vector2.ZERO).is_equal_approx(Vector2.ONE, WIDE)
+
+
+func test_strings() -> void:
+	var payload := """
+(
+assert_float(0.5).is_equal_approx(0.5, 0.2)
+"""
+	assert_float(0.5).is_equal_approx(0.5, 0.1)
+	assert_str(payload).is_not_empty()
+
+
+func test_chains() -> void:
+	var expected := [1]
+	assert_array([0.1]).is_equal(expected)
+	assert_array(expected).contains(1).contains(0.5)
+	assert_array(expected).is_equal([1e-3])
+	assert_array([0.5]).has_size(1)

@@ -1,0 +1,21 @@
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+
+beforeEach(() => {
+  vi.useFakeTimers();
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+it("drives time", async () => {
+  const done = new Promise((resolve) => setTimeout(resolve, 1000));
+  await vi.advanceTimersByTimeAsync(1000);
+  await done;
+  await sleep(10);
+  expect(1).toBe(1);
+});
+
+it("still waits in the browser", async ({ page }) => {
+  await page.waitForTimeout(100);
+  expect(1).toBe(1);
+});

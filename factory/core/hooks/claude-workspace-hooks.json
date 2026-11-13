@@ -1,0 +1,14 @@
+{
+  "PreToolUse": [
+    {
+      "matcher": "^Bash$",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "bash \"$CLAUDE_PROJECT_DIR/factory/core/hooks/claude-wait-guard.sh\"",
+          "timeout": 10
+        }
+      ]
+    }
+  ]
+}

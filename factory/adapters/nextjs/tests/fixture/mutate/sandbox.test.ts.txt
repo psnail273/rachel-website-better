@@ -1,0 +1,16 @@
+import { appendFileSync, existsSync } from "node:fs";
+import { resolve } from "node:path";
+
+import { expect, it } from "vitest";
+
+// Stryker's Vitest runner runs only the tests that import a mutated file.
+import { total } from "@/lib/cart";
+
+// What the project's copy holds: SANDBOX_SEEN names a file outside it.
+it("looks around the project", () => {
+  const root = resolve(import.meta.dirname, "..");
+  const seen = [".env.local", "keys/deploy.pem", "notes.log", "factory", "lib/cart.ts"];
+  const lines = seen.map((path) => `${path} ${existsSync(resolve(root, path))}`);
+  appendFileSync(process.env.SANDBOX_SEEN ?? "/dev/null", lines.join("\n") + "\n");
+  expect(total).toBeTypeOf("function");
+});

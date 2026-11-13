@@ -1,0 +1,5 @@
+# A test file that turns extglob on before it uses it: it parses, and loads.
+shopt -s extglob
+test_glob() {
+	case foo in @(foo|bar)) true ;; *) false ;; esac
+}

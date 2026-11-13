@@ -1,0 +1,169 @@
+extends GdUnitTestSuite
+
+const MAX_FRAMES: int = 600
+
+var frames: int = 0
+var shared: Dictionary = {"frames": 0}
+
+
+func test_grouped_operands() -> void:
+	var count: int = 0
+	while (count) < 3:
+		count += 1
+		await get_tree().process_frame
+	var left: int = 3
+	while 0 < (left):
+		left -= 1
+		await get_tree().process_frame
+	count = 0
+	while count != (3):
+		count += 1
+		await get_tree().process_frame
+	var ticks: Array[int] = [0]
+	while (ticks[0]) < 3:
+		ticks[0] += 1
+		await get_tree().process_frame
+	while count != MAX_FRAMES:
+		count += 1
+		await get_tree().process_frame
+	assert_int(count).is_equal(MAX_FRAMES)
+
+
+func test_drains() -> void:
+	var pending: Array[Signal] = []
+	while not pending.is_empty(): await pending.pop_front()
+	var queues: Array[Array] = [[get_tree().process_frame]]
+	while not queues[0].is_empty():
+		await queues[0].pop_front()
+	pending = [get_tree().process_frame]
+	while not pending.is_empty():
+		await (pending).pop_front()
+	pending = [get_tree().process_frame]
+	while not pending.is_empty():
+		await pending \
+			.pop_front()
+	assert_array(pending).is_empty()
+
+
+func test_lambdas() -> void:
+	var done: bool = false
+	while not done:
+		done = true
+		var first: Callable = func(
+			) -> void:
+				await get_tree().process_frame
+	done = false
+	while not done:
+		done = true
+		var second: Callable = func(): \
+			await get_tree().process_frame
+	var count: int = 0
+	while count < 3:
+		var callback: Callable = func(count): count = 0
+		count += 1
+		await get_tree().process_frame
+	while _pending(func() -> void: await get_tree().process_frame):
+		pass
+	assert_bool(done).is_true()
+
+
+func test_members_and_words() -> void:
+	var frames: int = 0
+	while self.frames < 3:
+		frames = 0
+		self.frames += 1
+		await get_tree().process_frame
+	var box: Dictionary = {"frames": 0, "await": true}
+	while box.frames < MAX_FRAMES:
+		box.frames += 1
+		await get_tree().process_frame
+	var left: int = 3
+	while left:
+		left -= 1
+		await get_tree().process_frame
+	while box.await:
+		box.await = false
+	assert_int(self.frames).is_equal(3)
+
+
+func test_state_and_resets() -> void:
+	var box: Dictionary = {"frames": 0}
+	while box.frames < MAX_FRAMES:
+		await get_tree().process_frame
+	while self.frames < 3:
+		self.frames = 0
+		await get_tree().process_frame
+	var count: int = 0
+	while count < 3:
+		if box.frames > 0: count = 0
+		count += 1
+		await get_tree().process_frame
+	assert_int(count).is_equal(3)
+
+
+func test_chains_casts_and_paths() -> void:
+	var states: Array[Dictionary] = [{"frames": 0}]
+	while states[0].frames < 3:
+		states[0].frames += 1
+		await get_tree().process_frame
+	var box: Dictionary = {"frames": 0}
+	while box.frames < 3:
+		box.frames = (box.frames + 1)
+		await get_tree().process_frame
+	while box.frames < 6:
+		box["frames"] += 1
+		await get_tree().process_frame
+	var pending: Variant = [get_tree().process_frame]
+	while not pending.is_empty():
+		await (pending as Array).pop_front()
+	while self["frames"] < 3:
+		self["frames"] += 1
+		await get_tree().process_frame
+	var root: Node = auto_free(Node.new())
+	root.name = "Root"
+	add_child(root)
+	while root.get_child_count():
+		root.remove_child($Root/await)
+	var callbacks: Array[Callable] = []
+	var waiting: bool = true
+	while waiting:
+		callbacks.append(func() -> void: print(
+			await get_tree().process_frame
+		))
+		waiting = false
+	assert_int(box.frames).is_equal(6)
+
+
+func test_self_casts_and_wrapped_steps() -> void:
+	while self.shared.frames < 3:
+		shared.frames += 1
+		await get_tree().process_frame
+	while shared.frames < 6:
+		self.shared.frames += 1
+		await get_tree().process_frame
+	var node: Node = auto_free(Node2D.new())
+	while (node as Node2D).position.x < 3.0:
+		(node as Node2D).position.x += 1.0
+		await get_tree().process_frame
+	var box: Dictionary = {"remaining": 3}
+	while box.remaining > 0:
+		box.remaining = maxi(
+			0, # Keep the count nonnegative.
+			box.remaining - 1,
+		)
+		await get_tree().process_frame
+	while box.remaining < 3:
+		box.remaining = mini(
+			3, # Read from state, not a step: a finding.
+			_remaining(),
+		)
+		await get_tree().process_frame
+	assert_int(shared.frames).is_equal(6)
+
+
+func _pending(_callback: Callable) -> bool:
+	return false
+
+
+func _remaining() -> int:
+	return 3

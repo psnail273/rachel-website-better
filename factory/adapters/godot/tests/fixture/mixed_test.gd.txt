@@ -1,0 +1,20 @@
+extends GdUnitTestSuite
+
+
+func test_passes() -> void:
+	assert_int(1).is_equal(1)
+
+
+func test_fails() -> void:
+	assert_int(1).is_equal(2)
+
+
+func test_errors() -> void:
+	var values: Array[int] = []
+	var value: int = values[3]
+	assert_int(value).is_equal(0)
+
+
+func test_params(value: int, test_parameters := [[1], [2]]) -> void:
+	assert_int(value).is_equal(1)
+	assert_array(test_parameters).has_size(2)

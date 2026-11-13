@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# The version probe for the pin check: prints `<tool> <version>` for each tool it
+# finds, nothing for one it doesn't. Node and pnpm are what runs here (local.env
+# may name them); the others are the versions pnpm-lock.yaml locks for the
+# project, as `<tool>` for the package: next, typescript, eslint, prettier,
+# vitest, stryker (@stryker-mutator/core), playwright (@playwright/test) and
+# dependency-cruiser.
+. "$(dirname "${BASH_SOURCE[0]}")/_nextjs.sh"
+
+if node_ready > /dev/null; then
+	"${NODE_BIN:-node}" --version 2> /dev/null | tr -d '\r' | sed -n 's/^v\([0-9][0-9.]*\)$/node \1/p' | head -n 1
+fi
+if pnpm_ready > /dev/null; then
+	pnpm --version 2> /dev/null | tr -d '\r' | sed -n 's/^\([0-9][0-9.]*[0-9]\)$/pnpm \1/p' | tail -n 1
+fi
+# The root importer's dependencies in the lockfile: `      <name>:` then
+# `        version: <version>(<peers>)`.
+if [ -f pnpm-lock.yaml ]; then
+	tr -d '\r' < pnpm-lock.yaml | awk '
+		BEGIN {
+			tool["next"] = "next"; tool["typescript"] = "typescript"; tool["eslint"] = "eslint"
+			tool["prettier"] = "prettier"; tool["vitest"] = "vitest"
+			tool["@stryker-mutator/core"] = "stryker"; tool["@playwright/test"] = "playwright"
+			tool["dependency-cruiser"] = "dependency-cruiser"
+		}
+		/^importers:$/ { imp = 1; root = 0; sect = 0; next }
+		/^[^ ]/ { imp = 0; next }
+		!imp { next }
+		/^  [^ ]/ { root = ($0 == "  .:"); sect = 0; next }
+		root && /^    [^ ]/ { sect = ($0 ~ /^    (dependencies|devDependencies|optionalDependencies):$/); next }
+		root && sect && /^      [^ ]/ { name = $0; sub(/^ */, "", name); sub(/:$/, "", name); gsub(/\047/, "", name); next }
+		root && sect && /^        version: / && (name in tool) {
+			v = $0; sub(/^ *version: */, "", v); sub(/\(.*$/, "", v); gsub(/\047/, "", v)
+			print tool[name], v
+		}
+	' | LC_ALL=C sort -u
+fi
+exit 0

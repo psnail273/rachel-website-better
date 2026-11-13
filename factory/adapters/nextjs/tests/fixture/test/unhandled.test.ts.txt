@@ -1,0 +1,6 @@
+import { expect, it } from "vitest";
+
+it("fails on its assertion", () => {
+  void Promise.reject(new Error("background crashed"));
+  expect(1).toBe(2);
+});

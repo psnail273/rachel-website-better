@@ -1,0 +1,20 @@
+import { expect, it } from "vitest";
+
+it("reads the method", () => {
+  const fixture = { expect() { return 1; } };
+  expect(fixture.expect()).toBe(1);
+});
+
+it("reads the typed method", () => {
+  class Probe {
+    static assertReady(): boolean {
+      return true;
+    }
+  }
+  expect(Probe.assertReady()).toBe(true);
+});
+
+it("reads the property", () => {
+  const fixture = { expect: () => 1 };
+  expect(fixture.expect()).toBe(1);
+});

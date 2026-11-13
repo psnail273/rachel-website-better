@@ -1,0 +1,80 @@
+extends GdUnitTestSuite
+
+const MAX_FRAMES: int = 600
+
+
+func test_counters() -> void:
+	var items: Array[int] = [1, 2]
+	var i: int = 0
+	while i < items.size():
+		i += 1
+		await get_tree().process_frame
+	var left: int = 3
+	while left > 0:
+		left -= 1
+		await get_tree().process_frame
+	while 0 < left:
+		left -= 1
+		await get_tree().process_frame
+	var ticks: Array[int] = [0]
+	while ticks[0] < MAX_FRAMES:
+		ticks[0] += 1
+		await get_tree().process_frame
+	while ticks[0] != 600:
+		ticks[0] += 1
+		await get_tree().process_frame
+	assert_int(i).is_equal(2)
+
+
+func test_state_is_no_counter() -> void:
+	var settled: bool = false
+	var stable_frames: int = 0
+	while stable_frames < 3:
+		await get_tree().process_frame
+		if settled:
+			stable_frames += 1
+		else:
+			stable_frames = 0
+	var last: int = 3
+	while _level() < last:
+		await get_tree().process_frame
+	var items: Array[int] = []
+	while items.size() < MAX_FRAMES:
+		await get_tree().process_frame
+	while _ball().position.y > last:
+		await get_tree().process_frame
+	assert_bool(settled).is_false()
+
+
+func test_lambdas_drains_and_named_guards() -> void:
+	var done: bool = false
+	var pending: Array[Signal] = []
+	while not pending.is_empty():
+		await pending.pop_front()
+	while not done:
+		done = true
+		get_tree().process_frame.connect(func() -> void: await get_tree().process_frame)
+	while not done:
+		done = true
+		get_tree().process_frame.connect(
+			func() -> void:
+				await get_tree().process_frame
+		)
+	var timed_out: Array[bool] = [false]
+	while not done and not timed_out[0]:
+		await get_tree().process_frame
+	while not done and _within_deadline():
+		await get_tree().process_frame
+	assert_bool(done).is_true()
+
+
+func _level() -> int:
+	return 0
+
+
+func _ball() -> Node2D:
+	return auto_free(Node2D.new())
+
+
+func _within_deadline() -> bool:
+	return true

@@ -1,0 +1,4 @@
+export function total(prices: number[]): number {
+  const label: number = "total";
+  return prices.length + label;
+}

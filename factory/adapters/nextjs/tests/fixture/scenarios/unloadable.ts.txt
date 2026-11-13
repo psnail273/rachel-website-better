@@ -1,0 +1,7 @@
+import { test } from "@playwright/test";
+
+test("never runs", async ({ page }) => {
+  await page.goto("/");
+});
+
+throw new Error("the script fails as it loads");

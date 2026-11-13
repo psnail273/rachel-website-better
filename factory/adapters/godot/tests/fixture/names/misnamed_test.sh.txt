@@ -1,0 +1,176 @@
+# A Godot test file for names_test.sh: a test of each kind, for each tool, named
+# right and wrong, two written so the check can't read them, and a helper it
+# can't read.
+
+# A helper of this file that needs a real Godot.
+local_godot() {
+	[ -n "${GODOT_BIN:-}" ] || skip "GODOT_BIN is not set"
+	"$GODOT_BIN" --headless --version
+}
+
+# A fake Godot: no skip.
+fake_godot() {
+	export GODOT_BIN="$TEST_TMP/fake_godot"
+}
+
+test_checks_godot_bin_itself_unnamed() {
+	[ -n "${GODOT_BIN:-}" ] || skip "GODOT_BIN is not set"
+}
+
+test_checks_godot_bin_itself_with_godot() {
+	[ -n "${GODOT_BIN:-}" ] || skip "GODOT_BIN is not set"
+}
+
+test_checks_godot_bin_itself_with_node() {
+	[ -n "${GODOT_BIN:-}" ] || skip "GODOT_BIN is not set"
+}
+
+test_single_quoted_skip_unnamed() {
+	[ -n "${GODOT_BIN:-}" ] || skip 'GODOT_BIN is not set'
+}
+
+test_calls_a_lib_helper_unnamed() {
+	lib_godot
+}
+
+test_calls_a_lib_helper_with_godot() {
+	lib_godot
+}
+
+test_calls_a_local_helper_unnamed() {
+	local_godot
+}
+
+test_calls_a_local_helper_but_named_with_gdmutant() {
+	local_godot
+}
+
+test_a_fake_godot() {
+	fake_godot
+	lib_plain
+}
+
+test_empty_godot_bin() {
+	GODOT_BIN='' lib_plain
+}
+
+test_empty_godot_bin_but_named_with_godot() {
+	GODOT_BIN='' lib_plain
+}
+
+test_another_skip_message_alone() {
+	assert_eq "GODOT_BIN is not set" "$out"
+	skip "GODOT_BIN is not Godot 4.7.1"
+}
+
+test_mentions_it_in_a_comment() {
+	lib_plain
+	# skip "GODOT_BIN is not set" in a comment is no skip
+}
+
+test_has_with_in_the_middle_with_no_tool() {
+	lib_plain
+}
+
+test_code_on_the_opening_line_unnamed() { [ -n "${GODOT_BIN:-}" ] || skip "GODOT_BIN is not set"
+	"$GODOT_BIN" --headless --version
+}
+
+test_a_comment_on_the_opening_line() { # skip "GODOT_BIN is not set" in a comment
+	lib_plain
+}
+
+# A helper of this file that needs the real formatter, and a fake gdmutant: no skip.
+local_formatter() {
+	skip "no gdscript-formatter"
+}
+
+fake_gdmutant() {
+	export GDMUTANT_BIN="$TEST_TMP/fake_gdmutant"
+}
+
+test_starts_the_formatter_unnamed() {
+	lib_formatter
+}
+
+test_starts_the_formatter_with_formatter() {
+	lib_formatter
+}
+
+test_starts_the_formatter_but_named_with_godot() {
+	lib_formatter
+}
+
+test_starts_the_formatter_with_a_local_helper_unnamed() {
+	local_formatter
+}
+
+test_starts_the_formatter_with_a_local_helper_with_formatter() {
+	local_formatter
+}
+
+test_starts_gdmutant_alone_unnamed() {
+	lib_gdmutant
+}
+
+test_starts_gdmutant_alone_with_gdmutant() {
+	lib_gdmutant
+}
+
+# gdmutant runs Godot, so a test that starts it may be named for Godot.
+test_starts_gdmutant_alone_with_godot() {
+	lib_gdmutant
+}
+
+test_a_fake_gdmutant() {
+	fake_gdmutant
+	lib_plain
+}
+
+test_godot_and_the_formatter_with_formatter() {
+	lib_godot
+	lib_formatter
+}
+
+test_godot_and_the_formatter_but_named_with_gdmutant() {
+	lib_godot
+	lib_formatter
+}
+
+test_three_tools_unnamed() {
+	lib_godot
+	lib_formatter
+	lib_gdmutant
+}
+
+test_three_tools_with_godot() {
+	lib_godot
+	lib_formatter
+	lib_gdmutant
+}
+
+# A helper the check can't read: its closing brace is indented. A test that
+# calls it might run Godot, so it is named.
+unread_helper() {
+	[ -n "${GODOT_BIN:-}" ] || skip "GODOT_BIN is not set"
+	}
+
+test_calls_an_unread_helper() {
+	unread_helper
+}
+
+test_one_line_unnamed() { lib_godot; }
+
+test_one_line_with_godot() { lib_godot; }
+
+function test_a_keyword_definition {
+	lib_plain
+}
+
+test_an_indented_closing_brace() {
+	local_godot
+	}
+
+test_after_the_unread_one_with_godot() {
+	local_godot
+}

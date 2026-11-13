@@ -1,0 +1,6 @@
+# The Scenario folder (factory/core/lib/scenarios.sh): the Features' scripted
+# play-throughs, which the Editor neither reads nor writes. One line, relative to
+# the project root. It holds a .gdignore (empty), so Godot neither imports nor
+# exports it and gdUnit4 never finds it; the gates' steps leave it out
+# (_gdscript.sh). The Scenario driver, tools/verify/scenarios, runs it.
+scenarios/

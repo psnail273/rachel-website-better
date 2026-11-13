@@ -1,0 +1,76 @@
+import { assert, describe, expect, it, test } from "vitest";
+
+describe("orders", () => {
+  it("asserts with expect", () => {
+    expect(1).toBe(1);
+  });
+
+  it("has no assertion", () => {
+    const total = 1 + 1;
+    console.log(total);
+  });
+
+  it.todo("declared for later");
+
+  it.each([1, 2])("each %i asserts", (n) => {
+    expect(n).toBeGreaterThan(0);
+  });
+
+  it.each([1, 2])("each %i asserts nothing", (n) => {
+    console.log(n);
+  });
+
+  test.each`
+    a    | b
+    ${1} | ${2}
+  `("a table asserts nothing", ({ a }) => {
+    console.log(a);
+  });
+
+  test("uses assert", () => {
+    assert.equal(1, 1);
+  });
+
+  it("uses a helper", () => {
+    expectValidOrder({ id: 1 });
+  });
+
+  it("soft, poll and types", async () => {
+    expect.soft(1).toBe(1);
+    await expect.poll(() => 1).toBe(1);
+    expectTypeOf(1).toBeNumber();
+  });
+
+  it("names expect only in a comment and strings", () => {
+    // expect(1).toBe(1)
+    const s = "expect(1)";
+    const t = `expect(${s})`;
+    console.log(s, t);
+  });
+
+  it(`a template name`, function () {
+    void 0;
+  });
+
+  it.concurrent.skip("modifiers chain", async () => {
+    await expect(Promise.resolve(1)).resolves.toBe(1);
+  });
+
+  it.skipIf(process.platform === "win32")("skipIf asserts nothing", () => {
+    void 0;
+  });
+});
+
+function expectValidOrder(order: { id: number }): void {
+  expect(order.id).toBeGreaterThan(0);
+}
+
+const pattern = /it\(/;
+pattern.test("it(");
+
+class Probe {
+  test(input: string): boolean {
+    return input.length > 0;
+  }
+}
+console.log(new Probe().test("x"));

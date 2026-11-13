@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# The format step: GDQuest gdscript-formatter (pinned in tools/verify/pins).
+#   bash tools/verify/format                   the gate: check mode, nothing is written
+#   bash tools/verify/format --write [file...]  format in place with --verify-structure
+#                                              (the Editor's stop hook); no files = all
+#
+# Both modes check every .gd file in scope (_gdscript.sh) except those on the
+# format-exclude list, tools/verify/ratchet/format_exclude.txt. That list is a
+# ratchet: it may only shrink, and an entry naming no file in scope is a finding.
+#
+# Findings, on stdout:
+#   <file>:<line> format              the file isn't formatted; <line> is the first line that changes
+#   <file>:1 format-error             the formatter couldn't read or parse the file
+#   <file>:1 format-structure         write mode refused: formatting would change the code's structure
+#   <exclude list>:<n> format-exclude-stale   the entry names no file in scope
+# Exits 1 on any finding.
+set -u
+
+. "$(dirname "${BASH_SOURCE[0]}")/_gdscript.sh"
+
+write=0
+targets=()
+for arg in "$@"; do
+	case "$arg" in
+		--write) write=1 ;;
+		-*)
+			echo "format: unknown option '$arg'" >&2
+			exit 2
+			;;
+		*) targets+=("${arg//\\//}") ;;
+	esac
+done
+if [ "${#targets[@]}" -gt 0 ] && [ "$write" -eq 0 ]; then
+	echo "format: files are only taken with --write" >&2
+	exit 2
+fi
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT
+
+gd_files > "$tmp/scope"
+gd_format_excluded > "$tmp/excluded"
+cut -d' ' -f2- "$tmp/excluded" | LC_ALL=C sort -u > "$tmp/excluded_paths"
+LC_ALL=C comm -23 "$tmp/scope" "$tmp/excluded_paths" > "$tmp/files"
+
+found=0
+
+# Stale exclude entries: the ratchet only shrinks, so a gone file's entry goes too.
+while read -r n path; do
+	if ! grep -qxF -- "$path" "$tmp/scope"; then
+		echo "$GD_FORMAT_EXCLUDE:$n format-exclude-stale $path is no GDScript file in scope; remove its entry"
+		found=1
+	fi
+done < "$tmp/excluded"
+
+# Write mode formats the named files that are checked (all of them when none are named).
+if [ "$write" -eq 1 ]; then
+	if [ "${#targets[@]}" -gt 0 ]; then
+		printf '%s\n' "${targets[@]}" | LC_ALL=C sort -u > "$tmp/named"
+		LC_ALL=C comm -12 "$tmp/files" "$tmp/named" > "$tmp/write"
+	else
+		cp "$tmp/files" "$tmp/write"
+	fi
+	while IFS= read -r f; do
+		"$GDSCRIPT_FORMATTER" --verify-structure "$f" > /dev/null 2> "$tmp/err"
+		status=$?
+		[ "$status" -eq 0 ] && continue
+		cat "$tmp/err" >&2
+		if grep -q "structurally different" "$tmp/err"; then
+			echo "$f:1 format-structure the formatter would change this file's structure, so it was left as it was"
+		else
+			echo "$f:1 format-error the formatter exited $status writing this file (see stderr)"
+		fi
+		found=1
+	done < "$tmp/write"
+	exit "$found"
+fi
+
+while IFS= read -r f; do
+	"$GDSCRIPT_FORMATTER" --check "$f" > /dev/null 2> "$tmp/err"
+	status=$?
+	case "$status" in
+		0) ;;
+		1)
+			"$GDSCRIPT_FORMATTER" --stdout "$f" 2> /dev/null > "$tmp/formatted"
+			line="$(diff "$f" "$tmp/formatted" | sed -n '1s/^\([0-9]*\).*/\1/p')"
+			[ "${line:-0}" -ge 1 ] || line=1
+			echo "$f:$line format not formatted; run: bash tools/verify/format --write $f"
+			found=1
+			;;
+		*)
+			cat "$tmp/err" >&2
+			echo "$f:1 format-error the formatter exited $status checking this file (see stderr)"
+			found=1
+			;;
+	esac
+done < "$tmp/files"
+
+exit "$found"

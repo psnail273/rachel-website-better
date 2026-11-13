@@ -1,0 +1,15 @@
+extends Node
+
+## A tap serves a ball, except the tap that dismisses a cleared level.
+
+var served := 0
+var level_cleared := false
+
+
+func _input(event: InputEvent) -> void:
+	if not event.is_action_pressed("ui_accept"):
+		return
+	if level_cleared:
+		level_cleared = false
+		return
+	served += 1

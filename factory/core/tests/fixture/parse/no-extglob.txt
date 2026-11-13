@@ -1,0 +1,11 @@
+# A test file that uses extglob without turning it on: bash loads test_before and
+# drops the rest, though bash -O extglob -n passes it.
+test_before() {
+	true
+}
+test_bad() {
+	case foo in @(foo|bar)) true ;; esac
+}
+test_after() {
+	false
+}

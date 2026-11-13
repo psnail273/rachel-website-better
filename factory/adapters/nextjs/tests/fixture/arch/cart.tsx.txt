@@ -1,0 +1,19 @@
+"use client";
+
+import type { User } from "@/server/db";
+import { type User as Shopper } from "../../server/db";
+import { rename } from "../actions";
+import { label } from "@/lib/format";
+import { loadUser } from "../../server/db";
+import { GET } from "../api/health/route";
+
+// import { loadUser } from "@/server/secrets";
+export function Cart({ user, shopper }: { user: User; shopper: Shopper }) {
+  const later = () => import("@/server/db");
+  const note = 'import "server-only"';
+  return (
+    <p onClick={() => void rename(user.id)}>
+      {label(loadUser(shopper.id).id)} {note} {String(later)} {String(GET)}
+    </p>
+  );
+}
