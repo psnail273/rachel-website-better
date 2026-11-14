@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { images } from "../lib/images";
+import { images } from "../../lib/images";
 
 export const metadata: Metadata = {
   title: {
