@@ -14,26 +14,26 @@ export type SiteImage = {
 export const images: Record<ImageKey, SiteImage> = {
   "hero-mountain-lake": {
     src: "/images/hero-mountain-lake.svg",
-    alt: "",
-    width: 0,
-    height: 0,
+    alt: "Snow-capped mountains glowing pink at sunset above a still lake",
+    width: 1920,
+    height: 1280,
   },
   "headshot-therapist": {
     src: "/images/headshot-therapist.svg",
-    alt: "",
-    width: 0,
-    height: 0,
+    alt: "Rachel Siegel in glasses and a navy tee, seated outdoors",
+    width: 874,
+    height: 1184,
   },
   "headshot-clarinet": {
     src: "/images/headshot-clarinet.svg",
-    alt: "",
-    width: 0,
-    height: 0,
+    alt: "Rachel Siegel holding her clarinet among white blossoming trees",
+    width: 768,
+    height: 1024,
   },
   "headshot-recorder": {
     src: "/images/headshot-recorder.svg",
-    alt: "",
-    width: 0,
-    height: 0,
+    alt: "Rachel Siegel holding a wooden recorder among pink cherry blossoms",
+    width: 1471,
+    height: 2048,
   },
 };
