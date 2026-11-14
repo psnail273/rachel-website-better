@@ -1,4 +1,6 @@
 // @vitest-environment happy-dom
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SiteHeader } from "./site-header";
@@ -222,5 +224,18 @@ describe("SiteHeader", () => {
 
     expect(removed).toHaveLength(2);
     expect(new Set(removed)).toEqual(new Set(added));
+  });
+
+  it("the Contact link to /contact leaves prefetch on", () => {
+    render(<SiteHeader />);
+
+    const contact = findLink("Contact");
+    const source = readFileSync(
+      join(import.meta.dirname, "site-header.tsx"),
+      "utf8",
+    );
+
+    expect(contact.getAttribute("href")).toBe("/contact");
+    expect(source.match(/prefetch/g) ?? []).toEqual([]);
   });
 });

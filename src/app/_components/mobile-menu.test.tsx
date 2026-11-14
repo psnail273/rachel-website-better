@@ -1,4 +1,6 @@
 // @vitest-environment happy-dom
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   cleanup,
   fireEvent,
@@ -257,5 +259,19 @@ describe("MobileMenu", () => {
     const windowTypes = windowSpy.mock.calls.map((call) => call[0]);
     expect(documentTypes).toEqual(["pointerdown", "pointerdown"]);
     expect(windowTypes).toEqual([]);
+  });
+
+  it("the menu's Contact link to /contact leaves prefetch on", () => {
+    render(<SiteHeader />);
+    const button = openMenu();
+
+    const contact = panelLink(button, "Contact");
+    const source = readFileSync(
+      join(import.meta.dirname, "mobile-menu.tsx"),
+      "utf8",
+    );
+
+    expect(contact.getAttribute("href")).toBe("/contact");
+    expect(source.match(/prefetch/g) ?? []).toEqual([]);
   });
 });
