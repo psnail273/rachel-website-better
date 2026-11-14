@@ -82,11 +82,7 @@ export function MobileMenu() {
           </Link>
           {renderGroup(therapyMenu, "therapy")}
           {renderGroup(performingMenu, "performing")}
-          <Link
-            href={contactLink.href}
-            className={linkClass}
-            onClick={close}
-          >
+          <Link href={contactLink.href} className={linkClass} onClick={close}>
             {contactLink.label}
           </Link>
         </div>
