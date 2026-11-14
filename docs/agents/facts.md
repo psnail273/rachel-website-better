@@ -45,3 +45,10 @@ Engine and library facts that briefs rely on, each with the probe that showed it
 ## Driver's checks (Next.js 16.4.6)
 
 - `next build` (`bash tools/verify/playtest`) empties `.next/`, `.next/factory/` included: keep a Driver's check's logs, PIDs and screenshots outside `.next/` (the scratchpad), or create `.next/factory/` after the build. `setsid pnpm exec next start` exits its wrapper at once; stop the server by the PID `ss -ltnp` shows on its port. Probe: #12's Driver's check. (#12)
+
+## Revalidation and the events strip (Next.js 16.4.6, `cacheComponents: true`)
+
+- The route segment `revalidate` export is removed under Cache Components (`node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/02-route-segment-config/index.md:25`); a `"use cache"` scope sets its lifetime with `cacheLife`. The `hours` profile: stale 5 minutes, revalidate 1 hour, expire 1 day (`.../04-functions/cacheLife.md`, Preset cache profiles). Each cached scope keeps its own lifetime: `next build` shows `/` at Revalidate 15m (the footer's default-profile scope) while an `hours` scope inside it is refreshed hourly. (#11)
+- `node:sqlite` bundles in a Server Component under Turbopack, and a `"use cache"` function may open the events cache, `fetch` the feed with `AbortSignal.timeout(10_000)` and call `new Date()`: `next build` prerenders it static; an unroutable feed waits the timeout, then renders the fallback. Probe: scratch build. (#11)
+- Under Vitest, `vi.mock("next/cache", () => ({ cacheLife: vi.fn() }))` lets a test import a file calling `cacheLife`; `"use cache"` is an inert string there. happy-dom's global `AbortSignal` has `timeout`. Probe: scratch Vitest file. (#11)
+- Moving a page into a route group: its test must move in the same commit or `next build`'s typecheck fails (`Cannot find module './page'`). The red gate diffs `--no-renames`, so a moved test file's passing tests count as new (`red-unnamed`): move it in the green phase, with `asserts <old file> <func> <n> 0` lines in the brief. A route group holding only a layout builds. (#11)
