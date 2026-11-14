@@ -141,6 +141,72 @@ describe("parseIcs edges", () => {
   });
 });
 
+describe("parseIcs structure edges", () => {
+  it("reads January and December dates and rejects month 13", () => {
+    const jan = cal(["DTSTART;VALUE=DATE:20270101", "SUMMARY:Jan"]);
+    const dec = cal(["DTSTART;VALUE=DATE:20261231", "SUMMARY:Dec"]);
+    const bad = cal(["DTSTART:20261305T190000Z", "SUMMARY:Bad"]);
+    const prefixed = cal(["DTSTART;VALUE=DATE:x20261004", "SUMMARY:Bad"]);
+    expect(parseIcs(jan).map((e) => e.start)).toEqual(["2027-01-01"]);
+    expect(parseIcs(dec).map((e) => e.start)).toEqual(["2026-12-31"]);
+    expect(parseIcs(bad)).toEqual([]);
+    expect(parseIcs(prefixed)).toEqual([]);
+  });
+
+  it("skips nested components and keeps reading after them", () => {
+    const text = [
+      "BEGIN:VCALENDAR",
+      "BEGIN:VEVENT",
+      "BEGIN:VALARM",
+      "SUMMARY:Alarm",
+      "END:VALARM",
+      "SUMMARY:Real",
+      "DTSTART:20261004T190000Z",
+      "DTEND:20261004T200000Z",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+    expect(parseIcs(text + "\r\n")).toEqual([
+      timed("Real", "2026-10-04T19:00:00.000Z", "2026-10-04T20:00:00.000Z"),
+    ]);
+  });
+
+  it("restarts at a VEVENT begun inside a VEVENT", () => {
+    const text = [
+      "BEGIN:VCALENDAR",
+      "BEGIN:VEVENT",
+      "SUMMARY:Lost",
+      "BEGIN:VEVENT",
+      "SUMMARY:Kept",
+      "DTSTART:20261004T190000Z",
+      "DTEND:20261004T200000Z",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+    expect(parseIcs(text + "\r\n")).toEqual([
+      timed("Kept", "2026-10-04T19:00:00.000Z", "2026-10-04T20:00:00.000Z"),
+    ]);
+  });
+
+  it("ignores stray components outside a VEVENT", () => {
+    const text = [
+      "BEGIN:VCALENDAR",
+      "END:VEVENT",
+      "BEGIN:VTODO",
+      "END:VTODO",
+      "BEGIN:VEVENT",
+      "SUMMARY:Found",
+      "DTSTART:20261004T190000Z",
+      "DTEND:20261004T200000Z",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+    expect(parseIcs(text + "\r\n")).toEqual([
+      timed("Found", "2026-10-04T19:00:00.000Z", "2026-10-04T20:00:00.000Z"),
+    ]);
+  });
+});
+
 describe("buildEventCards edges", () => {
   it("names every month", () => {
     const events = Array.from({ length: 12 }, (_, i) => {
