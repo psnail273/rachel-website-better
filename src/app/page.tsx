@@ -4,7 +4,8 @@ import { images } from "../lib/images";
 
 export const metadata: Metadata = {
   title: {
-    absolute: "Rachel Siegel · Psychotherapist, clarinetist and recorder player",
+    absolute:
+      "Rachel Siegel · Psychotherapist, clarinetist and recorder player",
   },
   description:
     "Rachel Siegel is a licensed psychotherapist, clarinetist and recorder player. Find her therapy practice, her performances and her upcoming concerts.",
