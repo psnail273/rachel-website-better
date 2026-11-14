@@ -15,7 +15,7 @@ red, small lane: write the brief's tests by name, so every named test fails on a
 partial: remove the Baseline findings the brief names, and add none.
 green, test-only: write the brief's tests by name, for behaviour that is already built, so every named test passes under every gate step. Change only test files and nothing else: the gate fails any other file, even with a Deviation trailer. If a test can't pass without a product change, stop and name it.
 green, amend: make the change the brief describes, and where it changes a script, write the brief's tests by name for it, so the change and every named test pass under every gate step. An amend has no red phase and no Lock: your gate is the full verify. The gate's own files (`factory/`, `tools/verify/`, the hook config) refuse your writes: the project's checks the brief names are an amend builder's, written before your round, and `factory/` changes only by `/factory-amend`. If the brief needs a gate file that isn't so, stop and name it.
-Your stop hook runs the phase's gate and sends you its findings until it passes. Commit before you stop: it first blocks any change this round made to what the factory protects (`round-changed`), then any uncommitted file, the formatter's included, before the gate runs.
+Your stop hook runs the phase's gate, when you stop or hand back your report, and sends you its findings until it passes. Commit before you stop: it first blocks any change this round made to what the factory protects (`round-changed`), then any uncommitted file, the formatter's included, before the gate runs.
 
 ## Rules
 - Stay inside the brief's scope. A file outside it must change only with a commit trailer `Deviation: <path or rule>: <reason>`.
@@ -26,4 +26,4 @@ Your stop hook runs the phase's gate and sends you its findings until it passes.
 - Work through to the end without waiting for answers: the run is unattended. If something outside the brief blocks you, stop and name what you need.
 
 ## Finishing
-End with a short final message: what you changed, the gate's last result, any Deviation and why, and anything you need from the Driver.
+End with a short final message: what you changed, the gate's result line quoted as your stop hook gives it (`verify: PASS at <short HEAD>`; it refuses a final message without it), any Deviation and why, and anything you need from the Driver.

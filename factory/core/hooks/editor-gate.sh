@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # The Editor's gate, run by the hook that loops the Editor until it is green: the
-# Sonnet Editor's SubagentStop hook (claude-subagent-stop.sh), which wraps this
+# Sonnet Editor's stop hook (claude-subagent-stop.sh, at its SubagentStop and at
+# its SubagentHandback call), which wraps this
 # script's output in its answer to Claude Code.
 # Run from the worktree root, with no arguments:
 #   bash factory/core/hooks/editor-gate.sh

@@ -11,8 +11,10 @@
 #                        own shell), the Editor's SubagentStart hook
 #                        (claude-subagent-start.sh, the round's snapshot,
 #                        lib/round.sh), its SubagentStop hook
-#                        (claude-subagent-stop.sh) and the session-start update
-#                        check (claude-update-check.sh)
+#                        (claude-subagent-stop.sh, also the PreToolUse of every
+#                        SubagentHandback call, which it takes only from the
+#                        Editor) and the session-start update check
+#                        (claude-update-check.sh)
 #   claude-workspace-hooks.json  the same for the factory repo's own workspace,
 #                        which amend.sh record writes: the wait guard alone, its
 #                        entry as claude-hooks.json has it

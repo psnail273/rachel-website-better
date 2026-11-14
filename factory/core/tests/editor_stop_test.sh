@@ -1,9 +1,11 @@
 # The Editor's gate (hooks/editor-gate.sh) and the Sonnet Editor's SubagentStop
-# hook (hooks/claude-subagent-stop.sh), on the git fixture project.
+# hook (hooks/claude-subagent-stop.sh, also its SubagentHandback PreToolUse hook),
+# on the git fixture project.
 
 STOP_HOOK="$FACTORY_CORE/hooks/claude-subagent-stop.sh"
 START_HOOK="$FACTORY_CORE/hooks/claude-subagent-start.sh"
 EDITOR_GATE="$FACTORY_CORE/hooks/editor-gate.sh"
+. "$FACTORY_CORE/lib/json.sh"
 
 # transcript <worktree line>: a subagent transcript whose prompt holds the line.
 transcript() {
@@ -11,11 +13,20 @@ transcript() {
 	printf '{"type":"assistant","message":{"content":"factory-worktree: /elsewhere"}}\n' >> "$TEST_TMP/transcript.jsonl"
 }
 
-# stop_input [agent_type]: the hook's JSON input for subagent agent-1, on stdin file
-# $TEST_TMP/input.
+# stop_input [agent_type] [message]: the hook's JSON input for subagent agent-1
+# (or $STOP_AGENT),
+# in $TEST_TMP/input, its last_assistant_message <message> (empty when given
+# empty: a stop after a hand-back has none). Without one the
+# message quotes the gate's result line for HEAD as run_stop_hook runs it
+# (quoting), so a green gate lets it finish.
 stop_input() {
-	printf '{"session_id":"s1","hook_event_name":"SubagentStop","stop_hook_active":false,"agent_id":"agent-1","agent_type":"%s","agent_transcript_path":"%s","last_assistant_message":"done \\"ok\\""}\n' \
-		"${1:-editor-sonnet}" "$TEST_TMP/transcript.jsonl" > "$TEST_TMP/input"
+	printf '{"session_id":"s1","hook_event_name":"SubagentStop","stop_hook_active":false,"agent_id":"%s","agent_type":"%s","agent_transcript_path":"%s","last_assistant_message":"%s"}\n' \
+		"${STOP_AGENT:-agent-1}" "${1:-editor-sonnet}" "$TEST_TMP/transcript.jsonl" "${2-@QUOTE@}" > "$TEST_TMP/input"
+}
+
+# quoting: a final message quoting the green gate's result line for HEAD.
+quoting() {
+	echo "Done: verify: PASS at $(git rev-parse --short HEAD 2> /dev/null)."
 }
 
 # editor_project: the git fixture, with a transcript naming it and a stop input.
@@ -25,8 +36,26 @@ editor_project() {
 	stop_input
 }
 
+# hook_input: $TEST_TMP/input as the hook gets it now, in $TEST_TMP/input.now.
+hook_input() {
+	sed "s/@QUOTE@/$(quoting)/" "$TEST_TMP/input" > "$TEST_TMP/input.now"
+}
+
+# run_stop_hook [hook]: run the stop hook (the Core's, or <hook>) on the input.
 run_stop_hook() {
-	run_cmd bash "$STOP_HOOK" < "$TEST_TMP/input"
+	hook_input
+	run_cmd bash "${1:-$STOP_HOOK}" < "$TEST_TMP/input.now"
+}
+
+# handback_input [message] [agent_type] [tool]: the PreToolUse input of agent-1's
+# SubagentHandback call, in $TEST_TMP/input, its message <message> (by default
+# quoting, as stop_input), the subagent's transcript where Claude Code keeps it,
+# beside the session's.
+handback_input() {
+	mkdir -p "$TEST_TMP/session/subagents"
+	cp "$TEST_TMP/transcript.jsonl" "$TEST_TMP/session/subagents/agent-agent-1.jsonl"
+	printf '{"session_id":"s1","hook_event_name":"PreToolUse","agent_id":"agent-1","agent_type":"%s","transcript_path":"%s","tool_name":"%s","tool_input":{"message":"%s"},"tool_use_id":"t1"}\n' \
+		"${2:-editor-sonnet}" "$TEST_TMP/session.jsonl" "${3:-SubagentHandback}" "${1:-@QUOTE@}" > "$TEST_TMP/input"
 }
 
 red_lint() {
@@ -129,7 +158,7 @@ test_stop_hook_lets_a_green_linked_worktree_finish_under_the_main_checkouts_core
 	transcript "factory-worktree: $PWD"
 	stop_input
 	start_round
-	run_cmd bash "$MAIN_CORE/hooks/claude-subagent-stop.sh" < "$TEST_TMP/input"
+	run_stop_hook "$MAIN_CORE/hooks/claude-subagent-stop.sh"
 	assert_status 0
 	assert_eq "" "$(cat "$TEST_TMP/stderr")"
 	grep -qx smoke .fixture/ran || fail "the full verify did not run in the worktree"
@@ -448,6 +477,261 @@ test_stop_hook_blocks_with_the_green_instruction_in_the_small_lane() {
 	assert_eq green "$(git config branch.work.factory-phase)"
 }
 
+# --- the hand-back (#21) ---------------------------------------------------------
+
+# smoke_runs: how many times the gate's smoke step ran.
+smoke_runs() {
+	grep -cx smoke .fixture/ran 2> /dev/null
+}
+
+# A subagent in auto mode ends with its SubagentHandback call, which delivers its
+# report: the hook decides at that call's PreToolUse, so the green instruction
+# reaches the same chat.
+test_handback_hook_blocks_with_the_green_instruction_in_the_small_lane() {
+	editor_project
+	small_red
+	handback_input
+	run_stop_hook
+	assert_status 2
+	stderr_has "The red gate passed, so the factory recorded the Lock at $(git rev-parse --short HEAD)"
+	stderr_has "$(cat "$FACTORY_CORE/../skills/factory-run/prompts/green.md")"
+	assert_eq green "$(git config branch.work.factory-phase)"
+	assert_eq "" "$(counter)" "the move to green kept the block count"
+}
+
+test_handback_hook_ignores_other_agents_and_other_tools() {
+	editor_project
+	red_lint
+	handback_input "" general-purpose
+	run_stop_hook
+	assert_status 0
+	handback_input "" editor-sonnet Bash
+	run_stop_hook
+	assert_status 0
+	[ ! -f .fixture/ran ] || fail "the gate ran for another agent or tool: $(ran_steps)"
+}
+
+test_handback_hook_blocks_with_the_findings_while_the_gate_is_red() {
+	editor_project
+	red_lint
+	handback_input
+	run_stop_hook
+	assert_status 2
+	stderr_has "The gate is red (block 1 of 5)"
+	stderr_has "src/a.txt:1 lint-bad a lint finding"
+}
+
+# A green gate lets the hand-back through only when its message quotes the gate's
+# result line; the gate runs once for both, and the stop that follows the
+# hand-back runs none.
+test_handback_hook_refuses_a_message_that_does_not_quote_the_gate_result() {
+	editor_project
+	start_round
+	handback_input "Done, the gate is green."
+	run_stop_hook
+	assert_status 2
+	stderr_has "The gate is green, but your final message doesn't quote its result (block 1 of 5)"
+	assert_last_line_of_stderr "verify: PASS at $(git rev-parse --short HEAD)"
+	assert_eq 1 "$(counter)"
+	handback_input
+	run_stop_hook
+	assert_status 0
+	assert_eq "" "$(cat "$TEST_TMP/stderr")"
+	assert_eq "" "$(counter)" "the block count was kept after a quoted result"
+	assert_eq 1 "$(smoke_runs)" "the gate ran again for the same commit"
+	stop_input editor-sonnet ""
+	run_stop_hook
+	assert_status 0
+	assert_eq 1 "$(smoke_runs)" "the stop after the hand-back ran the gate"
+	[ ! -e "$(git rev-parse --git-dir)/factory/subagent-stop/agent-1.handback" ] || fail "the hand-back's mark outlived its stop"
+}
+
+# assert_last_line_of_stderr <line>
+assert_last_line_of_stderr() {
+	assert_eq "$1" "$(tail -n 1 "$TEST_TMP/stderr")" "the last line of stderr"
+}
+
+test_stop_hook_refuses_a_last_message_that_does_not_quote_the_gate_result() {
+	editor_project
+	stop_input editor-sonnet "All done."
+	run_stop_hook
+	assert_status 2
+	assert_last_line_of_stderr "verify: PASS at $(git rev-parse --short HEAD)"
+	stop_input
+	run_stop_hook
+	assert_status 0
+}
+
+# A result line of another commit is no quote of this one's.
+test_stop_hook_refuses_the_result_line_of_an_older_commit() {
+	editor_project
+	stop_input editor-sonnet "$(quoting)"
+	echo two > src/a.txt
+	git commit -q -am "product change"
+	run_stop_hook
+	assert_status 2
+	assert_last_line_of_stderr "verify: PASS at $(git rev-parse --short HEAD)"
+}
+
+test_stop_hook_quotes_the_baseline_gate_in_the_partial_phase() {
+	editor_project
+	mkdir -p tools/verify/ratchet && : > tools/verify/ratchet/baseline.txt
+	git add -A && git commit -q -m "the Baseline"
+	mkdir -p .git/factory && printf '%s\n' '```factory-brief' 'scope src/**' '```' > .git/factory/brief.md
+	git config branch.work.factory-phase partial
+	stop_input editor-sonnet "Done."
+	run_stop_hook
+	assert_status 2
+	assert_last_line_of_stderr "baseline: PASS at $(git rev-parse --short HEAD)"
+	stop_input editor-sonnet "Done: baseline: PASS at $(git rev-parse --short HEAD)."
+	run_stop_hook
+	assert_status 0
+}
+
+test_stop_hook_lets_the_subagent_stop_after_five_unquoted_messages() {
+	editor_project
+	stop_input editor-sonnet "All done."
+	# shellcheck disable=SC2034 # n counts the five blocks
+	for n in 1 2 3 4 5; do
+		run_stop_hook
+		assert_status 2
+	done
+	run_stop_hook
+	assert_status 0
+	stderr_has "the final message still doesn't quote the gate's result after 5 tries"
+}
+
+# sealed_green: the green phase, its brief sealed as the Driver seals it.
+sealed_green() {
+	mkdir -p .git/factory && printf '%s\n' '```factory-brief' 'scope src/**' '```' > .git/factory/brief.md
+	git config branch.work.factory-phase green
+	git config branch.work.factory-brief-sha "$(git hash-object --no-filters .git/factory/brief.md)"
+}
+
+# A green result serves only the stop, then the hand-back, of the subagent that
+# ran it: the next round's subagent runs the gate again, and so sees a brief
+# changed after its seal (review of #21's amend).
+test_stop_hook_runs_the_gate_again_for_the_next_rounds_subagent() {
+	editor_project
+	sealed_green
+	run_stop_hook
+	assert_status 0
+	printf '%s\n' '```factory-brief' 'scope **' '```' > .git/factory/brief.md
+	STOP_AGENT=agent-2 stop_input
+	run_stop_hook
+	assert_status 2
+	stderr_has "brief-changed the Build Brief changed after the Driver sealed it"
+}
+
+# Between a subagent's stop and the hand-back it asks for, a changed brief is no
+# green result's: the round's compare blocks it.
+test_stop_hook_takes_no_green_result_over_a_changed_brief() {
+	editor_project
+	sealed_green
+	stop_input editor-sonnet "Done."
+	run_stop_hook
+	assert_status 2
+	stderr_has "doesn't quote its result"
+	printf '%s\n' '```factory-brief' 'scope **' '```' > .git/factory/brief.md
+	stop_input
+	run_stop_hook
+	assert_status 2
+	stderr_has "brief.md:1 round-changed"
+}
+
+# hold_the_gate: the gate's smoke step blocks until $TEST_TMP/release exists.
+hold_the_gate() {
+	blocking_stand_in "$TEST_TMP/hang" "$TEST_TMP/release"
+	printf '%q\n' "$TEST_TMP/hang" > .fixture/run-smoke
+}
+
+# start_held_hook: the hook run on the input in the background, its pid in
+# $held, its stderr in $TEST_TMP/held.stderr; returns once its gate holds.
+start_held_hook() {
+	hook_input
+	bash "$STOP_HOOK" < "$TEST_TMP/input.now" > /dev/null 2> "$TEST_TMP/held.stderr" &
+	held=$!
+	wait_until "the gate to reach its smoke step" test -s "$TEST_TMP/hang.pid"
+}
+
+gate_free() {
+	[ ! -e "$(git rev-parse --git-dir)/factory/editor-gate/running" ]
+}
+
+# second_hook_waits_or_ends: the second hook said it waits for the gate in
+# flight, or it ended.
+second_hook_waits_or_ends() {
+	grep -qF "a gate is already running in $PWD; waiting for it" "$TEST_TMP/stderr" || ! kill -0 "$second" 2> /dev/null
+}
+
+# Claude Code stops a hook while its gate runs (#21): the gate runs on, and the
+# next stop waits for it and passes on its green instruction, with no second run.
+# It waits before it compares the round: the gate in flight writes the small
+# lane's run state (here, before its held smoke step), the gate's and not the
+# round's.
+test_stop_hook_waits_for_a_gate_in_flight_and_passes_on_its_green_instruction() {
+	editor_project
+	small_red
+	hold_the_gate
+	printf '%s\n' 'git config branch.work.factory-red-commit early' "$(cat .fixture/run-smoke)" > .fixture/run-smoke
+	start_held_hook
+	kill "$held"
+	wait "$held"
+	[ -d "$(git rev-parse --git-dir)/factory/editor-gate/running" ] || fail "the gate stopped with its hook"
+	hook_input
+	bash "$STOP_HOOK" < "$TEST_TMP/input.now" > /dev/null 2> "$TEST_TMP/stderr" &
+	second=$!
+	wait_until "the second hook to wait for the gate, or end" second_hook_waits_or_ends
+	touch "$TEST_TMP/release"
+	wait "$second"
+	status=$?
+	assert_status 2
+	stderr_has "$(cat "$FACTORY_CORE/../skills/factory-run/prompts/green.md")"
+	assert_eq green "$(git config branch.work.factory-phase)"
+	assert_eq 1 "$(smoke_runs)" "the gate ran twice"
+	wait_until "the gate to free" gate_free
+}
+
+# A gate whose hook was stopped, done before the next stop: its green instruction
+# is passed on once.
+test_stop_hook_passes_on_a_stopped_hooks_green_instruction_once() {
+	editor_project
+	small_red
+	hold_the_gate
+	start_held_hook
+	kill "$held"
+	wait "$held"
+	touch "$TEST_TMP/release"
+	wait_until "the gate to free" gate_free
+	run_stop_hook
+	assert_status 2
+	stderr_has "$(cat "$FACTORY_CORE/../skills/factory-run/prompts/green.md")"
+	assert_eq 1 "$(smoke_runs)" "the gate ran twice"
+	run_stop_hook
+	assert_status 2
+	stderr_has "The gate is red (block 1 of 5)"
+}
+
+# The wait is bounded by FACTORY_EDITOR_GATE_WAIT: past it the stop goes through,
+# saying so, and the gate in flight still ends with its own hook's answer.
+test_stop_hook_stops_waiting_after_the_gate_wait() {
+	editor_project
+	small_red
+	hold_the_gate
+	start_held_hook
+	FACTORY_EDITOR_GATE_WAIT=1 run_stop_hook
+	assert_status 0
+	stderr_has "a gate already running in $PWD ran past FACTORY_EDITOR_GATE_WAIT (1s)"
+	touch "$TEST_TMP/release"
+	wait "$held"
+	# shellcheck disable=SC2034 # read by assert_status
+	status=$?
+	assert_status 2
+	grep -qF "$(head -n 1 "$FACTORY_CORE/../skills/factory-run/prompts/green.md")" "$TEST_TMP/held.stderr" ||
+		fail "the held hook did not pass on the green instruction:"$'\n'"$(cat "$TEST_TMP/held.stderr")"
+	assert_eq 1 "$(smoke_runs)" "the gate ran twice"
+}
+
 # --- the round's snapshot and its compare (lib/round.sh) ------------------------------
 
 # start_round [agent_type]: run the SubagentStart hook for subagent agent-1, its cwd
@@ -713,4 +997,21 @@ test_generated_settings_wire_the_stop_hook_to_editor_sonnet() {
 	assert_status 0
 	tr -d ' \n' < .claude/settings.json | grep -qF '"SubagentStop":[{"matcher":"editor-sonnet","hooks":[{"type":"command","command":"bash\"$CLAUDE_PROJECT_DIR/factory/core/hooks/claude-subagent-stop.sh\""' ||
 		fail "no SubagentStop hook for editor-sonnet in:"$'\n'"$(cat .claude/settings.json)"
+}
+
+test_generated_settings_wire_the_stop_hook_to_every_subagent_handback() {
+	local i index=""
+	fixture_git_project
+	run_cmd bash "$FACTORY_CORE/hooks.sh" generate
+	assert_status 0
+	for i in 0 1 2 3 4 5; do
+		if [ "$(factory_json_get "hooks.PreToolUse.$i.matcher" < .claude/settings.json)" = '^SubagentHandback$' ]; then
+			index="$i"
+			break
+		fi
+	done
+	[ -n "$index" ] || fail "no PreToolUse hook on SubagentHandback in:"$'\n'"$(cat .claude/settings.json)"
+	assert_eq 'bash "$CLAUDE_PROJECT_DIR/factory/core/hooks/claude-subagent-stop.sh"' \
+		"$(factory_json_get "hooks.PreToolUse.$index.hooks.0.command" < .claude/settings.json)" "its command"
+	assert_eq 1800 "$(factory_json_get "hooks.PreToolUse.$index.hooks.0.timeout" < .claude/settings.json)" "its limit"
 }
