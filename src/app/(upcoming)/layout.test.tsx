@@ -70,6 +70,8 @@ const THREE_CARDS = [
   ],
 ];
 
+type FeedFetch = (url: string, init?: RequestInit) => Promise<Response>;
+
 let folder = "";
 
 beforeEach(() => {
@@ -89,11 +91,15 @@ afterEach(() => {
 });
 
 function feedFake() {
-  return vi.fn(() => Promise.resolve(new Response(FIXTURE)));
+  return vi.fn((_url: string, _init?: RequestInit) =>
+    Promise.resolve(new Response(FIXTURE)),
+  );
 }
 
 function failingFake() {
-  return vi.fn(() => Promise.reject(new TypeError("fetch failed")));
+  return vi.fn((_url: string, _init?: RequestInit) =>
+    Promise.reject(new TypeError("fetch failed")),
+  );
 }
 
 async function renderLayout(): Promise<Document> {
