@@ -35,6 +35,9 @@
 #   - creates docs/deviations.md and, when the project has none, ARCHITECTURE.md
 #     (the adapter's default rules, else the Core's skeleton);
 #   - writes the factory's section of AGENTS.md between its markers (agents.sh);
+#   - adds the lines of templates/gitattributes (docs/agents/facts.md and
+#     docs/deviations.md merge=union) to .gitattributes, creating it when missing
+#     and keeping its other lines;
 #   - gitignores tools/verify/local.env;
 #   - runs the adapter's own adoption (factory/adapters/<adapter>/adopt.sh), if any,
 #     passing it --new with --new;
@@ -172,6 +175,19 @@ seed_tree() {
 	done < <(cd "$1" && find . -type f | sed 's#^\./##' | LC_ALL=C sort)
 }
 
+# add_lines <source> <dest>: append each of the source's lines that dest lacks,
+# keeping dest's own; dest is created when missing.
+add_lines() {
+	local line
+	while IFS= read -r line; do
+		[ -z "$line" ] && continue
+		[ -f "$2" ] && grep -qxF -- "$line" "$2" && continue
+		if [ -s "$2" ] && [ -n "$(tail -c 1 "$2")" ]; then echo >> "$2"; fi
+		printf '%s\n' "$line" >> "$2" || die "could not write $2"
+		say "added '$line' to $2"
+	done < "$1"
+}
+
 # skeleton_files: the skeleton's files, relative to it, as stored (with .txt).
 skeleton_files() {
 	(cd "$skeleton" && find . -type f | sed 's#^\./##' | LC_ALL=C sort)
@@ -179,7 +195,7 @@ skeleton_files() {
 
 # lay_skeleton: copy the skeleton in (see the header), or refuse.
 lay_skeleton() {
-	local f dest project line
+	local f dest project
 	while IFS= read -r f; do
 		dest="${f%.txt}"
 		if [ -e "$dest" ] && [ "${dest##*/}" != .gitignore ]; then
@@ -195,13 +211,7 @@ lay_skeleton() {
 			sed "s/<project>/$project/g" "$skeleton/$f" > "$dest" || die "could not write $dest"
 			continue
 		fi
-		while IFS= read -r line; do
-			[ -z "$line" ] && continue
-			grep -qxF -- "$line" "$dest" && continue
-			if [ -s "$dest" ] && [ -n "$(tail -c 1 "$dest")" ]; then echo >> "$dest"; fi
-			printf '%s\n' "$line" >> "$dest"
-			say "added '$line' to $dest"
-		done < "$skeleton/$f"
+		add_lines "$skeleton/$f" "$dest"
 	done < <(skeleton_files)
 }
 
@@ -255,6 +265,9 @@ else
 	seed "$core/templates/ARCHITECTURE.md" ARCHITECTURE.md
 fi
 bash "$core/agents.sh" generate || die "could not write the factory section of AGENTS.md"
+# The Driver's docs that are only appended to merge by union, so two issues
+# that each add a section don't conflict.
+add_lines "$core/templates/gitattributes" .gitattributes
 
 # 5. local.env stays on this machine.
 if ! git check-ignore -q "$local_env"; then

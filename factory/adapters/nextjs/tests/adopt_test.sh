@@ -27,6 +27,50 @@ test_adopt_runs_bootstrap_with_the_machines_local_env() {
 	assert_eq "bootstrap from-local-env" "$(cat "$TEST_TMP/bootstrap.log")" "the bootstrap run"
 }
 
+test_adopt_seeds_the_test_configs_from_the_skeleton() {
+	bootstrap_stand_in 0
+	run_cmd bash "$NEXTJS_ADAPTER/adopt.sh"
+	assert_status 0
+	cmp -s "$NEXTJS_ADAPTER/new/vitest.config.ts.txt" vitest.config.ts || fail "vitest.config.ts isn't the skeleton's"
+	cmp -s "$NEXTJS_ADAPTER/new/stryker.config.json.txt" stryker.config.json || fail "stryker.config.json isn't the skeleton's"
+}
+
+test_adopt_keeps_the_projects_own_test_configs() {
+	bootstrap_stand_in 0
+	echo "// the project's vitest" > vitest.config.ts
+	echo '{"the": "project'"'"'s"}' > stryker.config.json
+	run_cmd bash "$NEXTJS_ADAPTER/adopt.sh"
+	assert_status 0
+	assert_eq "// the project's vitest" "$(cat vitest.config.ts)" "vitest.config.ts was overwritten"
+	assert_eq '{"the": "project'"'"'s"}' "$(cat stryker.config.json)" "stryker.config.json was overwritten"
+	stderr_has "kept vitest.config.ts"
+	stderr_has "kept stryker.config.json"
+}
+
+# A config under another name Vitest or Stryker reads keeps ours out: Vitest
+# would read a vitest.config.ts before the project's vite.config.mts.
+test_adopt_keeps_test_configs_under_other_names() {
+	bootstrap_stand_in 0
+	echo "// the project's vite" > vite.config.mts
+	echo "// the project's stryker" > stryker.conf.mjs
+	run_cmd bash "$NEXTJS_ADAPTER/adopt.sh"
+	assert_status 0
+	[ ! -e vitest.config.ts ] || fail "vitest.config.ts was seeded beside vite.config.mts"
+	[ ! -e stryker.config.json ] || fail "stryker.config.json was seeded beside stryker.conf.mjs"
+	stderr_has "kept vite.config.mts"
+	stderr_has "kept stryker.conf.mjs"
+}
+
+# A seeded Stryker config points Vitest at the project's own config.
+test_a_seeded_stryker_config_names_the_projects_vitest_config() {
+	bootstrap_stand_in 0
+	echo "// the project's vitest" > vitest.config.mts
+	run_cmd bash "$NEXTJS_ADAPTER/adopt.sh"
+	assert_status 0
+	[ ! -e vitest.config.ts ] || fail "vitest.config.ts was seeded beside vitest.config.mts"
+	assert_eq '  "vitest": { "configFile": "vitest.config.mts" }' "$(grep configFile stryker.config.json)" "the seeded Stryker config's Vitest config"
+}
+
 test_adopt_goes_on_when_bootstrap_fails_and_says_how_to_resume() {
 	bootstrap_stand_in 1
 	run_cmd bash "$NEXTJS_ADAPTER/adopt.sh"

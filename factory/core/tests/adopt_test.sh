@@ -40,6 +40,7 @@ test_adoption_seeds_every_file_and_records_the_baseline() {
 	done
 	cmp -s factory/core/templates/deviations.md docs/deviations.md || fail "no docs/deviations.md"
 	cmp -s factory/core/templates/ARCHITECTURE.md ARCHITECTURE.md || fail "no ARCHITECTURE.md skeleton"
+	assert_eq "docs/agents/facts.md merge=union"$'\n'"docs/deviations.md merge=union" "$(cat .gitattributes)" "the new .gitattributes"
 	grep -qxF "$AGENTS_BEGIN" AGENTS.md || fail "no factory section in AGENTS.md"
 	assert_eq "version $(cat factory/VERSION)"$'\n'"adapter fake" "$(head -n 2 tools/verify/factory-version)" "factory-version"
 	assert_eq "file $(git hash-object factory/core/verify.sh) factory/core/verify.sh" \
@@ -106,6 +107,20 @@ test_existing_project_files_are_kept() {
 	assert_eq "the project's log" "$(cat docs/deviations.md)" "docs/deviations.md was overwritten"
 	assert_eq "# the project's ps1" "$(cat tools/verify.ps1)" "tools/verify.ps1 was overwritten"
 	stderr_has "kept ARCHITECTURE.md"
+}
+
+# A .gitattributes the project has keeps its lines and gets only the
+# union-merge lines it lacks, once each.
+test_an_existing_gitattributes_gets_only_the_missing_union_lines() {
+	adopt_project
+	printf '*.png binary\ndocs/deviations.md merge=union' > .gitattributes
+	git add -A && git commit -q -m "own .gitattributes" || fail "could not commit"
+	adopt
+	assert_status 0
+	assert_eq "*.png binary"$'\n'"docs/deviations.md merge=union"$'\n'"docs/agents/facts.md merge=union" "$(cat .gitattributes)" "the .gitattributes"
+	stderr_has "added 'docs/agents/facts.md merge=union' to .gitattributes"
+	assert_eq "union" "$(git check-attr merge -- docs/agents/facts.md | sed 's/.*: //')" "facts.md's merge driver"
+	assert_eq "union" "$(git check-attr merge -- docs/deviations.md | sed 's/.*: //')" "deviations.md's merge driver"
 }
 
 test_an_older_tools_verify_sh_is_replaced_by_the_entry_point() {

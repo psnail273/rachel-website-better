@@ -91,7 +91,7 @@ file 475331aad53c091a762600c29fbbd09a3248adb2 factory/adapters/godot/tools/verif
 file e3b822aecf02da88440111fd3fc104fcb09b18aa factory/adapters/godot/tools/verify/versions
 file 837d36fb2560a97c005912574df3557c6b155fa3 factory/adapters/godot/verify-skill.sh
 file 6bd40a4571c49c8c42fd95665cedbba620dd8551 factory/adapters/nextjs/ARCHITECTURE.md
-file 1a665e390990b18470ed76371b7a598193c56490 factory/adapters/nextjs/adopt.sh
+file e62318aa9ef1771bc192f3efa2b858c79bc0a795 factory/adapters/nextjs/adopt.sh
 file 8ccad4f4850de6e8c6be795925d3f09c7a8e2e74 factory/adapters/nextjs/new/.gitignore.txt
 file a598fca41296fc48cc91cf77e4eb95112a617f3c factory/adapters/nextjs/new/.prettierrc.json.txt
 file ff4ed6a04a1ed4e27b5aa2b83dab950624e50769 factory/adapters/nextjs/new/app/api/health/route.test.ts.txt
@@ -106,7 +106,7 @@ file b05dc4cffddd7cc3aafa7d2a91a478d88b1c33c4 factory/adapters/nextjs/new/stryke
 file 72e96660ae0d7122d460778a3bb5ffe192531836 factory/adapters/nextjs/new/tsconfig.json.txt
 file 04873545a45eb3d63684d1b6dede7c4d97503c0b factory/adapters/nextjs/new/vitest.config.ts.txt
 file 58cd7b9b4f757a33fac65d20ecd4babf60e830f8 factory/adapters/nextjs/skills/write-tests-nextjs/SKILL.md
-file 531a47a085d7561038f2569304eb37949ae58008 factory/adapters/nextjs/tests/adopt_test.sh
+file 88d045b88ad36d1040aad431371281c932edd60b factory/adapters/nextjs/tests/adopt_test.sh
 file 64c0d67058d59fc423e463b46875cd0695235b1e factory/adapters/nextjs/tests/arch_test.sh
 file a6055f50a18a77d8674a6254161c99acd125db28 factory/adapters/nextjs/tests/assert_counts_test.sh
 file f110ff262f6d92ca83d8c322563a76f91689c3b5 factory/adapters/nextjs/tests/fixture/arch/actions.ts.txt
@@ -212,7 +212,7 @@ file 8890233f8acf2f28511fb4f0497d920083c5c208 factory/agents/check-editor-sonnet
 file a8758c935a4bfa77b49396af04442bdb91f44b87 factory/agents/driver.md
 file 02cf030f6d97334bfdefd30d833cd71bba45c72d factory/agents/editor-sonnet.md
 file ea97bd3a95936e39549574386d27764461bd7aa0 factory/agents/verifier.md
-file 5f8a3bafd4da992c9cd0e997344ceba4f9b68651 factory/core/adopt.sh
+file b95d970e5e9102d0f135ca13dcc6127388687f99 factory/core/adopt.sh
 file b7312b0ce1569aad79fc45effee15d143e0477b7 factory/core/agents.sh
 file ed27ea4785b7815aa71022a8b246eb70affc2ec3 factory/core/amend.sh
 file 2fe54c3088f55bf544c73eadf1b48bba697ac7be factory/core/arm.sh
@@ -270,10 +270,11 @@ file ce330a2eb2b3fb8cae331097a8d87dfd1c00d9fd factory/core/sync.sh
 file e0548be8efd9ab87ea4d2475d4ab1a222c4706c1 factory/core/templates/ARCHITECTURE.md
 file 8474c8e9794f5bea9b1fefd63b2d968f30a81692 factory/core/templates/agents-section.md
 file 8f22a81b00d953d6a291fc00fbe00aacb1c10931 factory/core/templates/deviations.md
+file db751ed65d962c1d72d5e3ca4a701d3a25e9037c factory/core/templates/gitattributes
 file d195377215793c65d19236f8e261a4edd90c99f3 factory/core/templates/verify.ps1
 file f2706b656ab1c04131d2a8c1313f321127c22e6f factory/core/templates/verify.sh
 file e7125f4953ffa61cce6ca0edc4b6ede54ba89ee9 factory/core/test.sh
-file 74107fb4318c1f7faa534e66a61554b649c921ed factory/core/tests/adopt_test.sh
+file f57d14d1cc6c72909ee2f37aa2b638d4ad00f610 factory/core/tests/adopt_test.sh
 file b9033f87edfc6c38ee14313059a071717aaad1fd factory/core/tests/agents_test.sh
 file f70def55cd93c0112aceb1ee17bde0a1be0ab592 factory/core/tests/amend_test.sh
 file 9ee4e8203af36de5e9fe7ddbcf2645df3a7845d6 factory/core/tests/architecture_test.sh
