@@ -319,6 +319,142 @@ vitest.config.ts:$(grep -n 'exclude' vitest.config.ts | head -n 1 | cut -d: -f1)
 	assert_eq "" "$out" "prepare with the folder left out"
 }
 
+# free_port: a port no process listens on now, on 127.0.0.1.
+free_port() {
+	node -e 'const s = require("node:net").createServer().listen(0, "127.0.0.1", () => { console.log(s.address().port); s.close(); });'
+}
+
+# feed_project: the skeleton, with stand-ins for pnpm, next (smoke's, which
+# appends `<command>|FEED_URL|CACHE_PATH|FLAG` to $TEST_TMP/next.log),
+# Playwright (tests/fixture/scenarios/playwright.mjs.txt, which logs to
+# $TEST_TMP/playwright.log) and @playwright/test, so the driver runs with Node
+# alone; the fixture server's port, free, in $port and
+# FACTORY_SCENARIO_FIXTURE_PORT; cd there.
+feed_project() {
+	needs_node
+	skeleton_project
+	mkdir -p "$TEST_TMP/bin" node_modules/.bin node_modules/@playwright/test
+	printf '#!/usr/bin/env bash\nexit 0\n' > "$TEST_TMP/bin/pnpm" && chmod 755 "$TEST_TMP/bin/pnpm" || fail "could not stand in for pnpm"
+	stand_in_next
+	mv node_modules/.bin/next "$TEST_TMP/next.mjs" || fail "could not move next's stand-in"
+	stand_in next "#!/usr/bin/env bash\nprintf '%s|%s|%s|%s\\\\n' \"\$1\" \"\$FEED_URL\" \"\$CACHE_PATH\" \"\$FLAG\" >> $(printf '%q' "$TEST_TMP/next.log")\nexec node $(printf '%q' "$TEST_TMP/next.mjs") \"\$@\"\n"
+	add_fixture scenarios/playwright.mjs.txt node_modules/.bin/playwright
+	chmod 755 node_modules/.bin/playwright
+	add_fixture scenarios/playwright-test.mjs.txt node_modules/@playwright/test/index.js
+	echo '{"name":"@playwright/test","type":"module","exports":"./index.js"}' > node_modules/@playwright/test/package.json
+	port="$(free_port)"
+	[ -n "$port" ] || fail "no free port"
+	export PNPM_BIN="$TEST_TMP/bin/pnpm" STAND_IN_LOG="$TEST_TMP/playwright.log" FACTORY_SCENARIO_FIXTURE_PORT="$port"
+}
+
+# port_free <port>: nothing listens on it.
+port_free() {
+	node -e 'require("node:net").createServer().on("error", () => process.exit(1)).listen(Number(process.argv[1]), "127.0.0.1", function () { this.close(); });' "$1"
+}
+
+# scenario-env's lines are the app's env for next build, next start and each
+# Playwright run, {fixtures} the fixture server and {state} the run's own
+# folder. A Scenario puts and deletes what the server serves; before each file
+# the driver empties both, and when it exits the server and the folder are gone.
+test_scenario_env_gives_the_app_a_fixture_feed_and_state_with_node() {
+	feed_project
+	scenario feed_first feed/first.ts
+	scenario feed_second feed/second.ts
+	printf '%s\n' '' '# the feed and the cache' 'FEED_URL={fixtures}/calendar.ics' 'CACHE_PATH={state}/events.sqlite' \
+		'FLAG=a b=c & \1 {state}' >> tools/verify/scenario-env
+	drive
+	assert_status 0
+	assert_eq "feed/first	PASS	scenarios/feed/first.ts:16
+feed/second	PASS	scenarios/feed/second.ts:6" "$out" "the driver's lines"$'\n'"$(tail -n 20 "$TEST_TMP/stderr")"
+	local feed="http://127.0.0.1:$port/calendar.ics" cache state
+	cache="$(head -n 1 "$TEST_TMP/playwright.log" | cut -d'|' -f2)"
+	state="${cache%/events.sqlite}"
+	[ "$state" != "$cache" ] && [ -n "$state" ] || fail "CACHE_PATH is not {state}/events.sqlite: $cache"
+	assert_eq "$feed|$cache|a b=c & \\1 $state|http://127.0.0.1:$port
+$feed|$cache|a b=c & \\1 $state|http://127.0.0.1:$port" "$(cat "$TEST_TMP/playwright.log")" "the env of each Playwright run"
+	assert_eq "build|$feed|$cache|a b=c & \\1 $state
+start|$feed|$cache|a b=c & \\1 $state" "$(cat "$TEST_TMP/next.log")" "the env of next build and next start"
+	[ ! -e "$state" ] || fail "the state folder outlived the run: $state"
+	port_free "$port" || fail "the fixture server outlived the run, on port $port"
+}
+
+# With no scenario-env line naming {fixtures}, no fixture server starts, and the
+# app gets no env of the driver's.
+test_no_fixture_server_without_fixtures_in_scenario_env_with_node() {
+	feed_project
+	scenario feed_second feed/second.ts
+	FACTORY_SCENARIO_FIXTURE_PORT=bad drive
+	assert_status 1
+	assert_eq "feed/second	FAILURE	scenarios/feed/second.ts:6" "$out" "a Scenario with no feed to ask"
+	assert_eq "build|||
+start|||" "$(cat "$TEST_TMP/next.log")" "the env of next build and next start"
+	assert_eq "|||" "$(cat "$TEST_TMP/playwright.log")" "the env of the Playwright run"
+}
+
+# A port another Scenario run's fixture server holds: the driver can't run them,
+# and says so before it builds.
+test_a_taken_fixture_port_cannot_run_the_scenarios_with_node() {
+	feed_project
+	scenario feed_second feed/second.ts
+	echo 'FEED_URL={fixtures}/calendar.ics' >> tools/verify/scenario-env
+	local holder
+	node tools/verify/_scenario_fixtures.mjs "$port" "$TEST_TMP/held" > "$TEST_TMP/held.log" 2>&1 < /dev/null &
+	holder=$!
+	trap 'kill "$holder" 2> /dev/null; wait "$holder"' EXIT
+	wait_until "the other run's fixture server to listen" grep -qx "listening on http://127.0.0.1:$port" "$TEST_TMP/held.log"
+	drive
+	assert_status 2
+	assert_eq "" "$out"
+	stderr_has "fixtures: listen EADDRINUSE"
+	stderr_has "scenarios: the fixture server exited 1 before it listened on 127.0.0.1:$port (above): another Scenario run may hold the port; FACTORY_SCENARIO_FIXTURE_PORT in tools/verify/local.env names another"
+	[ ! -e "$TEST_TMP/next.log" ] || fail "the driver built with no fixture server: $(cat "$TEST_TMP/next.log")"
+}
+
+# Each target is a fixture of its own, whatever its name: putting one leaves
+# another alone, also one named like a PUT's staged file (/feed.ics.new).
+test_each_fixture_target_stands_alone_with_node() {
+	needs_node
+	local port server
+	port="$(free_port)"
+	node "$NEXTJS_ADAPTER/tools/verify/_scenario_fixtures.mjs" "$port" "$TEST_TMP/fixtures" > "$TEST_TMP/fixtures.log" 2>&1 < /dev/null &
+	server=$!
+	trap 'kill "$server" 2> /dev/null; wait "$server"' EXIT
+	wait_until "the fixture server to listen" grep -qx "listening on http://127.0.0.1:$port" "$TEST_TMP/fixtures.log"
+	cp "$NEXTJS_FIXTURES/scenarios/fixture-requests.mjs.txt" "$TEST_TMP/requests.mjs" || fail "could not copy the requests"
+	run_cmd node "$TEST_TMP/requests.mjs" "http://127.0.0.1:$port"
+	assert_status 0
+	assert_eq "PUT /feed.ics.new 204 
+PUT /feed.ics 204 
+GET /feed.ics.new 200 X
+GET /feed.ics 200 Y
+DELETE /feed.ics 204 
+GET /feed.ics.new 200 X
+GET /feed.ics 404 " "$out" "each target's answers"
+}
+
+# A scenario-env line that isn't NAME=value, or names one of the driver's own;
+# a fixture port that isn't a port, when a line names {fixtures}.
+test_a_bad_scenario_env_cannot_run_the_scenarios() {
+	skeleton_project
+	scenario one_ball serve/one_ball.ts
+	local base line n p
+	base="$(cat tools/verify/scenario-env)"
+	n="$(($(wc -l < tools/verify/scenario-env) + 2))"
+	for line in 'feed_url=x' 'FEED_URL' ' FEED_URL=x' '1FEED=x' 'FACTORY_SCENARIO_FIXTURES=x' 'NX_LIMIT=9'; do
+		printf '%s\n\n%s\n' "$base" "$line" > tools/verify/scenario-env
+		drive
+		assert_status 2
+		assert_eq "" "$out"
+		assert_eq "scenarios: tools/verify/scenario-env:$n: '$line' is not NAME=value, NAME in capitals, digits and _, and none of the driver's own (NX_*, FACTORY_*)" "$(cat "$TEST_TMP/stderr")" "the line '$line'"
+	done
+	echo 'FEED_URL={fixtures}/feed.ics' > tools/verify/scenario-env
+	for p in 0 65536 0080 8o 1234567 ' 80'; do
+		FACTORY_SCENARIO_FIXTURE_PORT="$p" drive
+		assert_status 2
+		assert_eq "scenarios: FACTORY_SCENARIO_FIXTURE_PORT is '$p', not a port from 1 to 65535 (tools/verify/local.env)" "$(cat "$TEST_TMP/stderr")" "the port '$p'"
+	done
+}
+
 # The report reader, on reports Playwright writes: a load error at its line in
 # the Scenario, one in a helper (line 1), none located, nothing reported, and a
 # file that is no report.

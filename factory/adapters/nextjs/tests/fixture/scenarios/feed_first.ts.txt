@@ -1,0 +1,16 @@
+// The fixture server serves nothing, then what the Scenario puts, until it
+// deletes it; the state folder starts empty. It leaves its feed served and its
+// cache written, for the next file to find gone.
+// step: GET 404
+// step: POST 405
+// step: PUT 204 BEGIN:VCALENDAR
+// step: GET 200 BEGIN:VCALENDAR
+// step: DELETE 204
+// step: GET 404
+// step: PUT 204 left behind
+// step: cache absent
+// step: cache write
+// step: cache present
+import { test } from "@playwright/test";
+
+test("the feed and the cache", async () => {});

@@ -1,0 +1,18 @@
+// Requests to the fixture server at the origin in argv[2], for its test: a
+// target and the same target plus .new (a name a PUT once staged its files
+// under), each put and read back; one line per request, `<method> <target>
+// <status> <body>`.
+const origin = process.argv[2];
+const steps = [
+  ["PUT", "/feed.ics.new", "X"],
+  ["PUT", "/feed.ics", "Y"],
+  ["GET", "/feed.ics.new"],
+  ["GET", "/feed.ics"],
+  ["DELETE", "/feed.ics"],
+  ["GET", "/feed.ics.new"],
+  ["GET", "/feed.ics"],
+];
+for (const [method, target, body] of steps) {
+  const response = await fetch(origin + target, { method, body });
+  console.log(`${method} ${target} ${response.status} ${await response.text()}`);
+}

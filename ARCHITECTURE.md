@@ -12,6 +12,7 @@ Rachel Siegel's website: a mostly static Next.js (App Router) site for her psych
 /performing/bio                src/app/(upcoming)/performing/bio/page.tsx           Bio
 /performing/media              src/app/(upcoming)/performing/media/page.tsx         Media
 /contact                       src/app/contact/page.tsx                             Contact
+POST /api/revalidate           src/app/api/revalidate/route.ts                      Upcoming re-read (only with ON_DEMAND_REVALIDATION=1, the Scenarios' env; else 404)
 ```
 
 The root layout `src/app/layout.tsx` (header, footer, fonts, metadata) wraps every route. The route group `src/app/(upcoming)/` has a `layout.tsx` that renders the Upcoming strip below the page; it holds Home, Bio and Media and no other route.

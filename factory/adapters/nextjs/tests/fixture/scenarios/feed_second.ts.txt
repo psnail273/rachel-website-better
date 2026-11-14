@@ -1,0 +1,6 @@
+// The next file starts with nothing served and no cache.
+// step: GET 404
+// step: cache absent
+import { test } from "@playwright/test";
+
+test("nothing left from the file before", async () => {});

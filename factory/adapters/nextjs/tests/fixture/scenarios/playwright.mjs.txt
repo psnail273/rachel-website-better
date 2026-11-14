@@ -1,0 +1,58 @@
+#!/usr/bin/env node
+// A stand-in for playwright, for the driver's tests of scenario-env and its
+// fixture server: `playwright test` plays the `// step:` lines of the Scenario
+// file (FACTORY_SCENARIO_FILE) in order, then writes a Playwright JSON report
+// (FACTORY_SCENARIO_REPORT) for its one test, at the line of its `test(`: passed
+// when every step held, else failed with the first that didn't. A step is
+//   // step: <METHOD> <status> [<body>]  a request to FEED_URL (PUT sends
+//                                        <body> as text/calendar), answered
+//                                        <status>, and with <body> when given
+//   // step: cache <absent|present>      whether CACHE_PATH is a file
+//   // step: cache write                 CACHE_PATH written, as an app's cache
+// It first appends to STAND_IN_LOG the env it was given, one line:
+// FEED_URL|CACHE_PATH|FLAG|FACTORY_SCENARIO_FIXTURES.
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+
+const env = process.env;
+appendFileSync(
+  env.STAND_IN_LOG,
+  `${[env.FEED_URL, env.CACHE_PATH, env.FLAG, env.FACTORY_SCENARIO_FIXTURES].join("|")}\n`,
+);
+const lines = readFileSync(env.FACTORY_SCENARIO_FILE, "utf8").split("\n");
+const line = lines.findIndex((l) => l.startsWith("test(")) + 1;
+let wrong = "";
+for (const l of lines) {
+  const m = /^\/\/ step: (\S+) (\S+)(?: (.*))?$/.exec(l);
+  if (!m || wrong) continue;
+  const [, what, expected, body] = m;
+  if (what === "cache") {
+    const here = existsSync(env.CACHE_PATH);
+    if (expected === "write") writeFileSync(env.CACHE_PATH, "cached");
+    else if (here !== (expected === "present")) wrong = `${l}: the cache is ${here ? "present" : "absent"}`;
+    continue;
+  }
+  let response;
+  try {
+    response = await fetch(env.FEED_URL, {
+      method: what,
+      ...(what === "PUT" ? { body, headers: { "content-type": "text/calendar" } } : {}),
+    });
+  } catch (error) {
+    wrong = `${l}: ${error.message}`;
+    continue;
+  }
+  const text = await response.text();
+  const type = response.headers.get("content-type") ?? "";
+  if (String(response.status) !== expected) wrong = `${l}: answered ${response.status}`;
+  else if (what === "GET" && body !== undefined && (text !== body || type !== "text/calendar"))
+    wrong = `${l}: answered ${type} '${text}'`;
+}
+const result = wrong
+  ? { status: "unexpected", results: [{ status: "failed", errors: [{ message: `Error: expect(step).toHold() ${wrong}` }] }] }
+  : { status: "expected", results: [{ status: "passed" }] };
+if (wrong) console.error(wrong);
+writeFileSync(
+  env.FACTORY_SCENARIO_REPORT,
+  JSON.stringify({ suites: [{ specs: [{ line, tests: [result] }] }], errors: [] }),
+);
+process.exit(wrong ? 1 : 0);

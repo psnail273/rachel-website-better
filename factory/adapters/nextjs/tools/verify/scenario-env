@@ -1,0 +1,14 @@
+# The app's environment for the Scenarios (tools/verify/scenarios): one
+# NAME=value per line, set for the Scenario run's next build and next start, and
+# for its Playwright runs, so a Scenario reads the same values (never for smoke
+# or playtest). Blank lines and # comments are ignored; NAME is capitals, digits
+# and _, not starting with a digit, and none of the driver's own (NX_*,
+# FACTORY_*). The value is the rest of the line, as written. In it the driver puts:
+#   {fixtures}  its fixture server, http://127.0.0.1:<port>, at the fixed port
+#               FACTORY_SCENARIO_FIXTURE_PORT (local.env): what the app fetches
+#               there, a Scenario serves (the driver's header says how)
+#   {state}     a folder of the run's own, emptied before each Scenario file
+# For example, an app that reads a feed and keeps a cache:
+#   FEED_URL={fixtures}/feed.ics
+#   CACHE_PATH={state}/cache.sqlite
+# None by default: the app runs as its own config says.
