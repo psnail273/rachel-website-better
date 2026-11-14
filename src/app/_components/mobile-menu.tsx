@@ -84,7 +84,6 @@ export function MobileMenu() {
           {renderGroup(performingMenu, "performing")}
           <Link
             href={contactLink.href}
-            prefetch={false}
             className={linkClass}
             onClick={close}
           >
