@@ -36,11 +36,15 @@ One verdict per `test` line of the brief, on the test as its bullets describe it
 
 One verdict. Search the test files (the globs in `tools/verify/test-paths`) for each signal, method, node path, constant and state the brief changes. FAIL an existing test that reads one of them but isn't listed under `## Existing tests` with its file in scope or a reason it is unaffected. A test-only brief changes no product symbol: check only the tests it rewrites, and that each is listed with its file in scope.
 
+### Seams
+
+One verdict. FAIL a product file or test tooling config a test bullet imports or needs, absent from the checkout (open it) and outside the `tools/verify/test-paths` globs, that no `seam` line names by its exact path: the red phase may create only those and test files.
+
 ### Constraints
 
-One verdict per Constraint that bounds a resource or names a command.
+One verdict per Constraint that states a bound or a behaviour, or names a command.
 
-- **Resource bounds:** FAIL a Constraint that bounds a resource (ids, nodes, timers, threads, memory, files) that no test pins.
+- **Bounds and behaviours:** FAIL a Constraint whose bound or behaviour no test bullet pins: a resource bound (ids, nodes, timers, threads, memory, files), a listener removed on cleanup, a `finally` that closes, a timeout.
 
 ### Driver-only commands
 
@@ -54,8 +58,9 @@ End your answer with these lines and nothing after them:
 PASS|FAIL|SKIP criterion <n>: <its parts, and the expected value that pins each> — <evidence>
 PASS|FAIL test <name>: <one line> — <evidence>
 PASS|FAIL existing tests: <what you searched for, and what reads it> — <evidence>
+PASS|FAIL seams: <each new file the tests import or need, and its seam line> — <evidence>
 PASS|FAIL constraint <n>: <one line> — <evidence>
 VERDICT: PASS|FAIL
 ```
 
-One line per criterion and per test, one for the existing tests, and one per Constraint that bounds a resource or names a command. `VERDICT: PASS` only when every line is PASS or SKIP.
+One line per criterion and per test, one for the existing tests, one for the seams, and one per Constraint that states a bound or a behaviour, or names a command. `VERDICT: PASS` only when every line is PASS or SKIP.

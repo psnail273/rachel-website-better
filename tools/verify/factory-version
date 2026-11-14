@@ -280,7 +280,7 @@ file 9ee4e8203af36de5e9fe7ddbcf2645df3a7845d6 factory/core/tests/architecture_te
 file 1c3f96c252653cbcaef9c3175ea6763b2ba66e2b factory/core/tests/arm_test.sh
 file f49d1b5f79d6f3494e2b3cbf08a7b6d9114ee494 factory/core/tests/baseline_test.sh
 file 6d7484e16e5b83ae7c734d5efa767bda830c9d20 factory/core/tests/bounded_test.sh
-file 661a40809ced8b7c955dfd48e7555227c4ab4119 factory/core/tests/brief_test.sh
+file f51076464172cd10b86510f4ba64e14bc2e5c359 factory/core/tests/brief_test.sh
 file 6d2ad0e9f992dfab47096f9a02fa798b2198ef62 factory/core/tests/claude_deny_test.sh
 file c6304de9c93785a881f0e6168338ac654b950343 factory/core/tests/claude_usage_test.sh
 file 8777c176f24fb84f10f09125e7da369fc50c34e9 factory/core/tests/claude_wait_guard_test.sh
@@ -350,8 +350,8 @@ file 2501c9cf5c65ef610621654c03ef16e8ee7105fa factory/skills/factory-amend/brief
 file 60f26f2a944f2bb212a23116cb02b4859ee46f5c factory/skills/factory-run/SKILL.md
 file 2e8f6b9a36ea002588b1dc389d69866bc8cb11d6 factory/skills/factory-run/amend-slices.md
 file 267a27e1595000875610a89e4527db2b2cb9f145 factory/skills/factory-run/assets.md
-file aaa0151aa6e453e3fcea6d390f0f05d31409cefa factory/skills/factory-run/brief-rubric.md
-file a5108a6d5f5c8155e8581755d7dc6cee62856279 factory/skills/factory-run/build-brief.md
+file 6c5c77b44a6baf3c91b4ac39b1b9e768d60ae7f1 factory/skills/factory-run/brief-rubric.md
+file f50b576e021b31f5b74993dab14f6d7155c3f877 factory/skills/factory-run/build-brief.md
 file 188418d882c57e9415850b70fc9c8e4cc9188077 factory/skills/factory-run/drift-rubric.md
 file b0351fba34ca713b18ee343f343600e0d8fb0179 factory/skills/factory-run/drift.md
 file b4661e96dc675ee426470e3458d40cb6153e8dfe factory/skills/factory-run/editor.md

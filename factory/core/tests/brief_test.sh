@@ -461,6 +461,33 @@ test_check_takes_several_symbols_on_one_seams_bullet() {
 	assert_eq "" "$out"
 }
 
+# A seam line names one symbol: two on one line are one seam no bullet names.
+test_check_wants_one_symbol_per_seam_line() {
+	template_brief
+	edit_brief 's/^seam .*$/seam src\/stock\/supplier.txt Supplier.place Supplier.cancel/'
+	edit_brief 's/`Supplier.place`:/`Supplier.place`, `Supplier.cancel`:/'
+	run_brief check brief.md
+	assert_status 1
+	assert_eq "brief.md:13 brief-seam no 'seam src/stock/supplier.txt Supplier.cancel' line in the block, so the red phase can't stub it
+brief.md:13 brief-seam no 'seam src/stock/supplier.txt Supplier.place' line in the block, so the red phase can't stub it
+brief.md:26 brief-seam no Seams bullet describes seam src/stock/supplier.txt Supplier.place Supplier.cancel" "$out"
+}
+
+# Seams' None is bare: words after it don't make a None.
+test_check_wants_a_bare_none_under_seams() {
+	template_brief
+	edit_brief '/^seam /d'
+	edit_brief 's/^- `src.*$/None: nothing to stub./'
+	run_brief check brief.md
+	assert_status 1
+	assert_eq "brief.md:12 brief-seam Seams is empty: a bullet per seam line, or None" "$out"
+	edit_brief 's/^None: nothing to stub\.$/- None, nothing to stub/'
+	run_brief check brief.md
+	assert_status 1
+	assert_eq "brief.md:12 brief-seam Seams is empty: a bullet per seam line, or None
+brief.md:13 brief-seam expected '- \`<path>\` \`<symbol>\`: <what the stub does>', or None, got: - None, nothing to stub" "$out"
+}
+
 test_check_wants_a_seam_line_for_each_seams_bullet() {
 	template_brief
 	edit_brief '/^seam /d'
