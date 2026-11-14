@@ -228,8 +228,8 @@ file f41a24c0662afb45d673bf663aee2fdd19ae5641 factory/core/hooks/claude-update-c
 file bb37f5d157b29bf5cd8907b54c9fe3ea7da50867 factory/core/hooks/claude-wait-guard.sh
 file fe29394ec9374d4c1407a3bdbbd28ea263e0a4c4 factory/core/hooks/claude-workspace-hooks.json
 file 4b1090afbccfff4bddd7f5292f5587cb7864189c factory/core/hooks/editor-gate.sh
-file 114569b3d7507d315a28f44f422a4955a6572bda factory/core/hooks/githooks/pre-commit
-file f915a82a43c3d66015bde2f4ad1828792f22b542 factory/core/hooks/pre-commit.sh
+file f24d499ef66b3a0f00d653f6ed44fd1c0ea68eee factory/core/hooks/githooks/pre-commit
+file 219eee32ad4fe4ca5157e6d1be0847fb1c8d3012 factory/core/hooks/pre-commit.sh
 file e68185542494af9ab61dd2576d107d24b503ceda factory/core/install.sh
 file 30a4384d54e3aff372c5c63ce88af33e26293221 factory/core/land.sh
 file 5c7fc6ca119e5206a9bbe913f9944a3d4fb44704 factory/core/lib/agents.sh
@@ -313,7 +313,7 @@ file 2478d56dbe4cbc132f3ff77d3f962d8ea0e3e754 factory/core/tests/fixture/raw-wai
 file 53de748fcfee873f6d954adfbc1d37718e226386 factory/core/tests/fixture/raw-waits/flagged.txt
 file 37777c173dae6aabce1599e3e8dadecb31bde16c factory/core/tests/fixture/wait-guard/passed
 file 0a29a79400e006c0135a0e541a17eecc45e98312 factory/core/tests/fixture/wait-guard/refused
-file 1494ff5300b7376c76cc46e5f3ebd348c3847dca factory/core/tests/hooks_test.sh
+file ee7ed90893d2d5677afc44dffe834a0e40c304fb factory/core/tests/hooks_test.sh
 file 3c323f7353738597e258927f7243a1bbc8892cb8 factory/core/tests/install_test.sh
 file ed39bc54484c83d3e63cc90c2a880660d0f14b5c factory/core/tests/keep_going_test.sh
 file a5361e5294685708c9f6b4f86ad6260d36bdc319 factory/core/tests/land_test.sh

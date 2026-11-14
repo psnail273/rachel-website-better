@@ -486,6 +486,225 @@ test_pre_commit_passes_a_clean_arch_step() {
 	assert_eq "" "$(cat "$TEST_TMP/stderr")"
 }
 
+# --- pre-commit: formatting -----------------------------------------------------
+
+# format_step: a format step that, with --write, "formats" each named file under
+# src/ or tests/ (its scope) by turning `ugly` into `pretty`, and keeps its arguments in
+# .fixture/format-args; committed.
+format_step() {
+	cat > tools/verify/format << 'SH'
+mkdir -p .fixture
+printf '%s\n' "$@" > .fixture/format-args
+for f in "$@"; do
+	case "$f" in
+		src/* | tests/*) sed 's/ugly/pretty/g' "$f" > .fixture/formatted && cat .fixture/formatted > "$f" ;;
+	esac
+done
+echo "format step output" >&2
+SH
+	git add -A && git commit -q -m "format step" || fail "could not commit the format step"
+}
+
+# partially_staged <staged> <unstaged>: src/a.txt staged as <staged>, while the
+# working tree holds <unstaged>.
+partially_staged() {
+	printf '%b' "$1" > src/a.txt
+	git add src/a.txt
+	printf '%b' "$2" > src/a.txt
+}
+
+test_adopted_pre_commit_formats_and_restages_a_fully_staged_file() {
+	adopted_project report
+	format_step
+	printf 'ugly\n' > src/a.txt
+	git add src/a.txt
+	commit_staged
+	assert_status 0
+	assert_eq "pretty" "$(git show HEAD:src/a.txt)" "the commit took the unformatted bytes"
+	assert_eq "" "$(git status --porcelain)" "the tree is not clean after the commit"
+	stderr_has "pre-commit: format --write reformatted src/a.txt; staged it"
+	grep -q "reported only" "$TEST_TMP/stderr" && fail "re-staging counted as a finding"
+	grep -q "format step output" "$TEST_TMP/stderr" && fail "the format step's own output was shown"
+	return 0
+}
+
+test_armed_pre_commit_formats_and_restages_a_fully_staged_file() {
+	adopted_project enforce
+	format_step
+	printf 'ugly\n' > src/a.txt
+	git add src/a.txt
+	commit_staged
+	assert_status 0
+	assert_eq "pretty" "$(git show HEAD:src/a.txt)" "the commit took the unformatted bytes"
+	assert_eq "" "$(git status --porcelain)" "the tree is not clean after the commit"
+}
+
+test_pre_commit_formats_only_the_staged_files_and_skips_deleted_ones() {
+	adopted_project enforce
+	format_step
+	printf 'ugly\n' > src/b.txt
+	printf 'ugly\n' > src/c.txt
+	git add src/b.txt src/c.txt && git commit -q --no-verify -m "unformatted files" || fail "could not commit"
+	git rm -q src/c.txt
+	printf 'ugly\n' > src/d.txt
+	git add src/d.txt
+	printf 'ugly\n' > src/unstaged.txt
+	commit_staged
+	assert_status 0
+	assert_eq "src/d.txt" "$(grep -v -- --write .fixture/format-args)" "the format step got other files"
+	assert_eq "--write" "$(head -n 1 .fixture/format-args)" "the format step did not run with --write"
+	assert_eq "ugly" "$(git show HEAD:src/b.txt)" "an unstaged file was formatted"
+	assert_eq "ugly" "$(cat src/unstaged.txt)" "an untracked file was formatted"
+}
+
+test_pre_commit_leaves_a_file_the_step_does_not_change_alone() {
+	adopted_project enforce
+	format_step
+	mkdir -p docs
+	printf 'ugly\n' > docs/b.txt
+	git add docs/b.txt
+	commit_staged
+	assert_status 0
+	assert_eq "ugly" "$(git show HEAD:docs/b.txt)" "a file outside the step's scope changed"
+	assert_eq "" "$(cat "$TEST_TMP/stderr")"
+}
+
+test_armed_pre_commit_refuses_a_partially_staged_unformatted_file() {
+	adopted_project enforce
+	format_step
+	before="$(git rev-parse HEAD)"
+	partially_staged 'fine\nugly\n' 'fine\nugly\nmore ugly\n'
+	commit_staged
+	assert_status 1
+	stderr_has "pre-commit: src/a.txt:2 format not formatted as staged, and it has unstaged changes, so pre-commit can't stage the fix; run: bash tools/verify/format --write src/a.txt && git add src/a.txt"
+	stderr_has "pre-commit: refused (the project is Armed)"
+	assert_eq "$before" "$(git rev-parse HEAD)" "the commit went in"
+	assert_eq "$(printf 'fine\nugly')" "$(git show :src/a.txt)" "the staged bytes changed"
+	assert_eq "$(printf 'fine\nugly\nmore ugly')" "$(cat src/a.txt)" "the unstaged changes were not put back"
+}
+
+test_adopted_pre_commit_reports_a_partially_staged_unformatted_file() {
+	adopted_project report
+	format_step
+	partially_staged 'ugly\n' 'ugly\nmore\n'
+	commit_staged
+	assert_status 0
+	stderr_has "pre-commit: src/a.txt:1 format not formatted as staged, and it has unstaged changes, so pre-commit can't stage the fix; run: bash tools/verify/format --write src/a.txt && git add src/a.txt"
+	stderr_has "pre-commit: reported only (the project is Adopted)"
+	assert_eq "ugly" "$(git show HEAD:src/a.txt)" "the partially staged file was re-staged"
+	assert_eq "$(printf 'ugly\nmore')" "$(cat src/a.txt)" "the unstaged changes were not put back"
+}
+
+# The staged bytes decide, not the working tree's: formatted staged bytes pass
+# beside unformatted unstaged ones.
+test_pre_commit_passes_a_partially_staged_file_formatted_as_staged() {
+	adopted_project enforce
+	format_step
+	partially_staged 'pretty\n' 'pretty\nugly\n'
+	touch -t 202001010000 src/a.txt
+	touch -t 202001020000 "$TEST_TMP/then"
+	commit_staged
+	assert_status 0
+	assert_eq "" "$(cat "$TEST_TMP/stderr")"
+	assert_eq "pretty" "$(git show HEAD:src/a.txt)" "the commit took other bytes"
+	assert_eq "$(printf 'pretty\nugly')" "$(cat src/a.txt)" "the unstaged changes were not put back"
+	[ src/a.txt -nt "$TEST_TMP/then" ] && fail "the working tree file's mtime was not put back"
+	return 0
+}
+
+# `git commit <paths>` commits a temporary index and writes the real one apart, so
+# its files are never re-staged: the real index would keep the unformatted bytes.
+test_armed_pre_commit_refuses_an_unformatted_file_committed_by_path() {
+	adopted_project enforce
+	format_step
+	before="$(git rev-parse HEAD)"
+	printf 'ugly\n' > src/a.txt
+	run_cmd git commit -q -m "by path" src/a.txt
+	assert_status 1
+	stderr_has "pre-commit: src/a.txt:1 format not formatted as staged, and git commit <paths> keeps the index out of reach, so pre-commit can't stage the fix; run: bash tools/verify/format --write src/a.txt && git add src/a.txt"
+	assert_eq "$before" "$(git rev-parse HEAD)" "the commit went in"
+	assert_eq "ugly" "$(cat src/a.txt)" "the working tree file changed"
+}
+
+test_adopted_pre_commit_commits_a_file_by_path_as_it_is() {
+	adopted_project report
+	format_step
+	printf 'ugly\n' > src/a.txt
+	run_cmd git commit -q -m "by path" src/a.txt
+	assert_status 0
+	stderr_has "pre-commit: reported only (the project is Adopted)"
+	assert_eq "ugly" "$(git show HEAD:src/a.txt)" "the commit took other bytes"
+	assert_eq "" "$(git status --porcelain)" "the index or tree differs from the commit"
+}
+
+test_pre_commit_leaves_a_locked_test_as_staged() {
+	locked_project report
+	format_step
+	echo test_ugly >> tests/a_test.txt
+	git add tests/a_test.txt
+	commit_staged
+	assert_status 0
+	stderr_has "locked-test"
+	git show HEAD:tests/a_test.txt | grep -qx test_ugly || fail "the hook formatted a locked test"
+}
+
+# A format step that can't run (its tool missing) changes nothing: no finding,
+# no output, the commit goes ahead even when Armed; the gate's format step
+# reports the missing tool.
+test_armed_pre_commit_skips_a_format_step_that_cannot_run() {
+	adopted_project enforce
+	cat > tools/verify/format << 'SH'
+echo "package.json:1 tool-missing node_modules/.bin/prettier is not installed"
+echo "prettier: not found" >&2
+exit 1
+SH
+	git add -A && git commit -q --no-verify -m "format step without its tool" || fail "could not commit"
+	printf 'ugly\n' > src/a.txt
+	git add src/a.txt
+	commit_staged
+	assert_status 0
+	assert_eq "ugly" "$(git show HEAD:src/a.txt)" "the commit changed"
+	assert_eq "" "$(cat "$TEST_TMP/stderr")"
+}
+
+# Run by hand, outside git commit, GIT_INDEX_FILE is unset: the hook formats and
+# re-stages all the same.
+test_pre_commit_run_by_hand_formats_and_restages() {
+	adopted_project enforce
+	format_step
+	printf 'ugly\n' > src/a.txt
+	git add src/a.txt
+	run_cmd env -u GIT_INDEX_FILE bash "$FACTORY_CORE/hooks/pre-commit.sh"
+	assert_status 0
+	assert_eq "pretty" "$(git show :src/a.txt)" "the staged bytes were not formatted"
+	stderr_has "pre-commit: format --write reformatted src/a.txt; staged it"
+}
+
+test_pre_commit_skips_a_missing_format_step() {
+	adopted_project enforce
+	git rm -q tools/verify/format && git commit -q -m "no format step" || fail "could not remove the format step"
+	printf 'ugly\n' > src/a.txt
+	git add src/a.txt
+	commit_staged
+	assert_status 0
+	assert_eq "ugly" "$(git show HEAD:src/a.txt)" "the commit changed"
+	assert_eq "" "$(cat "$TEST_TMP/stderr")"
+}
+
+test_pre_commit_skips_a_no_op_format_step() {
+	adopted_project enforce
+	format_step
+	echo "# factory: no-op" >> tools/verify/format
+	git add -A && git commit -q --no-verify -m "no-op format" || fail "could not commit"
+	rm -f .fixture/format-args
+	printf 'ugly\n' > src/a.txt
+	git add src/a.txt
+	commit_staged
+	assert_status 0
+	assert_eq "ugly" "$(git show HEAD:src/a.txt)" "a no-op format step formatted"
+	[ ! -f .fixture/format-args ] || fail "a no-op format step ran"
+}
+
 # --- scalar values beside "hooks" ---------------------------------------------
 
 # scalar_settings: a settings file with top-level scalars before and after the
