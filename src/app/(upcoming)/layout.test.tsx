@@ -91,15 +91,11 @@ afterEach(() => {
 });
 
 function feedFake() {
-  return vi.fn((_url: string, _init?: RequestInit) =>
-    Promise.resolve(new Response(FIXTURE)),
-  );
+  return vi.fn<FeedFetch>(() => Promise.resolve(new Response(FIXTURE)));
 }
 
 function failingFake() {
-  return vi.fn((_url: string, _init?: RequestInit) =>
-    Promise.reject(new TypeError("fetch failed")),
-  );
+  return vi.fn<FeedFetch>(() => Promise.reject(new TypeError("fetch failed")));
 }
 
 async function renderLayout(): Promise<Document> {
