@@ -1,0 +1,21 @@
+import { expect, it } from "vitest";
+
+type LabelsModule = { labels: { title: string; empty: string } };
+
+// Loaded inside a test: Stryker counts labels.ts's top-level code as covered
+// by the first test that loads it, and runs its mutants against that test alone.
+const modules = import.meta.glob<LabelsModule>("./labels.ts");
+
+async function load(): Promise<LabelsModule> {
+  const loader = modules["./labels.ts"];
+  expect(loader).toBeDefined();
+  return loader!();
+}
+
+it("loads the labels", async () => {
+  expect(await load()).toBeDefined();
+});
+
+it("titles the cart", async () => {
+  expect((await load()).labels.title).toBe("Cart");
+});

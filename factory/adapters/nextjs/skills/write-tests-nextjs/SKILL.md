@@ -12,7 +12,15 @@ The red commit holds the brief's named tests plus **typed stubs** of its named s
 1. **Beside the code.** Each module `<path>/<name>.ts` (or `.tsx`) gets its tests in `<path>/<name>.test.ts` (`.test.tsx` for one that renders), importing from `vitest` explicitly: `import { describe, expect, it, vi } from "vitest";`. Add to the test file when it exists. Tests that span modules go under `tests/`.
 2. **Names.** Name each test (`it("<behaviour>", ...)`) exactly as the brief lists it, character for character. The gate reads each result as `<file> > <describe> > <title>` (`lib/cart.test.ts > total > adds the prices`), so a test keeps the file and `describe` blocks the brief gives it, and no two tests in a file share a name.
 3. **Typed stubs.** Each seam the brief names exists with its real signature: typed parameters, a typed return, exported under the name the brief gives. Its body returns the empty value of its type (`0`, `false`, `""`, `[]`, `null` where the type allows it, a fresh object) and does nothing else; a route handler returns `new Response(null, { status: 501 })`. The stub typechecks, so every test reaches its assertion.
-4. **Red for the assertion.** Run the file: `pnpm exec vitest run <file>`. Done when every named test fails on an `expect`. A pass means the test checks nothing the stub lacks; a thrown error or a failed import means it never reached its assertion. Rework the test or the stub until each one is red for its assertion.
+4. **A module with no stub** (a small-lane page) loads once, at the file's top level, never inside a test or hook:
+
+   ```tsx
+   const pages = import.meta.glob<PageModule>("./page.tsx");
+   const page = await pages["./page.tsx"]?.();
+   ```
+
+   Each test first asserts `expect(page).toBeDefined()`: red there until the file exists, and it typechecks (`import("./page")` doesn't). Stryker credits a module's top-level code (`metadata`) only to the test that first loads it, so a load inside a test lets those mutants survive falsely.
+5. **Red for the assertion.** Run the file: `pnpm exec vitest run <file>`. Done when every named test fails on an `expect`. A pass means the test checks nothing the stub lacks; a thrown error or a failed import means it never reached its assertion. Rework the test or the stub until each one is red for its assertion.
 
 ## Rubric
 

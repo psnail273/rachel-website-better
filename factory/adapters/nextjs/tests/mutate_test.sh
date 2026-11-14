@@ -87,6 +87,29 @@ lib/limits.ts:2 mutant-ignored ArithmeticOperator: \`1 + 1\` -> \`1 - 1\`; tests
 lib/limits.ts:3 mutant-survived ArithmeticOperator: \`2 * 3\` -> \`2 / 3\`; tests: none" "$out" "the step's findings"
 }
 
+# A module-level constant whose test file loads its module inside a test is
+# covered only by the first test that loads it, so the mutant the second test
+# would kill survives: the trap write-tests-nextjs steers around. Loaded at the
+# file's top, the constant is static code: each of its mutants runs against
+# every test, the second test kills the title's, and the untested one survives
+# with tests: all (static).
+test_mutate_runs_a_constant_loaded_at_the_top_against_every_test_with_node() {
+	mutate_project
+	add_fixture mutate/cart_pinned.test.ts.txt lib/cart.test.ts
+	add_fixture mutate/labels.ts.txt lib/labels.ts
+	add_fixture mutate/labels_lazy.test.ts.txt lib/labels.test.ts
+	run_mutate
+	assert_status 0
+	assert_eq "lib/labels.ts:1 mutant-survived ObjectLiteral: \`{ title: \"Cart\", empty: \"Nothing here yet\" }\` -> \`{}\`; tests: lib/labels.test.ts
+lib/labels.ts:1 mutant-survived StringLiteral: \`\"Cart\"\` -> \`\"\"\`; tests: lib/labels.test.ts
+lib/labels.ts:1 mutant-survived StringLiteral: \`\"Nothing here yet\"\` -> \`\"\"\`; tests: lib/labels.test.ts" "$out" "the step's findings, loaded inside a test"
+	add_fixture mutate/labels.test.ts.txt lib/labels.test.ts
+	run_mutate
+	assert_status 0
+	assert_eq "lib/labels.ts:1 mutant-survived StringLiteral: \`\"Nothing here yet\"\` -> \`\"\"\`; tests: all (static)" "$out" "the step's findings, loaded at the top"
+	assert_eq "# killed 8, survived 1, errored 0, timed out 0, ignored 0" "$(sed -n 2p "$TEST_TMP/survivors.txt")" "the counts, loaded at the top"
+}
+
 # The copy Stryker runs in holds no secret, nothing git ignores but node_modules,
 # and no factory folder.
 test_mutate_runs_in_a_copy_without_secrets_or_ignored_files_with_node() {
@@ -151,7 +174,10 @@ test_the_reader_prints_each_mutant_with_node() {
   {"mutatorName": "StringLiteral", "replacement": "\"\"", "status": "Killed", "coveredBy": ["1"], "location": {"start": {"line": 5, "column": 11}, "end": {"line": 5, "column": 16}}},
   {"mutatorName": "ConditionalExpression", "replacement": "true", "status": "Timeout", "location": {"start": {"line": 2, "column": 5}, "end": {"line": 2, "column": 6}}},
   {"mutatorName": "ConditionalExpression", "replacement": "false", "status": "CompileError", "location": {"start": {"line": 2, "column": 5}, "end": {"line": 2, "column": 6}}},
-  {"mutatorName": "ConditionalExpression", "replacement": "false", "status": "Ignored", "location": {"start": {"line": 2, "column": 5}, "end": {"line": 2, "column": 6}}}
+  {"mutatorName": "ConditionalExpression", "replacement": "false", "status": "Ignored", "location": {"start": {"line": 2, "column": 5}, "end": {"line": 2, "column": 6}}},
+  {"mutatorName": "ArithmeticOperator", "replacement": "1 * 2", "status": "Survived", "static": true, "coveredBy": [], "location": {"start": {"line": 1, "column": 11}, "end": {"line": 1, "column": 16}}},
+  {"mutatorName": "ArithmeticOperator", "replacement": "1 / 2", "status": "Survived", "static": true, "coveredBy": ["1"], "location": {"start": {"line": 1, "column": 11}, "end": {"line": 1, "column": 16}}},
+  {"mutatorName": "ArithmeticOperator", "replacement": "1 % 2", "status": "Survived", "static": false, "coveredBy": ["3"], "location": {"start": {"line": 1, "column": 11}, "end": {"line": 1, "column": 16}}}
 ]}},
  "testFiles": {"lib/a.test.ts": {"tests": [{"id": "1", "name": "a"}, {"id": "2", "name": "b"}]}, "lib/b.test.ts": {"tests": [{"id": "3", "name": "c"}]}}}
 JSON
@@ -162,7 +188,10 @@ lib/a.ts${TAB}2${TAB}8${TAB}survived${TAB}BlockStatement: \`{...\` -> \`{}\`${TA
 lib/a.ts${TAB}5${TAB}11${TAB}killed${TAB}StringLiteral: \`\"x\\ty\"\` -> \`\"\"\`${TAB}lib/a.test.ts
 lib/a.ts${TAB}2${TAB}5${TAB}timed-out${TAB}ConditionalExpression: \`a\` -> \`true\`${TAB}none
 lib/a.ts${TAB}2${TAB}5${TAB}errored${TAB}ConditionalExpression: \`a\` -> \`false\`${TAB}none
-lib/a.ts${TAB}2${TAB}5${TAB}ignored${TAB}ConditionalExpression: \`a\` -> \`false\`${TAB}none" "$out" "the reader's lines"
+lib/a.ts${TAB}2${TAB}5${TAB}ignored${TAB}ConditionalExpression: \`a\` -> \`false\`${TAB}none
+lib/a.ts${TAB}1${TAB}11${TAB}survived${TAB}ArithmeticOperator: \`1 + 2\` -> \`1 * 2\`${TAB}all (static)
+lib/a.ts${TAB}1${TAB}11${TAB}survived${TAB}ArithmeticOperator: \`1 + 2\` -> \`1 / 2\`${TAB}all (static)
+lib/a.ts${TAB}1${TAB}11${TAB}survived${TAB}ArithmeticOperator: \`1 + 2\` -> \`1 % 2\`${TAB}lib/b.test.ts" "$out" "the reader's lines"
 }
 
 test_the_reader_refuses_what_isnt_strykers_report_with_node() {

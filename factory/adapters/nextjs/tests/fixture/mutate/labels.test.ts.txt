@@ -1,0 +1,16 @@
+import { expect, it } from "vitest";
+
+type LabelsModule = { labels: { title: string; empty: string } };
+
+// Loaded once at the top: labels.ts's top-level code is static, and its
+// mutants run against every test.
+const modules = import.meta.glob<LabelsModule>("./labels.ts");
+const loaded = await modules["./labels.ts"]?.();
+
+it("loads the labels", () => {
+  expect(loaded).toBeDefined();
+});
+
+it("titles the cart", () => {
+  expect(loaded?.labels.title).toBe("Cart");
+});

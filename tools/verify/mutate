@@ -12,7 +12,12 @@
 # generated, nor a tool's config at the root (*.config.*: no test runs it). Only
 # its changed lines (git diff -U0's new side), as Stryker's mutate ranges
 # (<file>:<first line>-<last line>); a file new since the base whole. Each
-# mutant runs against the tests that cover it (Stryker's perTest coverage).
+# mutant runs against the tests that cover it (Stryker's perTest coverage), and
+# a static one (code that runs as its module loads: a module-level constant)
+# against every test of the files related to it. Stryker counts a module's
+# top-level code as covered by the test running when the module first loads, so
+# a test file that loads its module inside a test, not at its top, leaves those
+# mutants to that one test (write-tests-nextjs says how to load it).
 #
 # The config is the project's stryker.config.json (the skeleton's names the
 # Vitest runner and its plugin, which pnpm's layout needs named), with what the
@@ -28,6 +33,7 @@
 # The survivors file (factory/core/lib/mutate.sh) has two # notes (what ran; the
 # counts), then one line per survivor, sorted:
 #   <file>:<line> <status> <mutator>: `<code>` -> `<mutant>`; tests: <test files>
+# (all (static) for a static mutant).
 # <status> is survived (no test failed, or none reached it: tests: none), or
 # ignored (a `// Stryker disable` comment kept it from running: the Verifier
 # judges that reason). Killed, errored and timed-out mutants are only counted.

@@ -10,7 +10,9 @@
 // other). <code> is the source the mutant replaces, up to its line's end and
 // then ... when it runs over more lines; it and <mutant> show a tab, a newline
 // or a carriage return as \t, \n or \r. <tests> is the test files whose tests
-// covered the mutant, comma-separated, or none.
+// covered the mutant, comma-separated, or none; or "all (static)" for a static
+// mutant (one in code that runs as its module loads, such as a module-level
+// constant), which Stryker runs against every test of the files related to it.
 //
 // Exits 2 when the report isn't Stryker's JSON.
 import { readFileSync } from "node:fs";
@@ -52,7 +54,9 @@ for (const [file, entry] of Object.entries(report.files)) {
       end.line === start.line
         ? text.slice(start.column - 1, end.column - 1)
         : text.slice(start.column - 1) + "...";
-    const files = [...new Set((m.coveredBy ?? []).map((id) => testFile.get(String(id))).filter(Boolean))].sort();
+    const files = m.static
+      ? ["all (static)"]
+      : [...new Set((m.coveredBy ?? []).map((id) => testFile.get(String(id))).filter(Boolean))].sort();
     const status = STATUS[m.status] ?? "errored";
     const change = `${m.mutatorName}: \`${shown(code)}\` -> \`${shown(m.replacement ?? "")}\``;
     out.push([file, start.line, start.column, status, change, files.join(", ") || "none"].join("\t"));

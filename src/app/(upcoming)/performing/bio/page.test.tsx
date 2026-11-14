@@ -14,6 +14,7 @@ vi.mock("next/cache", () => ({ cacheLife: vi.fn() }));
 type PageModule = { default: () => ReactElement; metadata: Metadata };
 
 const pages = import.meta.glob<PageModule>("./page.tsx");
+const page = await pages["./page.tsx"]?.();
 
 let folder = "";
 
@@ -34,9 +35,8 @@ afterEach(() => {
 });
 
 async function loadPage(): Promise<PageModule> {
-  const load = pages["./page.tsx"];
-  expect(load).toBeDefined();
-  return load!();
+  expect(page).toBeDefined();
+  return page!;
 }
 
 async function toDoc(element: ReactElement): Promise<Document> {

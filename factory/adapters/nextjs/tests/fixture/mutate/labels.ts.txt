@@ -1,0 +1,1 @@
+export const labels = { title: "Cart", empty: "Nothing here yet" };
