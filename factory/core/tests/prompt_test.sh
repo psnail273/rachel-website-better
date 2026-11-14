@@ -5,7 +5,8 @@ PROMPTS="$FACTORY_CORE/../skills/factory-run/prompts"
 TITLE='Fix the <n> & <title> \1 bug'
 
 # The prompts as editor.md held them before they moved to prompts/, with the lines
-# added since: the `green, amend` phase and the test-only Verifier's limit.
+# added since: the `green, amend` phase, the test-only Verifier's limit and the
+# facts file's line.
 old_editor() {
 	cat << 'TXT'
 You are the Editor for this repo. You write and commit the code for one issue, inside this worktree, on its current branch.
@@ -65,6 +66,7 @@ You are the Verifier for issue #<n> in this worktree. Phase: <red | green | gree
 Criteria marked (Driver's check) are the Driver's to run on a device: report each as SKIP, naming the check, not FAIL.
 In phase green, test-only: judge only the tests the brief's `test` lines name. Existing tests are context, except that none of their assertions is dropped or loosened.
 Stay off the web. Leave the Scenario folder that `tools/verify/scenario-folder` names unread, in git's history too: the Scenarios check the Feature at its end.
+Before judging a library's behaviour, read `docs/agents/facts.md` if it exists: a fact recorded there with its probe stands unless you probe it again.
 
 <the output of `bash factory/core/rubric.sh`, run in the worktree>
 TXT
@@ -82,6 +84,7 @@ You review the Build Brief for issue #<n> in this worktree, before its tests are
 
 Criteria marked (Driver's check) are the Driver's to run on a device: report each as SKIP, naming the check, not FAIL.
 Change no file. Stay off the web. Leave the Scenario folder that `tools/verify/scenario-folder` names unread, in git's history too: the Scenarios check the Feature at its end.
+Before judging a library's behaviour, read `docs/agents/facts.md` if it exists: a fact recorded there with its probe stands unless you probe it again.
 
 <the output of `bash factory/core/rubric.sh --brief`>
 TXT

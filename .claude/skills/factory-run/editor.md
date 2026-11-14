@@ -42,9 +42,9 @@ Later rounds send only what changed, then the footer ([`prompts/footer.md`](prom
 
 The **Brief review** is the Verifier's check of a sealed brief with `test` lines, before the Lock (SKILL.md, step 2). It reads a snapshot of the issue's branch from before the first round, so the Editor's commits can't void it:
 
-1. **Snapshot:** from the main checkout, before the first round, `git worktree add --detach .claude/worktrees/brief-<n> issue/<n>`, the brief worktree. A review after a FAIL reads the same snapshot.
+1. **Snapshot:** from the main checkout, before the first round, `git worktree add --detach .claude/worktrees/brief-<n> issue/<n>`, the brief worktree. Link the issue worktree's installed dependencies into it, so the Verifier can read library sources (Next.js: `ln -s "$PWD/.claude/worktrees/issue-<n>/node_modules" .claude/worktrees/brief-<n>/`; Godot vendors them in `addons/`). A review after a FAIL reads the same snapshot.
 2. **Check:** a Verifier check (Subagents) in the brief worktree, with the prompt `prompt.sh brief-review` prints and the brief worktree's absolute path on its last line.
-3. **Clean up** after the Lock, or a test-only issue's PASS: `git worktree remove .claude/worktrees/brief-<n>`.
+3. **Clean up** after the Lock, or a test-only issue's PASS: remove the link first (Next.js: `rm .claude/worktrees/brief-<n>/node_modules`, no trailing `/`; a `/node_modules/` ignore line doesn't cover a link, so git counts it untracked), then `git worktree remove .claude/worktrees/brief-<n>`.
 
 Each FAIL line names what the brief must fix.
 

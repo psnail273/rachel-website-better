@@ -324,7 +324,7 @@ file 53108e053a01c954ae9f3c9cdd50cdfae8c41ed4 factory/core/tests/lib.sh
 file 94c0668ca0c91056b45398457516a734fee79ce5 factory/core/tests/lock_test.sh
 file 9d50580b5cbff41a6737b52b8d3edb3c0c83f0f4 factory/core/tests/mutate_test.sh
 file 855996289921e24f38762793b8dc638f0c75c1c1 factory/core/tests/pins_test.sh
-file 29407cf0e76c5239acbb0420e2c9c7656039efcb factory/core/tests/prompt_test.sh
+file 9325856ee83789810999b5a167d856334f9402aa factory/core/tests/prompt_test.sh
 file cbcfd18277b0f82e22fb1bee3fb392daabc18355 factory/core/tests/red_test.sh
 file 03fd4dc1e2da3a49c86f46c3240a4b005c57f93a factory/core/tests/results_test.sh
 file f4ab52fa7702264b1e29e981f2f87396555662ea factory/core/tests/retro_test.sh
@@ -358,14 +358,14 @@ file 6c5c77b44a6baf3c91b4ac39b1b9e768d60ae7f1 factory/skills/factory-run/brief-r
 file f50b576e021b31f5b74993dab14f6d7155c3f877 factory/skills/factory-run/build-brief.md
 file 188418d882c57e9415850b70fc9c8e4cc9188077 factory/skills/factory-run/drift-rubric.md
 file b0351fba34ca713b18ee343f343600e0d8fb0179 factory/skills/factory-run/drift.md
-file 0d5f2fd56d89747177e4d25c25a2fcc28dcc6864 factory/skills/factory-run/editor.md
+file e1e2eec69118f58c9e4090cba1151d645b7f7af8 factory/skills/factory-run/editor.md
 file e1decbef0aa22771be5c64ec946b795df3ffaaef factory/skills/factory-run/parallel.md
 file 0177b1c4afdd2f7a322296d1fa28a1de99c384dd factory/skills/factory-run/playtest.md
-file d92091bc58da0087271276907ea89a840d9ebe50 factory/skills/factory-run/prompts/brief-review.md
+file 8418d9fdbddd1fcb1ec5a38650768a3b628a61bf factory/skills/factory-run/prompts/brief-review.md
 file bea0c169e846e95750d6d327c516070768d53943 factory/skills/factory-run/prompts/editor.md
 file d96eee8bfaf1e1b6fca098f63fdb7488ed0d319d factory/skills/factory-run/prompts/footer.md
 file 94c6597f719221984b5ffe37f5472ad5587bfaa5 factory/skills/factory-run/prompts/green.md
-file 92dee92be7abf1d34cfb494ab6c049565eb9a424 factory/skills/factory-run/prompts/verifier.md
+file d294e54050f5dd26862dcbf50948fbfeb4873e6c factory/skills/factory-run/prompts/verifier.md
 file 6941943d6e95d126338ba0a880efd21e9221188f factory/skills/factory-run/retro.md
 file ba3bdc7daeca24d56003053855d8d77b13df9236 factory/skills/factory-run/scenarios.md
 file 7efdeb8ed1cb181d7facb77c3f34768a686a4d98 factory/skills/factory-run/verify-rubric.md
