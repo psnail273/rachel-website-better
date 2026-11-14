@@ -44,13 +44,22 @@ export function NavDropdown({ menu }: { menu: NavMenu }) {
   }
 
   function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>) {
+    if (event.key === "Escape" && open) {
+      event.preventDefault();
+      setOpen(false);
+      return;
+    }
     if (
       event.key === "Enter" ||
       event.key === " " ||
       event.key === "ArrowDown"
     ) {
       event.preventDefault();
-      openWithFocus();
+      if (open) {
+        listRef.current?.querySelector("a")?.focus();
+      } else {
+        openWithFocus();
+      }
     }
   }
 
