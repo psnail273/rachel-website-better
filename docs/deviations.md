@@ -11,3 +11,10 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: missing tests. The code is right.
 - Ruling: driver's call: extra round.
 - Reasoning: every finding is inside the brief. The new tests pin behaviour the brief already states (TZID local time, never throwing, an unterminated VEVENT left out) and change no criterion. Green is at the cap of 2, so this is green round 3 of 4. A DTEND that won't parse is read like a missing one (end = start), which is what the code already does and what the brief's missing-DTEND rule gives.
+
+## #6, 78d1af3: pnpm-lock.yaml re-resolved next's peer @babel/core
+
+- **What deviated:** the brief's lockfile seam allowed the three test packages and nothing else. `pnpm add -D -E` also re-resolved next's optional peer `@babel/core` from 8.0.10 to 7.29.13 in next's and styled-jsx's lockfile entries.
+- **Reason:** undeclared, a side effect of pnpm's peer resolution.
+- **Ruling:** accept.
+- **Reasoning:** both versions were already locked at the base (c6dd194), no package is added beyond the three named, and R8 holds (the Verifier passed it). Every gate step passes with it.
