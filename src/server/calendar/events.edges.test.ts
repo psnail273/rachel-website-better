@@ -1,0 +1,234 @@
+import { describe, expect, it } from "vitest";
+
+import { buildEventCards, parseIcs, type CalendarEvent } from "./events";
+
+function cal(...vevents: string[][]): string {
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    ...vevents.flatMap((v) => ["BEGIN:VEVENT", ...v, "END:VEVENT"]),
+    "END:VCALENDAR",
+  ];
+  return lines.join("\r\n") + "\r\n";
+}
+
+function timed(
+  title: string,
+  start: string,
+  end: string,
+  location: string | null = null,
+): CalendarEvent {
+  return { title, start, end, allDay: false, location };
+}
+
+function allDay(title: string, start: string, end: string): CalendarEvent {
+  return { title, start, end, allDay: true, location: null };
+}
+
+const NOW = new Date("2026-10-01T12:00:00.000Z");
+
+describe("parseIcs edges", () => {
+  it("reads a TZID in another zone, with minutes and seconds", () => {
+    const text = cal([
+      "DTSTART;TZID=America/New_York:20261016T183015",
+      "DTEND;TZID=America/New_York:20261016T194500",
+      "SUMMARY:East",
+    ]);
+    expect(parseIcs(text)).toEqual([
+      timed("East", "2026-10-16T22:30:15.000Z", "2026-10-16T23:45:00.000Z"),
+    ]);
+  });
+
+  it("matches parameter names ignoring case", () => {
+    const text = cal([
+      "DTSTART;tzid=America/New_York:20261122T130000",
+      "DTEND;tzid=America/New_York:20261122T140000",
+      "SUMMARY:Lower",
+    ]);
+    expect(parseIcs(text)).toEqual([
+      timed("Lower", "2026-11-22T18:00:00.000Z", "2026-11-22T19:00:00.000Z"),
+    ]);
+  });
+
+  it("reads an unknown TZID and a floating time as Chicago time", () => {
+    const text = cal(
+      [
+        "DTSTART;TZID=Mars/Olympus:20261122T130000",
+        "DTEND;TZID=Mars/Olympus:20261122T140000",
+        "SUMMARY:Unknown",
+      ],
+      ["DTSTART:20261122T130000", "DTEND:20261122T140000", "SUMMARY:Floating"],
+    );
+    expect(parseIcs(text)).toEqual([
+      timed("Unknown", "2026-11-22T19:00:00.000Z", "2026-11-22T20:00:00.000Z"),
+      timed("Floating", "2026-11-22T19:00:00.000Z", "2026-11-22T20:00:00.000Z"),
+    ]);
+  });
+
+  it("unescapes a capital N as a newline", () => {
+    const text = cal([
+      "SUMMARY:Line one\\NLine two",
+      "DTSTART:20261004T190000Z",
+      "DTEND:20261004T200000Z",
+    ]);
+    expect(parseIcs(text)).toEqual([
+      timed(
+        "Line one\nLine two",
+        "2026-10-04T19:00:00.000Z",
+        "2026-10-04T20:00:00.000Z",
+      ),
+    ]);
+  });
+
+  it("leaves out a DTSTART that is not a real date or time", () => {
+    const bad = [
+      "DTSTART:20261345T180000Z",
+      "DTSTART:20260004T190000Z",
+      "DTSTART:20261000T190000Z",
+      "DTSTART:20260230T190000Z",
+      "DTSTART:20261004T250000Z",
+      "DTSTART:20261004T186000Z",
+      "DTSTART:20261004T180060Z",
+      "DTSTART:x20261004T190000Z",
+      "DTSTART:20261004T190000Zx",
+      "DTSTART;VALUE=DATE:20261004x",
+    ];
+    const results = bad.map((line) => parseIcs(cal([line, "SUMMARY:Bad"])));
+    expect(results).toEqual(bad.map(() => []));
+    expect(parseIcs(cal(["DTSTART:20261004T235959Z", "SUMMARY:Bad"]))).toEqual([
+      expect.objectContaining({ start: "2026-10-04T23:59:59.000Z" }),
+    ]);
+  });
+
+  it("reads only VEVENTs inside a VCALENDAR", () => {
+    const loose = [
+      "BEGIN:VEVENT",
+      "DTSTART:20261004T190000Z",
+      "SUMMARY:Loose",
+      "END:VEVENT",
+    ].join("\r\n");
+    expect(parseIcs(loose + "\r\n")).toEqual([]);
+
+    const after = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "BEGIN:VEVENT",
+      "SUMMARY:Inside",
+      "DTSTART:20261004T190000Z",
+      "DTEND:20261004T200000Z",
+      "END:VEVENT",
+      "END:VCALENDAR",
+      "BEGIN:VEVENT",
+      "SUMMARY:After",
+      "DTSTART:20261005T190000Z",
+      "DTEND:20261005T200000Z",
+      "END:VEVENT",
+    ].join("\r\n");
+    expect(parseIcs(after + "\r\n")).toEqual([
+      timed("Inside", "2026-10-04T19:00:00.000Z", "2026-10-04T20:00:00.000Z"),
+    ]);
+  });
+
+  it("reads a multi-day all-day DTEND", () => {
+    const text = cal([
+      "DTSTART;VALUE=DATE:20261016",
+      "DTEND;VALUE=DATE:20261019",
+      "SUMMARY:Festival",
+    ]);
+    expect(parseIcs(text)).toEqual([
+      allDay("Festival", "2026-10-16", "2026-10-19"),
+    ]);
+  });
+});
+
+describe("buildEventCards edges", () => {
+  it("names every month", () => {
+    const events = Array.from({ length: 12 }, (_, i) => {
+      const mm = String(i + 1).padStart(2, "0");
+      return timed(
+        `M${String(i + 1)}`,
+        `2027-${mm}-05T18:00:00.000Z`,
+        `2027-${mm}-05T19:00:00.000Z`,
+      );
+    });
+    const dates = [
+      "Jan 5",
+      "Feb 5",
+      "Mar 5",
+      "Apr 5",
+      "May 5",
+      "Jun 5",
+      "Jul 5",
+      "Aug 5",
+      "Sep 5",
+      "Oct 5",
+      "Nov 5",
+      "Dec 5",
+    ];
+    expect(buildEventCards(events, NOW)).toEqual(
+      dates.map((date, i) => ({
+        date,
+        title: `M${String(i + 1)}`,
+        location: null,
+      })),
+    );
+  });
+
+  it("trims a URL location and links http as well as https", () => {
+    const events = [
+      timed(
+        "One",
+        "2026-10-04T19:00:00.000Z",
+        "2026-10-04T20:00:00.000Z",
+        "  https://example.org/tickets  ",
+      ),
+      timed(
+        "Two",
+        "2026-10-05T19:00:00.000Z",
+        "2026-10-05T20:00:00.000Z",
+        "http://example.org/",
+      ),
+      timed(
+        "Three",
+        "2026-10-06T19:00:00.000Z",
+        "2026-10-06T20:00:00.000Z",
+        "https://example.org/a b",
+      ),
+      timed(
+        "Four",
+        "2026-10-07T19:00:00.000Z",
+        "2026-10-07T20:00:00.000Z",
+        "see https://example.org/",
+      ),
+    ];
+    expect(buildEventCards(events, NOW).map((c) => c.location)).toEqual([
+      { kind: "link", href: "https://example.org/tickets" },
+      { kind: "link", href: "http://example.org/" },
+      { kind: "text", text: "https://example.org/a b" },
+      { kind: "text", text: "see https://example.org/" },
+    ]);
+  });
+
+  it("treats an empty location as none", () => {
+    const events = [
+      timed(
+        "Empty",
+        "2026-10-04T19:00:00.000Z",
+        "2026-10-04T20:00:00.000Z",
+        "",
+      ),
+    ];
+    expect(buildEventCards(events, NOW)).toEqual([
+      { date: "Oct 4", title: "Empty", location: null },
+    ]);
+  });
+
+  it("shows both months for a run across years", () => {
+    expect(
+      buildEventCards([allDay("New Year", "2026-12-31", "2027-01-02")], NOW),
+    ).toEqual([{ date: "Dec 31–Jan 1", title: "New Year", location: null }]);
+    expect(
+      buildEventCards([allDay("Season", "2026-10-16", "2027-10-19")], NOW),
+    ).toEqual([{ date: "Oct 16–Oct 18", title: "Season", location: null }]);
+  });
+});

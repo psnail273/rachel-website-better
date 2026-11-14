@@ -170,7 +170,7 @@ function parseDateValue(value: string): ParsedDate | null {
     second: Number(dt[6]),
   };
   if (!validDate(fields.year, fields.month, fields.day)) return null;
-  if (fields.hour > 23 || fields.minute > 59 || fields.second > 60) {
+  if (fields.hour > 23 || fields.minute > 59 || fields.second > 59) {
     return null;
   }
   return { allDay: false, fields, utc: dt[7] !== "" };
@@ -250,6 +250,7 @@ export function parseIcs(text: string): CalendarEvent[] {
     const kind = prop.value.trim().toUpperCase();
     if (current === null) {
       if (isBegin && kind === "VCALENDAR") inCalendar = true;
+      else if (isEnd && kind === "VCALENDAR") inCalendar = false;
       else if (isBegin && kind === "VEVENT" && inCalendar) {
         current = [];
         depth = 0;
