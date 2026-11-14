@@ -228,6 +228,48 @@ describe("parseIcs structure edges", () => {
       timed("Found", "2026-10-04T19:00:00.000Z", "2026-10-04T20:00:00.000Z"),
     ]);
   });
+
+  it("reads a TZID time next to a daylight-saving change", () => {
+    const text = cal(
+      [
+        "SUMMARY:Fall",
+        "DTSTART;TZID=America/Chicago:20261101T030000",
+        "DTEND;TZID=America/Chicago:20261101T040000",
+      ],
+      [
+        "SUMMARY:Spring",
+        "DTSTART;TZID=America/Chicago:20270314T030000",
+        "DTEND;TZID=America/Chicago:20270314T040000",
+      ],
+    );
+    expect(parseIcs(text)).toEqual([
+      timed("Fall", "2026-11-01T09:00:00.000Z", "2026-11-01T10:00:00.000Z"),
+      timed("Spring", "2027-03-14T08:00:00.000Z", "2027-03-14T09:00:00.000Z"),
+    ]);
+  });
+
+  it("reads a DTEND that is not a date as a missing one", () => {
+    const text = cal([
+      "DTSTART:20261004T190000Z",
+      "DTEND:garbage",
+      "SUMMARY:BadEnd",
+    ]);
+    expect(parseIcs(text)).toEqual([
+      timed("BadEnd", "2026-10-04T19:00:00.000Z", "2026-10-04T19:00:00.000Z"),
+    ]);
+  });
+
+  it("leaves out a VEVENT that the calendar's end closes", () => {
+    const text = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "BEGIN:VEVENT",
+      "DTSTART:20261004T190000Z",
+      "SUMMARY:Unclosed",
+      "END:VCALENDAR",
+    ].join("\r\n");
+    expect(parseIcs(text + "\r\n")).toEqual([]);
+  });
 });
 
 describe("buildEventCards edges", () => {
