@@ -157,6 +157,8 @@ scenario_worktree() {
 	fixture_git_project
 	printf 'scenarios/\n' > tools/verify/scenario-folder
 	printf '#!/usr/bin/env bash\n# factory: no-op\n' > tools/verify/bootstrap
+	# shellcheck disable=SC2016 # the runner's own expansion
+	printf 'exec bash "$FACTORY_CORE/verify.sh" "$@"\n' > tools/verify.sh
 	mkdir -p scenarios && echo play > scenarios/serve.gd && echo play > scenarios/réserve.gd
 	echo /.claude/worktrees/ >> .gitignore
 	git add -A && git commit -q -m scenarios || fail "could not commit the Scenario"

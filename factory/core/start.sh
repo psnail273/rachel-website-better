@@ -26,7 +26,12 @@
 # copies the main
 # checkout's gitignored tools/verify/local.env into the worktree, then runs the
 # project's tools/verify/bootstrap there: the only step of a Run with network
-# access. A bootstrap holding the no-op marker is skipped.
+# access. A bootstrap holding the no-op marker is skipped. Then, on every start
+# and resume, it runs the worktree's prepare (`bash tools/verify.sh prepare`,
+# with FACTORY_NO_STAMP=1, so it keeps no gate stamp and counts no gate run), so
+# the worktree's installed tools match its lock file before the Editor's first
+# commit: the pre-commit hook and the first gate find them there (#21). A failing
+# prepare fails start.sh, its output on stderr.
 #
 # Rerunning it resumes: an existing worktree or branch is reused, and a bootstrap
 # that passed once (run state `bootstrap`) is not run again.
@@ -166,5 +171,11 @@ if [ "$(factory_state_get "$branch" bootstrap)" != "done" ]; then
 	fi
 	factory_state_set "$branch" bootstrap "done" || die "could not record the run state"
 fi
+
+cd "$wt" || die "cannot enter $wt"
+[ -f tools/verify.sh ] || die "no tools/verify.sh in the project; adopt the factory first"
+say "running bash tools/verify.sh prepare"
+FACTORY_NO_STAMP=1 bash tools/verify.sh prepare >&2 ||
+	die "bash tools/verify.sh prepare failed in $wt (above); fix it, then rerun start.sh"
 
 printf '%s\n' "$wt"

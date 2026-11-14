@@ -107,7 +107,7 @@ file 72e96660ae0d7122d460778a3bb5ffe192531836 factory/adapters/nextjs/new/tsconf
 file 04873545a45eb3d63684d1b6dede7c4d97503c0b factory/adapters/nextjs/new/vitest.config.ts.txt
 file 58cd7b9b4f757a33fac65d20ecd4babf60e830f8 factory/adapters/nextjs/skills/write-tests-nextjs/SKILL.md
 file 88d045b88ad36d1040aad431371281c932edd60b factory/adapters/nextjs/tests/adopt_test.sh
-file 64c0d67058d59fc423e463b46875cd0695235b1e factory/adapters/nextjs/tests/arch_test.sh
+file fa2073534729338d9711920c68db1066c092a126 factory/adapters/nextjs/tests/arch_test.sh
 file a6055f50a18a77d8674a6254161c99acd125db28 factory/adapters/nextjs/tests/assert_counts_test.sh
 file f110ff262f6d92ca83d8c322563a76f91689c3b5 factory/adapters/nextjs/tests/fixture/arch/actions.ts.txt
 file 5feff5f263b01c3fd305a078f3a7dad2c3265bd4 factory/adapters/nextjs/tests/fixture/arch/badge.tsx.txt
@@ -182,7 +182,7 @@ file bc950e3d5f5de55656e58644986f7fb84cab4aca factory/adapters/nextjs/tools/veri
 file d4e13fe8c7cfb1f761d516d5f38b137cbcfb56e3 factory/adapters/nextjs/tools/verify/_stryker_mutants.mjs
 file 80a5fc103263eff8417887bd81fe812a8b642611 factory/adapters/nextjs/tools/verify/_vitest_errors.mjs
 file b1a1e7ea78922e95b4146a3773b3482a8bff1660 factory/adapters/nextjs/tools/verify/_vitest_results.mjs
-file 075f44dcd9e3554fc736445fa4b72d9c7ba51e75 factory/adapters/nextjs/tools/verify/arch
+file 4575f622e24eacfec93f62722fb3d44d4109ccb3 factory/adapters/nextjs/tools/verify/arch
 file aadf3f6b009299c7c1a0f264cd7d26b7864b5ea5 factory/adapters/nextjs/tools/verify/assert-counts
 file 0629d2ace9520c8ea1d043e956a6693dee76afe3 factory/adapters/nextjs/tools/verify/bootstrap
 file 5ff1539447c1723215356bde7e50d9f56842f1b4 factory/adapters/nextjs/tools/verify/deviation
@@ -263,7 +263,7 @@ file 3626ab6689b2178032483d694a04d33d156bfed1 factory/core/scenarios.sh
 file 752cafa2d153cbb4733829c31853516f427200f7 factory/core/shell-lint.sh
 file 87c570e7953a8cdc905e97bef739df274ecb90a7 factory/core/skill-budget.sh
 file 38e1514bffcdc1be82545850804acaa1a78a004c factory/core/skill-words
-file 18c49d073413ce90488d75c58810c0d6390c68b3 factory/core/start.sh
+file e0b85cd0b923edc988caa5fabe5d4f15deb8c245 factory/core/start.sh
 file 8ba79d0fd9b1b6ff25e63c932239a24e65ce3dae factory/core/state.sh
 file 63a195dc4706ac1560144448b3aae92b874b46f9 factory/core/stress.sh
 file ce330a2eb2b3fb8cae331097a8d87dfd1c00d9fd factory/core/sync.sh
@@ -316,7 +316,7 @@ file 0a29a79400e006c0135a0e541a17eecc45e98312 factory/core/tests/fixture/wait-gu
 file 1494ff5300b7376c76cc46e5f3ebd348c3847dca factory/core/tests/hooks_test.sh
 file 3c323f7353738597e258927f7243a1bbc8892cb8 factory/core/tests/install_test.sh
 file ed39bc54484c83d3e63cc90c2a880660d0f14b5c factory/core/tests/keep_going_test.sh
-file 4b7a3ef7a722080f23e6ace0f59c96031ebbd8bd factory/core/tests/land_test.sh
+file a5361e5294685708c9f6b4f86ad6260d36bdc319 factory/core/tests/land_test.sh
 file 53108e053a01c954ae9f3c9cdd50cdfae8c41ed4 factory/core/tests/lib.sh
 file 94c0668ca0c91056b45398457516a734fee79ce5 factory/core/tests/lock_test.sh
 file 9d50580b5cbff41a6737b52b8d3edb3c0c83f0f4 factory/core/tests/mutate_test.sh
@@ -329,8 +329,8 @@ file f1bd7977d38e610f72d54f44158428630368de2e factory/core/tests/runner_test.sh
 file 7520c88d1e0ecf471dcd8d9655137e84de0601a6 factory/core/tests/scenarios_test.sh
 file b3a05a18d047a519c1c5b468ce1933dca4f7802c factory/core/tests/shell_lint_test.sh
 file faf4026f0e2596cab2d9e4918087b0ccf88626f8 factory/core/tests/skill_budget_test.sh
-file 4f43a1f368b8c6a72216ab089c3ce44ac6506c48 factory/core/tests/stamp_test.sh
-file 89c1e62e0ce1a88f7ee2f889e1ea2acf6545f0ef factory/core/tests/start_test.sh
+file b1c87f66761faeb03ba8414932440de7be0fbdad factory/core/tests/stamp_test.sh
+file 6c661823e1d4c61c079cba83b45277c2285d8bd1 factory/core/tests/start_test.sh
 file 113935331537331c9df5de5de3b8668add996e80 factory/core/tests/state_test.sh
 file b5eca5828f99dcf8d12501fd518103b2287b1451 factory/core/tests/stress_test.sh
 file 5aecd12e44000b4dfd6a102f2931eb78838aabef factory/core/tests/sync_test.sh

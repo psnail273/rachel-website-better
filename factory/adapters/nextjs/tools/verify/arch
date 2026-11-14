@@ -16,6 +16,13 @@
 # extensions, index files); _arch_imports.mjs reads each file with TypeScript's
 # parser for the line a finding names, and says what each check finds.
 #
+# Every import check reads dependency-cruiser's graph, so each registers as
+# `runtime` (factory/core/lib/architecture.sh): it needs the installed
+# node_modules. With FACTORY_ARCH_STATIC_ONLY=1 (the pre-commit hook, on a copy
+# of the index that has no node_modules) the step skips the tool check and those
+# checks, and runs only the sync check, which needs no tool; the full verify runs
+# them all (#19).
+#
 # Findings, on stdout: `file:line R<n> message` for each violation, the sync
 # check's arch-sync, and (from _nextjs.sh) node-missing or tool-missing.
 # dependency-cruiser's own output goes to stderr. Exits 1 on any finding.
@@ -72,10 +79,10 @@ check_client_server() { imports_check client-server; }
 check_next_in_app() { imports_check next-in-app; }
 check_fonts_local() { imports_check fonts-local; }
 
-tool_ready depcruise || exit 1
+[ "${FACTORY_ARCH_STATIC_ONLY:-0}" = 1 ] || tool_ready depcruise || exit 1
 
-factory_arch_check client-server check_client_server
-factory_arch_check next-in-app check_next_in_app
-factory_arch_check fonts-local check_fonts_local
+factory_arch_check client-server check_client_server runtime
+factory_arch_check next-in-app check_next_in_app runtime
+factory_arch_check fonts-local check_fonts_local runtime
 
 factory_arch_main "$ARCH_DOC"

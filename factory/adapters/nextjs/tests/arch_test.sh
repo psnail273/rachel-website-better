@@ -82,6 +82,30 @@ test_arch_names_dependency_cruiser_not_installed_with_node() {
 	assert_eq "package.json:1 tool-missing node_modules/.bin/depcruise is not installed; run bash tools/verify.sh prepare (on a new machine, bash tools/verify/bootstrap first)" "$out" "arch's finding"
 }
 
+# #19: the pre-commit hook runs arch on a copy of the index, which has no
+# node_modules, with FACTORY_ARCH_STATIC_ONLY=1. Every import check reads
+# dependency-cruiser's graph, so none runs there, nor does the tool check: a
+# staged change gets no tool-missing (and no Node is needed), and the full verify
+# still runs them (the tests above).
+test_the_pre_commit_hook_on_a_tree_without_node_modules_reports_no_tool_missing() {
+	skeleton_project
+	add_fixture arch/fonts.ts.txt app/fonts.ts
+	git add -A || fail "could not stage the skeleton"
+	NODE_BIN=/no/such/node run_cmd bash "$FACTORY_CORE/hooks/pre-commit.sh"
+	assert_status 0
+	assert_eq "" "$(cat "$TEST_TMP/stderr")" "the hook's report"
+}
+
+# Static-only, the sync check still runs: it reads ARCHITECTURE.md alone.
+test_static_only_arch_runs_the_sync_check_alone() {
+	skeleton_project
+	add_fixture arch/fonts.ts.txt app/fonts.ts
+	printf '\n**R11.** Something new.\nEnforced by: `arch:made-up`\nSource: convention\n' >> ARCHITECTURE.md
+	FACTORY_ARCH_STATIC_ONLY=1 NODE_BIN=/no/such/node step arch
+	assert_status 1
+	assert_eq "ARCHITECTURE.md:$(grep -n 'arch:made-up' ARCHITECTURE.md | cut -d: -f1) arch-sync arch:made-up (R11) has no check" "$out" "static-only arch's findings"
+}
+
 test_the_reader_refuses_what_isnt_dependency_cruisers_graph_with_node() {
 	needs_node
 	echo '{"summary":{}}' > "$TEST_TMP/graph.json"

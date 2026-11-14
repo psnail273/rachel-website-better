@@ -145,7 +145,7 @@ verify_stub() {
 # The red gate passes while the brief's new tests fail: it must never land a branch.
 test_red_phase_is_refused_when_only_the_red_gate_passes() {
 	verify_stub << 'SH'
-if [ "${1:-}" = --red ]; then echo "verify: PASS"; exit 0; fi
+if [ "${1:-}" = --red ] || [ "${1:-}" = prepare ]; then echo "verify: PASS"; exit 0; fi
 echo "c.txt:1 fixture-full the full run ran"; echo "verify: FAILED at step test"; exit 1
 SH
 	started 7
@@ -185,6 +185,7 @@ SH
 # do, and passes (0) or fails.
 noisy_verify() {
 	verify_stub << SH
+if [ "\${1:-}" = prepare ]; then echo "== prepare PASS"; echo "verify: PASS"; exit 0; fi
 m="\${FACTORY_STEP_MARK:-}"
 unset FACTORY_STEP_MARK
 [ -z "\$m" ] || echo "\$m prepare" >&2
@@ -268,13 +269,16 @@ real_runner() {
 	# shellcheck disable=SC2016 # the script's own expansions
 	local runner='exec bash "$FACTORY_CORE/verify.sh" "$@"'
 	printf '%s\n' "${3:-$runner}" > tools/verify.sh
-	printf '%s\n. "$(dirname "$0")/_stub.sh" prepare\n' "$1" > tools/verify/prepare
+	# start.sh runs prepare too: the step's own script runs only at Land, once
+	# .fixture/landing is there.
+	printf 'if [ -e .fixture/landing ]; then\n%s\nfi\n. "$(dirname "$0")/_stub.sh" prepare\n' "$1" > tools/verify/prepare
 	printf '%s\n. "$(dirname "$0")/_stub.sh" lint\n' "$2" > tools/verify/lint
 	printf '/.fixture/\n' >> .gitignore
 	git add -A && git commit -q -m "real runner" && git push -q origin dev 2> /dev/null || fail "could not commit the runner"
 	started 7
 	commit_in "$wt" c.txt work
 	mkdir -p "$wt/.fixture"
+	: > "$wt/.fixture/landing"
 	echo "src/a.txt:1 lint-bad a lint finding" > "$wt/.fixture/fail-lint"
 }
 

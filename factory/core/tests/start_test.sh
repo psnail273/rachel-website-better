@@ -264,3 +264,34 @@ test_a_project_without_a_scenario_folder_checks_everything_out() {
 	assert_status 0
 	[ -f "$TEST_TMP/main/.claude/worktrees/issue-7/scenarios/once.gd" ] || fail "the worktree left a folder out"
 }
+
+# #21: after bootstrap, every start and resume runs the worktree's prepare
+# (tools/verify.sh prepare), so its tools are installed before the first commit;
+# its output goes to stderr, and stdout stays the worktree's path.
+test_runs_prepare_in_the_worktree_after_bootstrap_on_every_start() {
+	fixture_repo
+	printf '%s\n' 'echo "prepare in $(basename "$PWD") args=$* stamp=${FACTORY_NO_STAMP:-}" >> "$BOOTSTRAP_LOG"' 'echo "verify: PASS"' > tools/verify.sh
+	git commit -q -am "logging verify" && git push -q origin dev 2> /dev/null
+	run_start 7
+	assert_status 0
+	[ "$out" -ef "$TEST_TMP/main/.claude/worktrees/issue-7" ] || fail "stdout is not the worktree path: $out"
+	assert_eq "bootstrap in issue-7 core=set tool=none
+prepare in issue-7 args=prepare stamp=1" "$(cat "$BOOTSTRAP_LOG")" "bootstrap, then prepare, in the worktree"
+	grep -q "verify: PASS" "$TEST_TMP/stderr" || fail "prepare's output is not on stderr: $(cat "$TEST_TMP/stderr")"
+	run_start 7
+	assert_status 0
+	assert_eq "prepare in issue-7 args=prepare stamp=1" "$(tail -n 1 "$BOOTSTRAP_LOG")" "a resume did not run prepare again"
+	assert_eq "3" "$(wc -l < "$BOOTSTRAP_LOG" | tr -d ' ')" "a resume ran bootstrap again"
+}
+
+test_a_failing_prepare_fails_start_and_says_so() {
+	fixture_repo
+	printf '%s\n' 'echo "tools/verify/local.env:1 node-missing no node"' 'echo "verify: FAILED at step prepare"' 'exit 1' > tools/verify.sh
+	git commit -q -am "failing prepare" && git push -q origin dev 2> /dev/null
+	run_start 7
+	assert_status 1
+	assert_eq "" "$out" "stdout should be empty on failure"
+	grep -q "node-missing" "$TEST_TMP/stderr" || fail "prepare's findings are not on stderr: $(cat "$TEST_TMP/stderr")"
+	grep -q "start: bash tools/verify.sh prepare failed in .*issue-7" "$TEST_TMP/stderr" || fail "no reason on stderr: $(cat "$TEST_TMP/stderr")"
+	assert_eq "done" "$(git config branch.issue/7.factory-bootstrap)" "bootstrap passed and should stay done"
+}
