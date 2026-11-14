@@ -29,3 +29,9 @@ Engine and library facts that briefs rely on, each with the probe that showed it
 - `prerender` from `react-dom/static` renders trees holding async Server Components; its HTML puts `<!-- -->` between adjacent text nodes, so read `textContent` from `new DOMParser().parseFromString(html, "text/html")`. `vi.useFakeTimers({ toFake: ["Date"] })` with `vi.setSystemTime` drives `new Date()`. (#6)
 - Vitest 5.1.0 defaults `clearMocks: true`: a `vi.fn` called at module import (e.g. a mocked `localFont` called when the layout is imported) has empty `mock.calls` by the time a test body runs; snapshot the calls at import. (#6, Editor's red round)
 - Vite rewrites a literal `new URL("./x", import.meta.url)` into a served path, and under happy-dom the global `URL` is happy-dom's, which `fileURLToPath` rejects: build file paths with `join(import.meta.dirname, ...)` in tests. (#6, Editor's red round)
+
+## Images (Next.js 16.4.6, Tailwind 4.3.3)
+
+- `next/image` renders under Vitest (happy-dom, `prerender` from `react-dom/static`) with no Next runtime: an `.svg` `src` passes through unoptimized and unchanged as a plain `<img>` with `width`/`height` attributes, and `preload` adds a `<link rel="preload" as="image">` ahead of the tree. `priority` is deprecated for `preload` in 16. Probe: scratch Vitest file; `node_modules/next/dist/docs/01-app/03-api-reference/02-components/image.md` (`preload`, `dangerouslyAllowSVG`). (#8)
+- happy-dom's `DOMParser` parses an SVG file as `image/svg+xml`; the root's `tagName` is `svg` and `getAttribute` reads `width`, `height` and `viewBox`. Probe: scratch Vitest file. (#8)
+- Tailwind 4 puts utilities in `@layer utilities`; `src/app/globals.css`'s unlayered `h1, h2, h3 { color: var(--heading) }` beats any colour utility on a heading unless it uses the important modifier (`text-background!`). Probe: `node_modules/tailwindcss/index.css:1`. (#8)
