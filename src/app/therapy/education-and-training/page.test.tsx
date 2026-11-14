@@ -32,8 +32,13 @@ describe("EducationPage", () => {
     const h2s = Array.from(doc.querySelectorAll("h2"));
     const uls = Array.from(doc.querySelectorAll("ul"));
 
-    expect(texts(doc.querySelectorAll("h1"))).toEqual(["Education and Training"]);
-    expect(texts(h2s)).toEqual(["Education & Credentials", "Specialized Training"]);
+    expect(texts(doc.querySelectorAll("h1"))).toEqual([
+      "Education and Training",
+    ]);
+    expect(texts(h2s)).toEqual([
+      "Education & Credentials",
+      "Specialized Training",
+    ]);
     expect(uls).toHaveLength(2);
     expect(doc.querySelectorAll("ol")).toHaveLength(0);
     expect(h2s[0]?.nextElementSibling).toBe(uls[0]);
@@ -82,7 +87,9 @@ describe("EducationPage", () => {
     expect(doc.querySelectorAll("a, button")).toHaveLength(0);
     expect(items).toHaveLength(14);
     expect(items.map((li) => li.children.length)).toEqual(items.map(() => 0));
-    expect(items.map((li) => li.hasAttribute("class"))).toEqual(items.map(() => false));
+    expect(items.map((li) => li.hasAttribute("class"))).toEqual(
+      items.map(() => false),
+    );
     expect(metadata).toStrictEqual({
       title: "Education and Training",
       description:
