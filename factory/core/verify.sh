@@ -58,7 +58,10 @@
 # one of its steps); with none, the run goes ahead. --reuse never applies when the
 # caller set FACTORY_RESULTS_FILE (only a fresh run writes it), and --twice
 # keeps no stamp and refuses --reuse. A run that changes its own inputs keeps no
-# stamp. FACTORY_NO_STAMP=1 keeps none either. A stamp that can't be written (a
+# stamp, nor does one in which a step failed for a transient cause, exiting
+# FACTORY_TRANSIENT_EXIT (75; lib/steps.sh): a build lock held too long or a
+# refused connection says nothing about the code, so --reuse runs it again.
+# FACTORY_NO_STAMP=1 keeps none either. A stamp that can't be written (a
 # read-only git dir) is skipped with one line on stderr, and the run's verdict
 # and exit code stand.
 #
@@ -299,6 +302,7 @@ run_step() {
 				bash "$script" > "$tmp/raw"
 			fi
 			code=$?
+			[ "$code" -ne "$FACTORY_TRANSIENT_EXIT" ] || echo "$step" >> "$tmp/transient"
 			if [ "$step" = test ]; then
 				judge_test "$code" >> "$tmp/out" || status=1
 			elif [ "$code" -ne 0 ]; then
@@ -333,6 +337,8 @@ finish() {
 	fi
 	if [ -n "$went_on" ]; then
 		echo "verify: no gate stamp: --all-static went on past the failing step $failed_at, so its verdict is not the plain run's" >&2
+	elif [ -s "$tmp/transient" ]; then
+		echo "verify: no gate stamp: step $(paste -sd ' ' "$tmp/transient") failed for a transient cause (exit $FACTORY_TRANSIENT_EXIT), not the code's, so --reuse will run it again" >&2
 	elif [ -n "$stamp_key" ] && [ -z "${FACTORY_NO_STAMP:-}" ]; then
 		if [ "$(factory_stamp_key "$stamp_mode" "${steps[@]}")" = "$stamp_key" ]; then
 			if [ -z "$survivors" ] || factory_stamp_write_survivors "$stamp_file" "$stamp_key" "$survivors"; then

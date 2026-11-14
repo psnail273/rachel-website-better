@@ -46,6 +46,35 @@ test_reuse_keeps_a_failed_verdict_and_its_exit_code() {
 	assert_reused
 }
 
+# A FAIL from a step that failed for a transient cause (exit 75: a build lock
+# held too long, a refused connection) keeps no stamp: --reuse runs it again. An
+# earlier stamp of another verdict stays as it was.
+test_reuse_runs_a_transient_failure_again() {
+	stamped
+	echo two > src/a.txt
+	echo "package.json:1 smoke-build-lock another next build held the build lock" > .fixture/transient-smoke
+	run_verify
+	assert_status 1
+	assert_last_line "verify: FAILED at step smoke"
+	stderr_has "verify: no gate stamp: step smoke failed for a transient cause (exit 75), not the code's, so --reuse will run it again"
+	rm -f .fixture/ran .fixture/transient-smoke
+	run_verify --reuse
+	assert_status 0
+	assert_fresh
+	stderr_has "no gate stamp for these inputs"
+	assert_last_line "verify: PASS"
+
+	# With --keep-going, a transient step past the first failure keeps none either.
+	echo "src/a.txt:1 lint-a broken" > .fixture/fail-lint
+	echo "package.json:1 smoke-request-failed /: net::ERR_CONNECTION_REFUSED" > .fixture/transient-smoke
+	run_verify --keep-going
+	assert_status 1
+	stderr_has "verify: no gate stamp: step smoke failed for a transient cause"
+	rm -f .fixture/ran .fixture/transient-smoke
+	run_verify --keep-going --reuse
+	assert_fresh
+}
+
 test_reuse_runs_fresh_with_no_stamp() {
 	fixture_git_project
 	run_verify --reuse

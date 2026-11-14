@@ -2,6 +2,8 @@
 # Run from the fixture project root; tests steer it with files in .fixture/:
 #   ran            every stub appends its step name, so tests see the run order
 #   fail-<step>    the step prints this file's findings and fails
+#   transient-<step>  the step prints this file's findings and fails for a
+#                  transient cause (exit 75, FACTORY_TRANSIENT_EXIT)
 #   output-<step>  the step prints this file's lines and passes
 #   vary-<step>    the step prints a finding that changes on every run
 #   args-<step>    written by the stub: the arguments the step got, one per line,
@@ -45,6 +47,10 @@ if [ "$step" = mutate ]; then
 fi
 if [ -f ".fixture/run-$step" ]; then
 	bash ".fixture/run-$step" > /dev/null 2>&1
+fi
+if [ -f ".fixture/transient-$step" ]; then
+	cat ".fixture/transient-$step"
+	exit 75
 fi
 if [ -f ".fixture/fail-$step" ]; then
 	cat ".fixture/fail-$step"

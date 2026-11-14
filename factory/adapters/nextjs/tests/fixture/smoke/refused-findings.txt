@@ -1,0 +1,2 @@
+package.json:1 smoke-load /: the page didn't load and go quiet within 60s: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1/
+package.json:1 smoke-request-failed /: http://127.0.0.1/_next/static/chunks/main.js failed: net::ERR_CONNECTION_REFUSED

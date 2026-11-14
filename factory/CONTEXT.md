@@ -23,7 +23,7 @@ A point where the full set of verify steps decides whether work may go on. Every
 _Avoid_: Check (a check is one rule inside a step), CI
 
 **Gate stamp**:
-A verify run's verdict, kept with a key naming everything it depends on: the commit, the working tree, the **Build Brief**, the diff base and the run state. A later run on the same inputs may print it again (`verify.sh --reuse`) instead of running every step: the **Driver** and the **Verifier** reuse the one the **Editor**'s gate kept. Nothing that can't be undone rests on one: the red gate before the **Lock** and Land always run fresh.
+A verify run's verdict, kept with a key naming everything it depends on: the commit, the working tree, the **Build Brief**, the diff base and the run state. A later run on the same inputs may print it again (`verify.sh --reuse`) instead of running every step: the **Driver** and the **Verifier** reuse the one the **Editor**'s gate kept. A run in which a step failed for a transient cause (a lock held too long, a refused connection: exit 75) keeps none. Nothing that can't be undone rests on one: the red gate before the **Lock** and Land always run fresh.
 _Avoid_: Cache
 
 **Surviving mutant**:

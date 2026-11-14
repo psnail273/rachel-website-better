@@ -290,3 +290,221 @@ test_bootstrap_installs_the_browser_where_local_env_says_with_node() {
 	assert_status 1
 	stderr_has "bootstrap: playwright install --only-shell chromium exited 1 (into $TEST_TMP/empty)"
 }
+
+# lock_project [build]: skeleton_project (nothing installed) with a next whose
+# build appends `begin` then `end` to $TEST_TMP/builds, and `overlap` when another
+# build is running then ($TEST_TMP/building), running the bash <build> between
+# (default: nothing); whose start exits 3.
+lock_project() {
+	needs_node
+	skeleton_project
+	mkdir -p node_modules/.bin
+	cat > node_modules/.bin/next << SH
+#!/usr/bin/env bash
+[ "\$1" = build ] || exit 3
+[ ! -e $(printf '%q' "$TEST_TMP/building") ] || echo overlap >> $(printf '%q' "$TEST_TMP/builds")
+: > $(printf '%q' "$TEST_TMP/building")
+echo begin >> $(printf '%q' "$TEST_TMP/builds")
+${1:-}
+rm -f $(printf '%q' "$TEST_TMP/building")
+echo end >> $(printf '%q' "$TEST_TMP/builds")
+SH
+	chmod 755 node_modules/.bin/next
+}
+
+# lock_gone: no build holds the build lock.
+lock_gone() {
+	[ ! -e "$FACTORY_BUILD_LOCK" ] || fail "the build lock is still there: $(ls -la "$FACTORY_BUILD_LOCK" 2>&1)"
+}
+
+# Two smoke runs at once (as in two worktrees): the second's build waits for the
+# first's to end, then runs; the builds never overlap, and the lock is released.
+test_two_builds_at_once_run_one_after_the_other_with_node() {
+	blocking_stand_in "$TEST_TMP/build-1" "$TEST_TMP/release-1"
+	blocking_stand_in "$TEST_TMP/build-2" "$TEST_TMP/release-2"
+	lock_project "n=\$(grep -c begin $(printf '%q' "$TEST_TMP/builds")); $(printf '%q' "$TEST_TMP")/build-\$n"
+	local a b
+	trap ': > "$TEST_TMP/release-1"; : > "$TEST_TMP/release-2"; wait' EXIT
+	bash tools/verify/smoke > "$TEST_TMP/a.out" 2> "$TEST_TMP/a.err" &
+	a=$!
+	wait_until "the first build to start" test -s "$TEST_TMP/build-1.pid"
+	bash tools/verify/smoke > "$TEST_TMP/b.out" 2> "$TEST_TMP/b.err" &
+	b=$!
+	wait_until "the second run to wait for the build lock" grep -q "next build: waiting for the build lock $FACTORY_BUILD_LOCK, held by pid $a (up to 900s, FACTORY_BUILD_WAIT)" "$TEST_TMP/b.err"
+	[ ! -e "$TEST_TMP/build-2.pid" ] || fail "the second build started while the first ran"
+	: > "$TEST_TMP/release-1"
+	wait "$a"
+	assert_eq 1 "$?" "the first run's exit (its server exits 3)"
+	wait_until "the second build to start" test -s "$TEST_TMP/build-2.pid"
+	: > "$TEST_TMP/release-2"
+	wait "$b"
+	assert_eq 1 "$?" "the second run's exit (its server exits 3)"
+	assert_eq "begin
+end
+begin
+end" "$(cat "$TEST_TMP/builds")" "the builds, in order"
+	assert_eq "package.json:1 smoke-start next start exited 3 before it answered (see stderr)" "$(cat "$TEST_TMP/b.out")" "the second run's finding"
+	lock_gone
+}
+
+# Held by a running build past FACTORY_BUILD_WAIT, the lock is a transient
+# finding (exit 75): no build runs, and the holder's lock stays.
+test_a_build_lock_held_past_the_wait_is_a_transient_finding_with_node() {
+	lock_project
+	mkdir "$FACTORY_BUILD_LOCK" && echo "$BASHPID" > "$FACTORY_BUILD_LOCK/pid" || fail "could not hold the lock"
+	FACTORY_BUILD_WAIT=0 step smoke
+	assert_status 75
+	assert_eq "package.json:1 smoke-build-lock another next build held the build lock $FACTORY_BUILD_LOCK (pid $BASHPID) past FACTORY_BUILD_WAIT (0s, tools/verify/local.env); run again once it ends, or remove the lock if no build is running" "$out" "smoke's finding"
+	[ ! -e "$TEST_TMP/builds" ] || fail "a build ran under another's lock"
+	assert_eq "$BASHPID" "$(cat "$FACTORY_BUILD_LOCK/pid")" "the holder's lock"
+
+	# Named by no pid yet, a fresh lock is a build taking it: waited for too.
+	rm -rf "$FACTORY_BUILD_LOCK" && mkdir "$FACTORY_BUILD_LOCK" || fail "could not make the lock"
+	FACTORY_BUILD_WAIT=0 step smoke
+	assert_status 75
+	assert_eq "package.json:1 smoke-build-lock another next build held the build lock $FACTORY_BUILD_LOCK (pid unknown) past FACTORY_BUILD_WAIT (0s, tools/verify/local.env); run again once it ends, or remove the lock if no build is running" "$out" "smoke's finding for a lock naming no pid"
+}
+
+# A lock whose holder is gone, or that has named no holder for over a minute, is
+# taken over: the build runs and releases it.
+test_a_stale_build_lock_is_taken_over_with_node() {
+	lock_project
+	local dead
+	dead="$(bash -c 'echo $$')"
+	mkdir "$FACTORY_BUILD_LOCK" && echo "$dead" > "$FACTORY_BUILD_LOCK/pid" || fail "could not make the lock"
+	FACTORY_BUILD_WAIT=0 step smoke
+	assert_status 1
+	assert_eq "package.json:1 smoke-start next start exited 3 before it answered (see stderr)" "$out" "smoke's finding"
+	stderr_has "next build: took over the stale build lock $FACTORY_BUILD_LOCK (its holder, pid $dead, is gone)"
+	lock_gone
+
+	mkdir "$FACTORY_BUILD_LOCK" && touch -t 200001010000 "$FACTORY_BUILD_LOCK" || fail "could not make an old lock"
+	FACTORY_BUILD_WAIT=0 step smoke
+	assert_status 1
+	stderr_has "next build: took over the stale build lock $FACTORY_BUILD_LOCK (its holder is gone)"
+	assert_eq "begin
+end
+begin
+end" "$(cat "$TEST_TMP/builds")" "the builds"
+	lock_gone
+}
+
+# Takeovers run one at a time, under <lock>.takeover: while another waiter's
+# takeover holds it, a stale lock is left alone (waited for); a guard over a
+# minute old, left by a takeover cut short, is removed and the lock taken over.
+test_a_stale_build_lock_is_taken_over_one_waiter_at_a_time_with_node() {
+	lock_project
+	local dead
+	dead="$(bash -c 'echo $$')"
+	mkdir "$FACTORY_BUILD_LOCK" "$FACTORY_BUILD_LOCK.takeover" && echo "$dead" > "$FACTORY_BUILD_LOCK/pid" || fail "could not make the lock"
+	FACTORY_BUILD_WAIT=0 step smoke
+	assert_status 75
+	assert_eq "package.json:1 smoke-build-lock another next build held the build lock $FACTORY_BUILD_LOCK (pid $dead) past FACTORY_BUILD_WAIT (0s, tools/verify/local.env); run again once it ends, or remove the lock if no build is running" "$out" "smoke's finding while another takeover runs"
+	assert_eq "$dead" "$(cat "$FACTORY_BUILD_LOCK/pid")" "the stale lock, left to the other takeover"
+	[ ! -e "$TEST_TMP/builds" ] || fail "a build ran during another's takeover"
+
+	touch -t 200001010000 "$FACTORY_BUILD_LOCK.takeover" || fail "could not age the guard"
+	FACTORY_BUILD_WAIT=0 step smoke
+	assert_status 1
+	stderr_has "next build: took over the stale build lock $FACTORY_BUILD_LOCK (its holder, pid $dead, is gone)"
+	assert_eq "begin
+end" "$(cat "$TEST_TMP/builds")" "the build"
+	lock_gone
+	[ ! -e "$FACTORY_BUILD_LOCK.takeover" ] || fail "the takeover left its guard behind"
+}
+
+# next build's own refusal, another build running in the checkout (as next
+# prints it, colours and all), is a transient finding; the lock is released.
+test_next_finding_another_build_running_is_a_transient_finding_with_node() {
+	lock_project "cat $(printf '%q' "$NEXTJS_FIXTURES/smoke/another-build.txt") >&2; exit 1"
+	step smoke
+	assert_status 75
+	assert_eq "package.json:1 smoke-build next build exited 1: another next build was running in this checkout (see stderr)" "$out" "smoke's finding"
+	stderr_has "process is already running."
+	lock_gone
+}
+
+# A failed build releases the lock too, and stays an ordinary failure.
+test_a_failed_build_releases_the_lock_with_node() {
+	lock_project 'exit 2'
+	step smoke
+	assert_status 1
+	assert_eq "package.json:1 smoke-build next build exited 2 (see stderr)" "$out" "smoke's finding"
+	lock_gone
+}
+
+test_the_build_wait_must_be_seconds_and_the_lock_makeable_with_node() {
+	lock_project
+	local v
+	for v in soon -1 1.5 1234567; do
+		FACTORY_BUILD_WAIT="$v" step smoke
+		assert_status 1
+		assert_eq "tools/verify/local.env:1 smoke-setting FACTORY_BUILD_WAIT is '$v', not a number of seconds from 0 to 999999" "$out" "smoke's finding for '$v'"
+	done
+	FACTORY_BUILD_LOCK="$TEST_TMP/missing/next-build.lock" step smoke
+	assert_status 1
+	assert_eq "tools/verify/local.env:1 smoke-build-lock could not make the build lock $TEST_TMP/missing/next-build.lock; FACTORY_BUILD_LOCK in tools/verify/local.env names a folder to make, in a folder that exists" "$out" "smoke's finding for a lock it can't make"
+	[ ! -e "$TEST_TMP/builds" ] || fail "a build ran without the lock"
+}
+
+# A lock released between a waiter's failed mkdir and its look at the lock (here
+# a mkdir that fails once) is tried again, not reported as a folder it can't make.
+test_a_lock_released_between_tries_is_tried_again() {
+	skeleton_project
+	(
+		# shellcheck source=/dev/null
+		. tools/verify/_nextjs.sh
+		failed=""
+		# shellcheck disable=SC2317 # called by nx_build_lock
+		mkdir() {
+			if [ -z "$failed" ] && [ "$1" = "$NX_BUILD_LOCK" ]; then
+				failed=1
+				return 1
+			fi
+			command mkdir "$@"
+		}
+		nx_build_lock 0 || echo "$NX_BUILD_MSG"
+		[ -n "$failed" ] || echo "the first mkdir did not fail"
+		[ "$(cat "$NX_BUILD_LOCK/pid" 2> /dev/null)" = "$$" ] || echo "the lock names no holder"
+		nx_build_unlock
+	) > "$TEST_TMP/lock.out" 2>&1
+	assert_eq "" "$(cat "$TEST_TMP/lock.out")" "what went wrong taking the lock"
+	lock_gone
+}
+
+# A TERM mid-build: once the build ends, the step exits and releases the lock.
+test_a_signal_mid_build_releases_the_lock_with_node() {
+	blocking_stand_in "$TEST_TMP/build-1" "$TEST_TMP/release-1"
+	lock_project "$(printf '%q' "$TEST_TMP/build-1")"
+	smoke_apart
+	wait_until "the build to start" test -s "$TEST_TMP/build-1.pid"
+	kill -TERM "$smoke"
+	: > "$TEST_TMP/release-1"
+	wait "$smoke"
+	assert_eq 143 "$?" "the step's exit on TERM"
+	smoke=""
+	lock_gone
+}
+
+# A request refused a connection (the server gone, or not yet up) is a transient
+# failure (exit 75); any other finding stays an ordinary one.
+test_a_refused_connection_is_a_transient_failure_with_node() {
+	needs_node
+	skeleton_project
+	mkdir -p node_modules/.bin "$TEST_TMP/site"
+	cp "$NEXTJS_FIXTURES/smoke/next.mjs.txt" node_modules/.bin/next && chmod 755 node_modules/.bin/next || fail "could not stand in for next"
+	cp "$NEXTJS_FIXTURES/smoke/page-findings.mjs.txt" tools/verify/_smoke_page.mjs || fail "could not stand in for the browser script"
+	export STAND_IN_SITE="$TEST_TMP/site" STAND_IN_FINDINGS="$TEST_TMP/findings"
+	local line
+	while IFS= read -r line; do
+		printf '%s\n' "$line" > "$TEST_TMP/findings"
+		step smoke
+		assert_status 75
+		assert_eq "$line" "$out" "smoke's finding"
+		stderr_has "smoke: a request was refused a connection"
+	done < "$NEXTJS_FIXTURES/smoke/refused-findings.txt"
+	echo "package.json:1 smoke-console /: console error: boom" > "$TEST_TMP/findings"
+	step smoke
+	assert_status 1
+	assert_eq "package.json:1 smoke-console /: console error: boom" "$out" "smoke's finding"
+}

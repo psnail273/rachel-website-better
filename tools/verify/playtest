@@ -12,10 +12,23 @@
 #   pnpm exec next start --port <port>   then open http://localhost:<port>
 # When local.env names Node or pnpm by a path (NODE_BIN, PNPM_BIN), the command
 # puts their folders first on PATH: PATH=<folders>:"$PATH" pnpm exec ....
-# The build's output goes to stderr.
+# The build's output goes to stderr. It builds under the machine-wide build lock
+# (_nextjs.sh's nx_next_build), so it queues behind a gate's build instead of
+# colliding with it; FACTORY_BUILD_WAIT (local.env; seconds, default 900) bounds
+# the wait.
 # Exits 0 with the app built, 1 otherwise (the reason on stderr).
+#
+# Run bare (factory-run's playtest.md), it reads tools/verify/local.env itself, as
+# verify.sh does for the gate's steps, so its build meets theirs under the same
+# FACTORY_BUILD_LOCK.
 set -u
 
+if [ -f tools/verify/local.env ]; then
+	set -a
+	# shellcheck disable=SC1091 # the machine's own, gitignored
+	. ./tools/verify/local.env
+	set +a
+fi
 . "$(dirname "${BASH_SOURCE[0]}")/_nextjs.sh"
 
 port="${FACTORY_PLAYTEST_PORT:-3000}"
@@ -29,10 +42,14 @@ if ! tool_ready next > /dev/null; then
 	tool_ready next | sed 's/^[^ ]* [^ ]* /playtest: /' >&2
 	exit 1
 fi
-tool next build >&2
+trap 'nx_build_unlock' EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
+nx_next_build
 status=$?
 if [ "$status" -ne 0 ]; then
-	echo "playtest: next build exited $status" >&2
+	echo "playtest: $NX_BUILD_MSG" >&2
 	exit 1
 fi
 prefix=""

@@ -3,14 +3,16 @@
 # side effect is reading the limit. Run from the project root.
 #
 #   1. nx_build: next build (offline: NEXT_TELEMETRY_DISABLED, and arch's R10
-#      keeps fonts local), its output on stderr;
+#      keeps fonts local), its output on stderr, under the machine-wide build
+#      lock (_nextjs.sh's nx_next_build: FACTORY_BUILD_WAIT bounds the wait);
 #   2. nx_start: next start on 127.0.0.1, on a port the OS picks free (--port 0;
 #      nx_await reads the port from the URL next start prints), so runs side by
 #      side never meet; nx_await polls until the port takes a connection;
 #   3. the caller's client (the smoke step's browser script, the driver's
 #      Playwright runs), started with nx_client.
-# nx_stop stops what was started, the server's whole process group: the caller
-# runs it from its EXIT trap (trap 'nx_stop; ...' EXIT, then nx_on_signal), so it
+# nx_stop stops what was started, the server's whole process group, and releases
+# the build lock if a signal cut the build short: the caller runs it from its
+# EXIT trap (trap 'nx_stop; ...' EXIT, then nx_on_signal), so it
 # runs on a pass, a finding, an error, and on INT, TERM or HUP.
 #
 # FACTORY_SMOKE_TIMEOUT (local.env; seconds, default 60) bounds each wait: the
@@ -57,6 +59,7 @@ nx_stop() {
 	NX_CLIENT=""
 	[ -z "$NX_SERVER" ] || nx_halt "$NX_SERVER" "-$NX_SERVER"
 	NX_SERVER=""
+	nx_build_unlock
 }
 
 # nx_on_signal: a signal ends the caller, and its EXIT trap stops what it started.
@@ -78,9 +81,10 @@ nx_release() {
 	[ -z "$NX_CAUGHT" ] || exit "$NX_CAUGHT"
 }
 
-# nx_build: next build, its output on stderr; its exit status.
+# nx_build: next build under the build lock, its output on stderr; its exit
+# status, with NX_BUILD_WHY and NX_BUILD_MSG on a failure (nx_next_build).
 nx_build() {
-	tool next build >&2
+	nx_next_build
 }
 
 # nx_start <log>: next start in the background, its output in <log>, in a

@@ -3,9 +3,13 @@
 #
 # Every step is a project-owned script at tools/verify/<step>, run with bash from
 # the project root. It prints findings on stdout (see findings.sh), anything else
-# on stderr, and exits 0 to pass. A step the stack lacks keeps its script, holding
-# only the no-op marker line, so a missing script is a mistake, except for an
-# optional step: a project without its script skips it as it skips a no-op.
+# on stderr, and exits 0 to pass; it exits FACTORY_TRANSIENT_EXIT (75) to fail for
+# a cause that is no fault of the code (a lock another run held too long, a
+# refused connection): the step fails all the same, but the runner keeps no gate
+# stamp of the run, so --reuse runs it again. A step the stack lacks keeps its
+# script, holding only the no-op marker line, so a missing script is a mistake,
+# except for an optional step: a project without its script skips it as it skips
+# a no-op.
 
 # The fixed order. Every run, full or subset, follows it.
 FACTORY_STEPS=(prepare format typecheck lint arch deviation test mutate smoke)
@@ -16,6 +20,10 @@ FACTORY_OPTIONAL_STEPS="mutate"
 # The static steps, space-separated: they read the code without running it, so
 # they are quick. verify.sh --all-static runs every one even after one fails.
 FACTORY_STATIC_STEPS="format typecheck lint arch deviation"
+
+# The exit code of a step that failed for a transient cause (sysexits' EX_TEMPFAIL).
+# shellcheck disable=SC2034 # read by verify.sh
+FACTORY_TRANSIENT_EXIT=75
 
 # Where a project keeps its step scripts, pins and local.env, relative to its root.
 FACTORY_STEPS_DIR="tools/verify"

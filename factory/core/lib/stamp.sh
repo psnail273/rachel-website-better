@@ -63,7 +63,9 @@
 # it and --reuse puts it back.
 #
 # A stamp that can't be written, as in a read-only git dir, is skipped with one line on
-# stderr: the run's verdict and exit code stand.
+# stderr: the run's verdict and exit code stand. A run in which a step failed for
+# a transient cause (it exited FACTORY_TRANSIENT_EXIT, lib/steps.sh) writes none,
+# so --reuse never keeps such a FAIL: the next run goes ahead fresh.
 #
 # Beside the stamps, <git-dir>/factory/gate-counted lists the key of each run
 # verify.sh counted in the run state (gate-runs, caught-<step>, seconds-<step>:

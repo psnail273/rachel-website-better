@@ -233,6 +233,38 @@ test_playtest_builds_and_prints_how_to_start_with_node() {
 	stderr_has "FACTORY_PLAYTEST_PORT is 'web', not a port number"
 }
 
+# playtest builds under the machine-wide build lock (_nextjs.sh): held past
+# FACTORY_BUILD_WAIT, it builds nothing and says why; free, it builds and releases
+# it. next is a stand-in that records its build.
+test_playtest_waits_for_the_build_lock_with_node() {
+	needs_node
+	skeleton_project
+	mkdir -p node_modules/.bin
+	printf '#!/usr/bin/env bash\necho "$1" >> %q\n' "$TEST_TMP/built" > node_modules/.bin/next && chmod 755 node_modules/.bin/next ||
+		fail "could not stand in for next"
+	mkdir "$FACTORY_BUILD_LOCK" && echo "$BASHPID" > "$FACTORY_BUILD_LOCK/pid" || fail "could not hold the lock"
+	FACTORY_BUILD_WAIT=0 step playtest
+	assert_status 1
+	assert_eq "" "$out" "playtest's stdout"
+	stderr_has "playtest: another next build held the build lock $FACTORY_BUILD_LOCK (pid $BASHPID) past FACTORY_BUILD_WAIT (0s, tools/verify/local.env)"
+	[ ! -e "$TEST_TMP/built" ] || fail "playtest built under another's lock"
+
+	rm -rf "$FACTORY_BUILD_LOCK"
+	FACTORY_BUILD_WAIT=0 step playtest
+	assert_status 0
+	assert_eq "build" "$(cat "$TEST_TMP/built")" "what next ran"
+	[ ! -e "$FACTORY_BUILD_LOCK" ] || fail "playtest left the build lock behind"
+
+	# Run bare, it reads the lock's settings from local.env, as the gate's steps
+	# get them from verify.sh: the same lock as theirs.
+	mkdir "$TEST_TMP/other.lock" && echo "$BASHPID" > "$TEST_TMP/other.lock/pid" || fail "could not hold the other lock"
+	printf 'FACTORY_BUILD_WAIT=0\nFACTORY_BUILD_LOCK=%s\n' "$TEST_TMP/other.lock" > tools/verify/local.env
+	step playtest
+	assert_status 1
+	stderr_has "playtest: another next build held the build lock $TEST_TMP/other.lock (pid $BASHPID) past FACTORY_BUILD_WAIT (0s, tools/verify/local.env)"
+	assert_eq "build" "$(cat "$TEST_TMP/built")" "what next ran"
+}
+
 # Node and pnpm named by a path, and on no PATH: the playtest's start command and
 # the verify skill's shell setup (local.env, then _nextjs.sh) still find them.
 test_node_and_pnpm_off_path_are_found_through_local_env_with_node() {

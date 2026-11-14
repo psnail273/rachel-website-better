@@ -23,6 +23,10 @@ NEXTJS_ADAPTER="$FACTORY_CORE/../adapters/nextjs"
 NEXTJS_FIXTURES="$NEXTJS_ADAPTER/tests/fixture"
 [ -z "${TEST_TMP:-}" ] || export TEST_TMP
 
+# Each test's next builds take a build lock of the test's own (_nextjs.sh), never
+# the machine's: a stand-in build blocking in one test holds up no real gate.
+[ -z "${TEST_TMP:-}" ] || export FACTORY_BUILD_LOCK="$TEST_TMP/next-build.lock"
+
 # needs_node: skip unless Node and pnpm run here; fail unless that Node is the
 # one the adapter's tools/verify/pins names (node_is_pinned). From then on the
 # test runs on the PATH tools/verify/_nextjs.sh gives the steps (node_bins_first),

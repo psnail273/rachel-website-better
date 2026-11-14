@@ -4,7 +4,8 @@
 #   bash tools/verify/smoke
 #
 #   1. next build (offline: NEXT_TELEMETRY_DISABLED, and arch's R10 keeps fonts
-#      local);
+#      local), under the machine-wide build lock (_nextjs.sh's nx_next_build), so
+#      builds in other worktrees, Lands and playtests queue instead of colliding;
 #   2. next start on 127.0.0.1, on a port the OS picks free (--port 0; the step
 #      reads the port from the URL next start prints), so runs side by side
 #      never meet; the step polls until the port takes a connection (1 and 2
@@ -17,10 +18,15 @@
 #
 # FACTORY_SMOKE_TIMEOUT (local.env; seconds, default 60) bounds each wait: the
 # server's start, the page's load, and the stop of the server and the browser
-# after TERM, when each is killed.
+# after TERM, when each is killed. FACTORY_BUILD_WAIT (local.env; seconds,
+# default 900) bounds the wait for the build lock.
 #
 # Findings, on stdout (next's output goes to stderr):
 #   package.json:1 smoke-build <message>       next build failed
+#   package.json:1 smoke-build-lock <message>  another build held the build
+#                                              lock past FACTORY_BUILD_WAIT
+#   tools/verify/local.env:1 smoke-build-lock <message>
+#                                              the lock's folder can't be made
 #   package.json:1 smoke-start <message>       next start exited, or didn't
 #                                              answer in time
 #   package.json:1 smoke-console <message>     a console error on the page
@@ -32,9 +38,15 @@
 #   package.json:1 smoke-load <message>        the page never loaded
 #   tools/verify/local.env:1 browser-missing   Chromium didn't start
 #   tools/verify/local.env:1 smoke-setting     FACTORY_SMOKE_TIMEOUT isn't a whole
-#                                              number of seconds, 1 to 999999
+#                                              number of seconds, 1 to 999999, or
+#                                              FACTORY_BUILD_WAIT one, 0 to 999999
 #   (and node-missing or tool-missing, as _nextjs.sh has them)
-# Every message leaves the server's port out. Exits 1 on any finding.
+# Every message leaves the server's port out. Exits 1 on any finding; but 75
+# (NX_TRANSIENT) when the failure is no fault of the code, so verify --reuse
+# never keeps it and runs the step again: the build lock held past the wait,
+# next build finding another build running in the checkout (a smoke-build
+# finding), or a request refused a connection (a finding naming
+# ERR_CONNECTION_REFUSED or ECONNREFUSED).
 #
 # A project with no pages (a library, an API alone) declares the step a no-op:
 # it keeps this script as the marker line alone (factory/core/lib/steps.sh).
@@ -57,7 +69,13 @@ nx_on_signal
 nx_build
 status=$?
 if [ "$status" -ne 0 ]; then
-	echo "package.json:1 smoke-build next build exited $status (see stderr)"
+	case "$NX_BUILD_WHY" in
+		setting) echo "tools/verify/local.env:1 smoke-setting $NX_BUILD_MSG" ;;
+		lock) echo "tools/verify/local.env:1 smoke-build-lock $NX_BUILD_MSG" ;;
+		busy) echo "package.json:1 smoke-build-lock $NX_BUILD_MSG" ;;
+		*) echo "package.json:1 smoke-build $NX_BUILD_MSG" ;;
+	esac
+	case "$NX_BUILD_WHY" in busy | collision) exit "$NX_TRANSIENT" ;; esac
 	exit 1
 fi
 
@@ -84,5 +102,9 @@ if [ "$status" -ne 0 ] && [ ! -s "$tmp/findings" ]; then
 	echo "package.json:1 smoke-load the browser script (tools/verify/_smoke_page.mjs) exited $status (see stderr)"
 	exit 1
 fi
-[ -s "$tmp/findings" ] && exit 1
-exit 0
+[ -s "$tmp/findings" ] || exit 0
+if grep -qE 'ERR_CONNECTION_REFUSED|ECONNREFUSED' "$tmp/findings"; then
+	echo "smoke: a request was refused a connection: no fault of the code, so verify --reuse runs the step again" >&2
+	exit "$NX_TRANSIENT"
+fi
+exit 1
