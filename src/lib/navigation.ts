@@ -29,3 +29,5 @@ export const performingMenu: NavMenu = {
 };
 
 export const contactLink: NavLink = { label: "Contact", href: "/contact" };
+
+export const homeLink: NavLink = { label: "Home", href: "/" };
