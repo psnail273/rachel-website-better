@@ -39,6 +39,29 @@ describe("parseIcs edges", () => {
     ]);
   });
 
+  it("leaves out a date-only DTSTART that is not a real date", () => {
+    expect(
+      parseIcs(cal(["DTSTART;VALUE=DATE:20260230", "SUMMARY:Bad"])),
+    ).toEqual([]);
+    expect(
+      parseIcs(cal(["DTSTART;VALUE=DATE:20261301", "SUMMARY:Bad"])),
+    ).toEqual([]);
+    expect(
+      parseIcs(cal(["DTSTART;VALUE=DATE:20261000", "SUMMARY:Bad"])),
+    ).toEqual([]);
+    expect(
+      parseIcs(cal(["DTSTART;VALUE=DATE:20260228", "SUMMARY:Good"])),
+    ).toEqual([
+      {
+        title: "Good",
+        start: "2026-02-28",
+        end: "2026-03-01",
+        allDay: true,
+        location: null,
+      },
+    ]);
+  });
+
   it("matches parameter names ignoring case", () => {
     const text = cal([
       "DTSTART;tzid=America/New_York:20261122T130000",
