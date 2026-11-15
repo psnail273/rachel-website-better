@@ -76,6 +76,22 @@ Source: convention
 Enforced by: `arch:fonts-local`
 Source: convention
 
+**R11.** Types are proven, not asserted: in `src/` (tests too) no type assertion (`x as T`, `<T>x`; `as const` is allowed), no non-null assertion (`x!`), and a `switch` on a union has a case for every member (a `default` does not stand in for one). Narrow with a check or a parser instead.
+Enforced by: `lint:@typescript-eslint/consistent-type-assertions`, `lint:@typescript-eslint/no-non-null-assertion`, `lint:@typescript-eslint/switch-exhaustiveness-check`
+Source: Lauren Tan, All Code Is Slop (Except Mine); pstack type-system-discipline
+
+**R12.** Components stay pure: a `.tsx` file in `src/` outside `src/app/_components/` (tests exempt) imports no `useEffect` (nor calls `React.useEffect`), sets no `dangerouslySetInnerHTML` and calls no bare `fetch(`; effects live in `_components/`, data comes from `src/server/`.
+Enforced by: `lint:no-restricted-syntax`, `lint:react/no-danger`
+Source: Lauren Tan, All Code Is Slop (Except Mine); pstack boundary-discipline
+
+**R13.** No warning comments: no comment holds the word `TODO`, `HACK`, `FIXME` or `workaround`, or its plural, anywhere in it (in any case). Fix it now, or file an issue.
+Enforced by: `lint:no-warning-comments`
+Source: Lauren Tan, All Code Is Slop (Except Mine)
+
+**R14.** Outside data (the calendar feed, environment variables, SQLite rows) is parsed into typed values in one place under `src/server/`, at the boundary; the rest of the code takes only the typed values.
+Enforced by: `review`
+Source: Lauren Tan, All Code Is Slop (Except Mine); pstack boundary-discipline
+
 ## Ratchet files
 
 These are tracked and may only shrink; the `deviation` step fails when one grows.
@@ -85,4 +101,4 @@ These are tracked and may only shrink; the `deviation` step fails when one grows
 
 ## Keeping it true
 
-An amend lands as one change: the rule text, its check and any ratchet file. The arch step's sync check fails on an `arch:<id>` tag with no check, a check no rule cites, or a reused rule number; its lint-tags check fails on a `lint:<rule>` tag whose rule the lint step doesn't run (an ESLint rule off in `eslint --print-config`). The `review`-tagged rules make up the verifier's rubric.
+An amend lands as one change: the rule text, its check and any ratchet file. The arch step's sync check fails on an `arch:<id>` tag with no check, a check no rule cites, or a reused rule number; its lint-tags check fails on a `lint:<rule>` tag whose rule the lint step doesn't run (an ESLint rule off for every file the lint step lints). The `review`-tagged rules make up the verifier's rubric.

@@ -90,7 +90,7 @@ file 0960dcab2c112fa0c1b99ef20a606b4ab51ebac6 factory/adapters/godot/tools/verif
 file 475331aad53c091a762600c29fbbd09a3248adb2 factory/adapters/godot/tools/verify/typecheck
 file e3b822aecf02da88440111fd3fc104fcb09b18aa factory/adapters/godot/tools/verify/versions
 file 837d36fb2560a97c005912574df3557c6b155fa3 factory/adapters/godot/verify-skill.sh
-file c5852a8a3fd2f00ed79e65648be9633fbda016c6 factory/adapters/nextjs/ARCHITECTURE.md
+file e35b403f8771981e1bc4c4cdfb74ea82671fdb94 factory/adapters/nextjs/ARCHITECTURE.md
 file e62318aa9ef1771bc192f3efa2b858c79bc0a795 factory/adapters/nextjs/adopt.sh
 file 8ccad4f4850de6e8c6be795925d3f09c7a8e2e74 factory/adapters/nextjs/new/.gitignore.txt
 file a598fca41296fc48cc91cf77e4eb95112a617f3c factory/adapters/nextjs/new/.prettierrc.json.txt
@@ -107,7 +107,7 @@ file 72e96660ae0d7122d460778a3bb5ffe192531836 factory/adapters/nextjs/new/tsconf
 file 04873545a45eb3d63684d1b6dede7c4d97503c0b factory/adapters/nextjs/new/vitest.config.ts.txt
 file 7590948747a4f5ed51d401c1bff5f346944c927b factory/adapters/nextjs/skills/write-tests-nextjs/SKILL.md
 file 88d045b88ad36d1040aad431371281c932edd60b factory/adapters/nextjs/tests/adopt_test.sh
-file 749c281cfd2bacb0958925d45f229d20166d86e3 factory/adapters/nextjs/tests/arch_test.sh
+file 0546c4d15beb19bbfa6b62f6291c8752e41d1f17 factory/adapters/nextjs/tests/arch_test.sh
 file a6055f50a18a77d8674a6254161c99acd125db28 factory/adapters/nextjs/tests/assert_counts_test.sh
 file f110ff262f6d92ca83d8c322563a76f91689c3b5 factory/adapters/nextjs/tests/fixture/arch/actions.ts.txt
 file 5feff5f263b01c3fd305a078f3a7dad2c3265bd4 factory/adapters/nextjs/tests/fixture/arch/badge.tsx.txt
@@ -185,7 +185,7 @@ file 05d678310165db988ef683f8eeec4758e15c6dbb factory/adapters/nextjs/tests/veri
 file 79c84ecc2b9f0e1e8adcb586dea2fe256d6ee981 factory/adapters/nextjs/tools/verify/_arch_imports.mjs
 file badc09d21011fcd9f3224eb13d5c1c24bf3b3dc6 factory/adapters/nextjs/tools/verify/_eslint_findings.mjs
 file 5fad9d7226ca8e36301ffb253ce226133a58f946 factory/adapters/nextjs/tools/verify/_lint_checks.awk
-file 823361d6c90ef68fd3af88561869a6a09db047de factory/adapters/nextjs/tools/verify/_lint_tags.mjs
+file 35f9664f876be3c1f14ebce438f9bb3b4ed20160 factory/adapters/nextjs/tools/verify/_lint_tags.mjs
 file 999069ae5f60afe959f22be25784a75e602be1e2 factory/adapters/nextjs/tools/verify/_nextjs.sh
 file e66619cc88fbe7f32da939435cd1275c190efde6 factory/adapters/nextjs/tools/verify/_scenario_fixtures.mjs
 file e64f9fafe6f357dc3925af1473ca67bd48ae459a factory/adapters/nextjs/tools/verify/_scenario_results.mjs
@@ -195,7 +195,7 @@ file bc950e3d5f5de55656e58644986f7fb84cab4aca factory/adapters/nextjs/tools/veri
 file ebab0bda43e7e8764ce6abcc477273e634e9c5a2 factory/adapters/nextjs/tools/verify/_stryker_mutants.mjs
 file 80a5fc103263eff8417887bd81fe812a8b642611 factory/adapters/nextjs/tools/verify/_vitest_errors.mjs
 file b1a1e7ea78922e95b4146a3773b3482a8bff1660 factory/adapters/nextjs/tools/verify/_vitest_results.mjs
-file 06c1ce1455b248150cefe4743685a4ca450de7f2 factory/adapters/nextjs/tools/verify/arch
+file ddde8d256bab2a38af574c91fd96cd35866a196b factory/adapters/nextjs/tools/verify/arch
 file aadf3f6b009299c7c1a0f264cd7d26b7864b5ea5 factory/adapters/nextjs/tools/verify/assert-counts
 file 0629d2ace9520c8ea1d043e956a6693dee76afe3 factory/adapters/nextjs/tools/verify/bootstrap
 file 5ff1539447c1723215356bde7e50d9f56842f1b4 factory/adapters/nextjs/tools/verify/deviation

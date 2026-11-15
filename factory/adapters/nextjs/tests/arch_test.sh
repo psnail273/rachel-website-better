@@ -118,24 +118,35 @@ test_the_reader_refuses_what_isnt_dependency_cruisers_graph_with_node() {
 # The lint-tags check: each `lint:<rule>` tag names a rule the lint step runs.
 # stand_in_tools gives the skeleton stand-ins for what the import checks read, so
 # they find nothing (dependency-cruiser's graph is empty, and TypeScript's parser
-# sees no statement), and a stand-in ESLint: `eslint --print-config <file>`
-# appends <file> to node_modules/.asked, prints node_modules/.eslint-config and
-# exits with node_modules/.eslint-exit when there is one.
+# sees no statement), and a stand-in ESLint package whose
+# ESLint#calculateConfigForFile(<file>) appends <file> to node_modules/.asked and
+# gives node_modules/.eslint-config.<ext> for a file ending in .<ext> when there
+# is one, else node_modules/.eslint-config (`undefined` gives undefined), and
+# throws when node_modules/.eslint-exit exists.
 stand_in_tools() {
-	mkdir -p node_modules/.bin node_modules/typescript || fail "could not make node_modules"
+	mkdir -p node_modules/.bin node_modules/typescript node_modules/eslint || fail "could not make node_modules"
 	printf '#!/usr/bin/env bash\necho %s\n' "'{\"modules\":[]}'" > node_modules/.bin/depcruise
 	echo '{"name":"typescript","type":"module","main":"index.js"}' > node_modules/typescript/package.json
 	cat > node_modules/typescript/index.js << 'JS'
 const ts = { ScriptKind: {}, ScriptTarget: {}, SyntaxKind: {}, createSourceFile: () => ({ statements: [] }), forEachChild: () => undefined };
 export default new Proxy(ts, { get: (t, k) => (k in t ? t[k] : () => false) });
 JS
-	cat > node_modules/.bin/eslint << 'SH'
-#!/usr/bin/env bash
-[ "$1" = --print-config ] || exit 9
-echo "$2" >> node_modules/.asked
-cat node_modules/.eslint-config
-[ ! -f node_modules/.eslint-exit ] || exit "$(cat node_modules/.eslint-exit)"
-SH
+	echo '{"name":"eslint","main":"index.js"}' > node_modules/eslint/package.json
+	cat > node_modules/eslint/index.js << 'JS'
+const fs = require("node:fs");
+class ESLint {
+  async calculateConfigForFile(file) {
+    fs.appendFileSync("node_modules/.asked", file + "\n");
+    if (fs.existsSync("node_modules/.eslint-exit")) throw new Error("stand-in ESLint fails");
+    const ext = file.slice(file.lastIndexOf(".") + 1);
+    const path = fs.existsSync(`node_modules/.eslint-config.${ext}`) ? `node_modules/.eslint-config.${ext}` : "node_modules/.eslint-config";
+    const text = fs.readFileSync(path, "utf8").trim();
+    return text === "undefined" ? undefined : JSON.parse(text);
+  }
+}
+module.exports = { ESLint };
+JS
+	printf '#!/usr/bin/env bash\nexit 9\n' > node_modules/.bin/eslint
 	chmod +x node_modules/.bin/depcruise node_modules/.bin/eslint || fail "could not make the stand-ins runnable"
 }
 
@@ -238,7 +249,37 @@ test_eslint_failing_to_print_its_config_is_an_arch_error_with_node() {
 	echo 2 > node_modules/.eslint-exit
 	step arch
 	assert_status 1
-	assert_eq "tools/verify/arch:1 arch-error check lint-tags: eslint --print-config app/api/health/route.ts exited 2 (see stderr)" "$out" "arch's finding"
+	assert_eq "tools/verify/arch:1 arch-error check lint-tags: ESLint could not give the config of a file it lints (see stderr)" "$out" "arch's finding"
+	stderr_has "could not give the config for app/api/health/route.ts"
+}
+
+# A rule a config turns on only for some files (here .tsx: the skeleton's
+# app/layout.tsx) holds, though the representative file (the first non-test .ts
+# or .tsx, here a .ts) has it off.
+test_a_lint_tag_on_only_for_files_after_the_first_is_no_finding_with_node() {
+	needs_node
+	skeleton_project
+	stand_in_tools
+	echo '{"rules":{"@typescript-eslint/no-floating-promises":2,"@typescript-eslint/no-unsafe-assignment":2,"@typescript-eslint/no-unsafe-member-access":"off"}}' > node_modules/.eslint-config
+	echo '{"rules":{"@typescript-eslint/no-floating-promises":2,"@typescript-eslint/no-unsafe-assignment":2,"@typescript-eslint/no-unsafe-member-access":"warn"}}' > node_modules/.eslint-config.tsx
+	step arch
+	assert_status 0
+	assert_eq "" "$out" "arch's findings"
+	assert_eq "app/api/health/route.ts" "$(head -n 1 node_modules/.asked)" "the file ESLint was asked about first"
+	grep -qxF app/layout.tsx node_modules/.asked || fail "ESLint was not asked about app/layout.tsx: $(asked)"
+}
+
+# A rule on for no file the lint step lints is a finding, for the representative file.
+test_a_lint_tag_on_for_no_file_is_a_finding_with_node() {
+	needs_node
+	skeleton_project
+	stand_in_tools
+	echo '{"rules":{"@typescript-eslint/no-floating-promises":2,"@typescript-eslint/no-unsafe-assignment":2,"@typescript-eslint/no-unsafe-member-access":"off"}}' > node_modules/.eslint-config
+	echo '{"rules":{"@typescript-eslint/no-floating-promises":2,"@typescript-eslint/no-unsafe-assignment":2}}' > node_modules/.eslint-config.tsx
+	step arch
+	assert_status 1
+	assert_eq "ARCHITECTURE.md:$(tag_line @typescript-eslint/no-unsafe-member-access) R3 lint:@typescript-eslint/no-unsafe-member-access is not on: ESLint's config turns it off for app/api/health/route.ts (eslint --print-config); turn it on (warn or error) in the ESLint config, or change this rule's Enforced by: line" "$out" "arch's finding"
+	grep -qxF app/layout.tsx node_modules/.asked || fail "ESLint was not asked about app/layout.tsx: $(asked)"
 }
 
 # The real ESLint, on the skeleton's config with R2's rule switched off.

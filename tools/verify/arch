@@ -27,16 +27,20 @@
 # rule's `Enforced by:` line (factory_arch_lint_tags), the lint step runs that
 # rule. A tag naming one of the lint step's own checks (_lint_checks.awk's
 # assertion-free and fixed-wait, as `awk -v list=1` prints them) holds as it
-# stands; any other names an ESLint rule, which must be on (warn or error) in
-# `eslint --print-config` for one file, the first non-test .ts or .tsx file in
-# scope, under src/ when one is there (_lint_tags.mjs reads the config). With no
-# such file, lint checks no TypeScript, and it asks nothing. It needs the
-# installed ESLint, so static-only it doesn't run. It answers no arch:<id> tag:
-# its findings carry the number of the rule whose tag is off.
+# stands; any other names an ESLint rule, which must be on (warn or error) for
+# at least one file the lint step lints, as the installed ESLint's Node API
+# (calculateConfigForFile) gives each file's config (_lint_tags.mjs), so a rule
+# a config scopes to some files (only .tsx, only src/server/) holds. It asks the
+# representative file first, the first non-test .ts or .tsx file in scope, under
+# src/ when one is there, then the rest until every tag holds; a finding says
+# why the rule is off for the representative file. With no such file, lint
+# checks no TypeScript, and it asks nothing. It needs the installed ESLint, so
+# static-only it doesn't run. It answers no arch:<id> tag: its findings carry
+# the number of the rule whose tag is off.
 #
 # Findings, on stdout: `file:line R<n> message` for each violation, the sync
 # check's arch-sync, the lint-tags check's `ARCHITECTURE.md:<line> R<n>
-# lint:<rule> is not on: ...`, an arch-error when ESLint can't print its
+# lint:<rule> is not on: ...`, an arch-error when ESLint can't give a file's
 # config, and (from _nextjs.sh) node-missing or tool-missing.
 # dependency-cruiser's and ESLint's own output go to stderr. Exits 1 on any
 # finding.
@@ -113,15 +117,17 @@ check_lint_tags() {
 	file="$(lint_tags_file)"
 	[ -n "$file" ] || return 0
 	tool_ready eslint || return 0
-	tool eslint --print-config "$file" > "$ARCH_TMP/eslint-config.json" 2> "$ARCH_TMP/eslint.err"
+	# The representative file first, then every other file the lint step lints.
+	{
+		printf '%s\n' "$file"
+		# shellcheck disable=SC2086 # the extension list splits on purpose
+		nx_files $NX_CODE_EXT | grep -vxF -- "$file"
+	} > "$ARCH_TMP/lint-files"
+	printf '%s\n' "$tags" | "${NODE_BIN:-node}" "$dir/_lint_tags.mjs" "$ARCH_DOC" "$ARCH_TMP/lint-files" > "$ARCH_TMP/lint-tags"
 	status=$?
-	cat "$ARCH_TMP/eslint.err" >&2
-	if [ "$status" -ne 0 ]; then
-		factory_finding "$FACTORY_STEPS_DIR/arch" 1 arch-error "check lint-tags: eslint --print-config $file exited $status (see stderr)"
-		return 0
-	fi
-	printf '%s\n' "$tags" | "${NODE_BIN:-node}" "$dir/_lint_tags.mjs" "$ARCH_TMP/eslint-config.json" "$ARCH_DOC" "$file" ||
-		factory_finding "$FACTORY_STEPS_DIR/arch" 1 arch-error "check lint-tags: could not read ESLint's config for $file (see stderr)"
+	cat "$ARCH_TMP/lint-tags"
+	[ "$status" -eq 0 ] ||
+		factory_finding "$FACTORY_STEPS_DIR/arch" 1 arch-error "check lint-tags: ESLint could not give the config of a file it lints (see stderr)"
 }
 
 [ "${FACTORY_ARCH_STATIC_ONLY:-0}" = 1 ] || tool_ready depcruise || exit 1
