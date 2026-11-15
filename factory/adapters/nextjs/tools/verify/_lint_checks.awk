@@ -3,6 +3,9 @@
 # arguments). Prints findings:
 #   <file>:<line> assertion-free   a test that asserts nothing
 #   <file>:<line> fixed-wait       a wait for a fixed time
+# With list=1 it reads nothing and prints those two names, one per line: the
+# arch step's lint-tags check takes a `lint:` tag naming one as a rule the lint
+# step runs.
 #
 # Each file is read as code: comments, and the insides of strings, template
 # literals and regular expressions, are left out, so a mention in one never
@@ -311,7 +314,7 @@ function check_tests(   k, j, c, x, has_assert, name) {
 		if (has_assert) continue
 		name = (tk[j + 1] == "#S") ? raw(j + 1) : tk[k]
 		gsub(/[ \t\n]+/, " ", name)
-		print file ":" tl[k] " assertion-free " name " has no assertion; call expect or assert, or a helper whose name starts with expect or assert"
+		print file ":" tl[k] " " ASSERTION_FREE " " name " has no assertion; call expect or assert, or a helper whose name starts with expect or assert"
 	}
 }
 
@@ -363,7 +366,7 @@ function check_waits(   k, j, c, fake, what) {
 		else if ((tk[k] == "sleep" || tk[k] == "delay") && awaited(k)) what = "an awaited " tk[k] "()"
 		else if (tk[k] == "wait" && tk[k - 1] == "." && tk[k - 2] == "scheduler") what = "scheduler.wait()"
 		if (what == "" || reasoned(tl[k])) continue
-		print file ":" tl[k] " fixed-wait " what " waits a fixed time; wait for the state (vi.waitFor, expect.poll, an event) or use fake timers, or give the reason on this line or the one above: // fixed-wait: <why>"
+		print file ":" tl[k] " " FIXED_WAIT " " what " waits a fixed time; wait for the state (vi.waitFor, expect.poll, an event) or use fake timers, or give the reason on this line or the one above: // fixed-wait: <why>"
 	}
 }
 
@@ -444,6 +447,13 @@ function check_file() {
 }
 
 BEGIN {
+	ASSERTION_FREE = "assertion-free"
+	FIXED_WAIT = "fixed-wait"
+	if (list) {
+		print ASSERTION_FREE
+		print FIXED_WAIT
+		exit
+	}
 	split("await case delete do else in instanceof new of return throw typeof void yield", w, " ")
 	for (i in w) KEYWORD[w[i]] = 1
 	split("skip only concurrent sequential fails fail fixme slow shuffle todo each for skipIf runIf", w, " ")

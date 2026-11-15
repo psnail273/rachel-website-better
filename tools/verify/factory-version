@@ -90,7 +90,7 @@ file 0960dcab2c112fa0c1b99ef20a606b4ab51ebac6 factory/adapters/godot/tools/verif
 file 475331aad53c091a762600c29fbbd09a3248adb2 factory/adapters/godot/tools/verify/typecheck
 file e3b822aecf02da88440111fd3fc104fcb09b18aa factory/adapters/godot/tools/verify/versions
 file 837d36fb2560a97c005912574df3557c6b155fa3 factory/adapters/godot/verify-skill.sh
-file 6bd40a4571c49c8c42fd95665cedbba620dd8551 factory/adapters/nextjs/ARCHITECTURE.md
+file c5852a8a3fd2f00ed79e65648be9633fbda016c6 factory/adapters/nextjs/ARCHITECTURE.md
 file e62318aa9ef1771bc192f3efa2b858c79bc0a795 factory/adapters/nextjs/adopt.sh
 file 8ccad4f4850de6e8c6be795925d3f09c7a8e2e74 factory/adapters/nextjs/new/.gitignore.txt
 file a598fca41296fc48cc91cf77e4eb95112a617f3c factory/adapters/nextjs/new/.prettierrc.json.txt
@@ -107,7 +107,7 @@ file 72e96660ae0d7122d460778a3bb5ffe192531836 factory/adapters/nextjs/new/tsconf
 file 04873545a45eb3d63684d1b6dede7c4d97503c0b factory/adapters/nextjs/new/vitest.config.ts.txt
 file 7590948747a4f5ed51d401c1bff5f346944c927b factory/adapters/nextjs/skills/write-tests-nextjs/SKILL.md
 file 88d045b88ad36d1040aad431371281c932edd60b factory/adapters/nextjs/tests/adopt_test.sh
-file fa2073534729338d9711920c68db1066c092a126 factory/adapters/nextjs/tests/arch_test.sh
+file 749c281cfd2bacb0958925d45f229d20166d86e3 factory/adapters/nextjs/tests/arch_test.sh
 file a6055f50a18a77d8674a6254161c99acd125db28 factory/adapters/nextjs/tests/assert_counts_test.sh
 file f110ff262f6d92ca83d8c322563a76f91689c3b5 factory/adapters/nextjs/tests/fixture/arch/actions.ts.txt
 file 5feff5f263b01c3fd305a078f3a7dad2c3265bd4 factory/adapters/nextjs/tests/fixture/arch/badge.tsx.txt
@@ -173,7 +173,7 @@ file aa16b60de6b000bab2593004f8735fe00fba6b0c factory/adapters/nextjs/tests/fixt
 file 8dc50e448a1846cc55a3a384eae2b360bffc2325 factory/adapters/nextjs/tests/fixture/test/unhandled.test.ts.txt
 file 1a34c0c1082cfb42c251369faf27168779502793 factory/adapters/nextjs/tests/fixture/typecheck/total.ts.txt
 file 199e9b98e4c6f6be6575013d0b52e83f4c236a3c factory/adapters/nextjs/tests/lib.sh
-file 6d89be9405680cd26fca6f56dce7be4af2d4acb6 factory/adapters/nextjs/tests/lint_checks_test.sh
+file 5091251eacca1872f7cf2f46c3afe41ace56f440 factory/adapters/nextjs/tests/lint_checks_test.sh
 file 6fa2a4f3d1dc90ddb344a1f4d8a9fbe69081eecc factory/adapters/nextjs/tests/mutate_test.sh
 file d0a634a656f68932e85b95149139ed322572ec75 factory/adapters/nextjs/tests/names_test.sh
 file aa24939e57762bfcb0f63b9a5a9ccd8e001dc041 factory/adapters/nextjs/tests/prime-store.sh
@@ -184,7 +184,8 @@ file 2f13b4cca0ed02a2bf3c5e4b71969a88d076006c factory/adapters/nextjs/tests/test
 file 05d678310165db988ef683f8eeec4758e15c6dbb factory/adapters/nextjs/tests/verify_skill_test.sh
 file 79c84ecc2b9f0e1e8adcb586dea2fe256d6ee981 factory/adapters/nextjs/tools/verify/_arch_imports.mjs
 file badc09d21011fcd9f3224eb13d5c1c24bf3b3dc6 factory/adapters/nextjs/tools/verify/_eslint_findings.mjs
-file e3d5f7350d2a1e736db487809cf0820e09f075fa factory/adapters/nextjs/tools/verify/_lint_checks.awk
+file 5fad9d7226ca8e36301ffb253ce226133a58f946 factory/adapters/nextjs/tools/verify/_lint_checks.awk
+file 823361d6c90ef68fd3af88561869a6a09db047de factory/adapters/nextjs/tools/verify/_lint_tags.mjs
 file 999069ae5f60afe959f22be25784a75e602be1e2 factory/adapters/nextjs/tools/verify/_nextjs.sh
 file e66619cc88fbe7f32da939435cd1275c190efde6 factory/adapters/nextjs/tools/verify/_scenario_fixtures.mjs
 file e64f9fafe6f357dc3925af1473ca67bd48ae459a factory/adapters/nextjs/tools/verify/_scenario_results.mjs
@@ -194,7 +195,7 @@ file bc950e3d5f5de55656e58644986f7fb84cab4aca factory/adapters/nextjs/tools/veri
 file ebab0bda43e7e8764ce6abcc477273e634e9c5a2 factory/adapters/nextjs/tools/verify/_stryker_mutants.mjs
 file 80a5fc103263eff8417887bd81fe812a8b642611 factory/adapters/nextjs/tools/verify/_vitest_errors.mjs
 file b1a1e7ea78922e95b4146a3773b3482a8bff1660 factory/adapters/nextjs/tools/verify/_vitest_results.mjs
-file 4575f622e24eacfec93f62722fb3d44d4109ccb3 factory/adapters/nextjs/tools/verify/arch
+file 06c1ce1455b248150cefe4743685a4ca450de7f2 factory/adapters/nextjs/tools/verify/arch
 file aadf3f6b009299c7c1a0f264cd7d26b7864b5ea5 factory/adapters/nextjs/tools/verify/assert-counts
 file 0629d2ace9520c8ea1d043e956a6693dee76afe3 factory/adapters/nextjs/tools/verify/bootstrap
 file 5ff1539447c1723215356bde7e50d9f56842f1b4 factory/adapters/nextjs/tools/verify/deviation
@@ -229,7 +230,7 @@ file b95d970e5e9102d0f135ca13dcc6127388687f99 factory/core/adopt.sh
 file b7312b0ce1569aad79fc45effee15d143e0477b7 factory/core/agents.sh
 file ed27ea4785b7815aa71022a8b246eb70affc2ec3 factory/core/amend.sh
 file 2fe54c3088f55bf544c73eadf1b48bba697ac7be factory/core/arm.sh
-file 217ac9358229441235eb4809130873e51f6cfd1e factory/core/baseline.sh
+file 28ba6a10933b580d81a4bc2c6724fa5829ff14a2 factory/core/baseline.sh
 file c68427eb1f6d3f67926ffbad00385431c25fe702 factory/core/brief.sh
 file 6bd7d99d508b5f300677617d6907008f243e9be1 factory/core/deviation.sh
 file bb02a13ae5492c59e572862f529fe7c2f6e95621 factory/core/hooks.sh
@@ -246,7 +247,7 @@ file 219eee32ad4fe4ca5157e6d1be0847fb1c8d3012 factory/core/hooks/pre-commit.sh
 file e68185542494af9ab61dd2576d107d24b503ceda factory/core/install.sh
 file 30a4384d54e3aff372c5c63ce88af33e26293221 factory/core/land.sh
 file 5c7fc6ca119e5206a9bbe913f9944a3d4fb44704 factory/core/lib/agents.sh
-file dde8ec409ee561fdbda5c944e429c6505eca5a77 factory/core/lib/architecture.sh
+file a1e0bd81a2148b3f03047ee1783549df0b43d33d factory/core/lib/architecture.sh
 file 515b8af9413668e488e43634a3bc7f067ed1f7ff factory/core/lib/bounded.sh
 file 848dd0252e5d18207b9095f20503370321655607 factory/core/lib/brief.sh
 file d11366413a58e31acf154ed53300d5fd2b22cf84 factory/core/lib/diff.sh
@@ -275,7 +276,7 @@ file f1014d7a16b5f0ed1b19307239c4eb0ba130d832 factory/core/rubric.sh
 file 3626ab6689b2178032483d694a04d33d156bfed1 factory/core/scenarios.sh
 file 752cafa2d153cbb4733829c31853516f427200f7 factory/core/shell-lint.sh
 file 87c570e7953a8cdc905e97bef739df274ecb90a7 factory/core/skill-budget.sh
-file 0168da74723114531532b59eb032a126dc6d8c7b factory/core/skill-words
+file fcec010849c2db0029412b0d73d4e5433ea6123f factory/core/skill-words
 file e0b85cd0b923edc988caa5fabe5d4f15deb8c245 factory/core/start.sh
 file 8ba79d0fd9b1b6ff25e63c932239a24e65ce3dae factory/core/state.sh
 file 63a195dc4706ac1560144448b3aae92b874b46f9 factory/core/stress.sh
@@ -290,9 +291,9 @@ file e7125f4953ffa61cce6ca0edc4b6ede54ba89ee9 factory/core/test.sh
 file f57d14d1cc6c72909ee2f37aa2b638d4ad00f610 factory/core/tests/adopt_test.sh
 file b9033f87edfc6c38ee14313059a071717aaad1fd factory/core/tests/agents_test.sh
 file f70def55cd93c0112aceb1ee17bde0a1be0ab592 factory/core/tests/amend_test.sh
-file 9ee4e8203af36de5e9fe7ddbcf2645df3a7845d6 factory/core/tests/architecture_test.sh
+file 0217883c6ec27089797ba7d2cf7650cdd38a5b13 factory/core/tests/architecture_test.sh
 file 1c3f96c252653cbcaef9c3175ea6763b2ba66e2b factory/core/tests/arm_test.sh
-file f49d1b5f79d6f3494e2b3cbf08a7b6d9114ee494 factory/core/tests/baseline_test.sh
+file fba23038eedbe6fe726e40f3707ea008478f2d17 factory/core/tests/baseline_test.sh
 file 6d7484e16e5b83ae7c734d5efa767bda830c9d20 factory/core/tests/bounded_test.sh
 file f51076464172cd10b86510f4ba64e14bc2e5c359 factory/core/tests/brief_test.sh
 file 6d2ad0e9f992dfab47096f9a02fa798b2198ef62 factory/core/tests/claude_deny_test.sh
@@ -356,7 +357,7 @@ file 231216872e3bdc021f548ab10a3516b24a1a3123 factory/core/tests/wrapper_test.sh
 file fc6397904cc1aea3ea62413706278c42a88c3fbc factory/core/verify-skill.sh
 file 664b3c2bf5671f36d90dad66d011dccbd1e61857 factory/core/verify.ps1
 file b50005b31e74ee2517bb5363b7e5f0372b460061 factory/core/verify.sh
-file 0bff49ab9a7aaea2153b09ad27ee521de7ccb802 factory/skills/factory-adopt/SKILL.md
+file 447b8d6ae549a8a25c55e3c8cc7006852fc0e098 factory/skills/factory-adopt/SKILL.md
 file 3c47fdbdb4dead05de89e48b6d8a000ab6e40802 factory/skills/factory-adopt/cleanup.md
 file 00c3644255f90b5659320a67e35c67c258a1564d factory/skills/factory-adopt/tracker.md
 file b4de883d29334bdd946e3cde40cfc7d2d62d3397 factory/skills/factory-amend/SKILL.md

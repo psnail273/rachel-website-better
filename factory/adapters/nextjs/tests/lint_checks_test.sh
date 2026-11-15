@@ -106,3 +106,18 @@ app/other.ts:1 lint-other (no message)" "$out" "the findings"
 	run_cmd "${NODE_BIN:-node}" "$NEXTJS_ADAPTER/tools/verify/_eslint_findings.mjs" bad.json
 	assert_status 2
 }
+
+# list=1: the checks' names, which the arch step's lint-tags check takes as
+# rules the lint step runs; each is the rule its findings carry.
+test_list_prints_each_checks_name_and_reads_nothing() {
+	cd "$TEST_TMP" || fail "no temp folder"
+	run_cmd awk -v list=1 -f "$NEXTJS_ADAPTER/tools/verify/_lint_checks.awk" < /dev/null
+	assert_status 0
+	assert_eq "assertion-free
+fixed-wait" "$out" "the checks' names"
+	add_fixture lint/assertions.test.ts.txt assertions.test.ts
+	add_fixture lint/waits.test.ts.txt waits.test.ts
+	run_cmd awk -f "$NEXTJS_ADAPTER/tools/verify/_lint_checks.awk" assertions.test.ts waits.test.ts
+	assert_eq "assertion-free
+fixed-wait" "$(rules | cut -d' ' -f2 | LC_ALL=C sort -u)" "the rules the checks' findings carry"
+}

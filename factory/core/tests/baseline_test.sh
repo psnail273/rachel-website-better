@@ -218,6 +218,26 @@ src/b.txt named-tol the tolerance 0.1 is a number" "$(cat "$BASELINE")" "wrong B
 	assert_status 0
 }
 
+# A plugin's ESLint rule id has an @ and a /.
+test_add_takes_a_plugin_rule_id() {
+	fixture_project_repo
+	mkdir -p tools/verify/ratchet
+	: > "$BASELINE"
+	printf '%s\n' "src/b.ts:4 @typescript-eslint/require-await Async function 'f' has no 'await' expression." > .fixture/fail-lint
+	run_baseline add @typescript-eslint/require-await
+	assert_status 0
+	assert_last_line "baseline: ADDED 1 entries for @typescript-eslint/require-await, 1 in all"
+	assert_eq "src/b.ts @typescript-eslint/require-await Async function 'f' has no 'await' expression." "$(cat "$BASELINE")" "wrong Baseline after add"
+}
+
+test_add_refuses_a_rule_with_a_space_or_a_glob_as_usage() {
+	fixture_project
+	run_baseline add 'two words'
+	assert_status 2
+	run_baseline add 'rule*'
+	assert_status 2
+}
+
 test_add_refuses_a_finding_from_another_rule() {
 	fixture_project
 	mkdir -p tools/verify/ratchet

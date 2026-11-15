@@ -131,3 +131,32 @@ tag 1 6 alpha
 rule 2 9
 tag 2 10 beta" "$(factory_arch_parse ARCHITECTURE.md)"
 }
+
+test_lint_tags_lists_each_rules_lint_tags_with_its_line() {
+	cat > ARCHITECTURE.md << 'EOF2'
+# Architecture
+
+Enforced by: `lint:before-any-rule`
+
+**R1.** Alpha holds; `lint:in-a-sentence` is not a tag.
+Enforced by: `lint:@scope/rule-one`, `review`, `lint:plain`
+Source: convention
+
+**R2.** Beta holds.
+Enforced by: `arch:beta`
+Source: convention
+
+**R12.** Gamma holds.
+Enforced by: `lint:gamma`
+EOF2
+	. "$FACTORY_CORE/lib/architecture.sh"
+	assert_eq "1 6 @scope/rule-one
+1 6 plain
+12 14 gamma" "$(factory_arch_lint_tags ARCHITECTURE.md)"
+}
+
+test_lint_tags_lists_nothing_without_lint_tags() {
+	rules
+	. "$FACTORY_CORE/lib/architecture.sh"
+	assert_eq "" "$(factory_arch_lint_tags ARCHITECTURE.md)"
+}

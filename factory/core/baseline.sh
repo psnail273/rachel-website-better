@@ -31,7 +31,7 @@
 # add     is for an amend that brings in a check the code already fails (a new
 #         lint or arch rule, or one a factory update adds). It adds the current
 #         findings of the named rules (a finding's second word: `R15`,
-#         `unnamed-tolerance`) to the Baseline and stages it, so the check lands
+#         `unnamed-tolerance`, `@typescript-eslint/require-await`) to the Baseline and stages it, so the check lands
 #         now and a Kind: cleanup issue removes them. It refuses, adding
 #         nothing, when any finding outside the Baseline is from another rule:
 #         those are not the amend's. The Driver runs it in the amend's own
@@ -181,7 +181,7 @@ cmd_add() {
 	[ "$#" -ge 1 ] || usage
 	local rule
 	for rule in "$@"; do
-		case "$rule" in "" | *[!A-Za-z0-9_.-]*) usage ;; esac
+		case "$rule" in "" | *[!A-Za-z0-9_.@/-]*) usage ;; esac
 	done
 	if [ -f "$FACTORY_BASELINE" ]; then
 		entries < "$FACTORY_BASELINE" > "$tmp/baseline"

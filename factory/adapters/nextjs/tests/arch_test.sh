@@ -114,3 +114,139 @@ test_the_reader_refuses_what_isnt_dependency_cruisers_graph_with_node() {
 	assert_status 2
 	stderr_has "isn't dependency-cruiser's JSON"
 }
+
+# The lint-tags check: each `lint:<rule>` tag names a rule the lint step runs.
+# stand_in_tools gives the skeleton stand-ins for what the import checks read, so
+# they find nothing (dependency-cruiser's graph is empty, and TypeScript's parser
+# sees no statement), and a stand-in ESLint: `eslint --print-config <file>`
+# appends <file> to node_modules/.asked, prints node_modules/.eslint-config and
+# exits with node_modules/.eslint-exit when there is one.
+stand_in_tools() {
+	mkdir -p node_modules/.bin node_modules/typescript || fail "could not make node_modules"
+	printf '#!/usr/bin/env bash\necho %s\n' "'{\"modules\":[]}'" > node_modules/.bin/depcruise
+	echo '{"name":"typescript","type":"module","main":"index.js"}' > node_modules/typescript/package.json
+	cat > node_modules/typescript/index.js << 'JS'
+const ts = { ScriptKind: {}, ScriptTarget: {}, SyntaxKind: {}, createSourceFile: () => ({ statements: [] }), forEachChild: () => undefined };
+export default new Proxy(ts, { get: (t, k) => (k in t ? t[k] : () => false) });
+JS
+	cat > node_modules/.bin/eslint << 'SH'
+#!/usr/bin/env bash
+[ "$1" = --print-config ] || exit 9
+echo "$2" >> node_modules/.asked
+cat node_modules/.eslint-config
+[ ! -f node_modules/.eslint-exit ] || exit "$(cat node_modules/.eslint-exit)"
+SH
+	chmod +x node_modules/.bin/depcruise node_modules/.bin/eslint || fail "could not make the stand-ins runnable"
+}
+
+# tag_line <rule>: the line of ARCHITECTURE.md holding `lint:<rule>`.
+tag_line() {
+	grep -nF "\`lint:$1\`" ARCHITECTURE.md | cut -d: -f1
+}
+
+# asked: the files the stand-in ESLint was asked about, or (none).
+asked() {
+	if [ -f node_modules/.asked ]; then cat node_modules/.asked; else echo "(none)"; fi
+}
+
+test_lint_tags_whose_rules_are_on_are_no_finding_with_node() {
+	needs_node
+	skeleton_project
+	stand_in_tools
+	echo '{"rules":{"@typescript-eslint/no-floating-promises":[2],"@typescript-eslint/no-unsafe-assignment":"warn","@typescript-eslint/no-unsafe-member-access":["error",{"x":1}],"no-console":[0]}}' > node_modules/.eslint-config
+	step arch
+	assert_status 0
+	assert_eq "" "$out" "arch's findings"
+	assert_eq "app/api/health/route.ts" "$(asked)" "the file ESLint was asked about: the first non-test one"
+}
+
+test_lint_tags_ask_about_a_file_under_src_when_one_is_there_with_node() {
+	needs_node
+	skeleton_project
+	stand_in_tools
+	echo '{"rules":{"@typescript-eslint/no-floating-promises":1,"@typescript-eslint/no-unsafe-assignment":2,"@typescript-eslint/no-unsafe-member-access":"error"}}' > node_modules/.eslint-config
+	mkdir -p src/lib
+	printf 'export const a = 1;\n' > src/lib/a.ts
+	printf 'export const b = 1;\n' > src/a.test.ts
+	step arch
+	assert_status 0
+	assert_eq "" "$out" "arch's findings"
+	assert_eq "src/lib/a.ts" "$(asked)" "the file ESLint was asked about"
+}
+
+test_a_lint_tag_whose_eslint_rule_is_off_or_unset_is_a_finding_at_its_line_with_node() {
+	needs_node
+	skeleton_project
+	stand_in_tools
+	echo '{"rules":{"@typescript-eslint/no-floating-promises":[0],"@typescript-eslint/no-unsafe-assignment":"off"}}' > node_modules/.eslint-config
+	step arch
+	assert_status 1
+	local fix="(eslint --print-config); turn it on (warn or error) in the ESLint config, or change this rule's Enforced by: line"
+	assert_eq "ARCHITECTURE.md:$(tag_line @typescript-eslint/no-floating-promises) R2 lint:@typescript-eslint/no-floating-promises is not on: ESLint's config turns it off for app/api/health/route.ts $fix
+ARCHITECTURE.md:$(tag_line @typescript-eslint/no-unsafe-assignment) R3 lint:@typescript-eslint/no-unsafe-assignment is not on: ESLint's config turns it off for app/api/health/route.ts $fix
+ARCHITECTURE.md:$(tag_line @typescript-eslint/no-unsafe-member-access) R3 lint:@typescript-eslint/no-unsafe-member-access is not on: no ESLint config sets it for app/api/health/route.ts $fix" "$out" "arch's findings"
+}
+
+test_a_lint_tag_on_a_file_eslints_config_ignores_is_a_finding_with_node() {
+	needs_node
+	skeleton_project
+	stand_in_tools
+	sed -i 's/^Enforced by: `lint:@typescript-eslint\/no-unsafe-assignment`.*$/Enforced by: `review`/' ARCHITECTURE.md
+	echo undefined > node_modules/.eslint-config
+	step arch
+	assert_status 1
+	assert_eq "ARCHITECTURE.md:$(tag_line @typescript-eslint/no-floating-promises) R2 lint:@typescript-eslint/no-floating-promises is not on: the ESLint config ignores app/api/health/route.ts (eslint --print-config); turn it on (warn or error) in the ESLint config, or change this rule's Enforced by: line" "$out" "arch's finding"
+}
+
+test_the_lint_steps_own_checks_as_lint_tags_are_no_finding_and_ask_eslint_nothing_with_node() {
+	needs_node
+	skeleton_project
+	stand_in_tools
+	sed -i 's/^Enforced by: `lint:@typescript-eslint.*$/Enforced by: `review`/' ARCHITECTURE.md
+	grep -qF 'Enforced by: `lint:assertion-free`, `lint:fixed-wait`' ARCHITECTURE.md || fail "the skeleton's R5 cites no assertion-free and fixed-wait"
+	echo 9 > node_modules/.eslint-exit
+	step arch
+	assert_status 0
+	assert_eq "" "$out" "arch's findings"
+	assert_eq "(none)" "$(asked)" "the files ESLint was asked about"
+}
+
+test_no_lint_tags_and_no_rules_are_no_lint_tags_finding_with_node() {
+	needs_node
+	skeleton_project
+	stand_in_tools
+	echo 9 > node_modules/.eslint-exit
+	sed -i 's/^Enforced by: `lint:.*$/Enforced by: `review`/' ARCHITECTURE.md
+	step arch
+	assert_status 0
+	assert_eq "" "$out" "arch's findings with no lint: tags"
+
+	printf '# Architecture\n\nNo rules yet; `lint:no-floating-promises` in prose is no tag.\n' > ARCHITECTURE.md
+	step arch
+	assert_status 1
+	assert_eq "tools/verify/arch:1 arch-sync check client-server is cited by no rule
+tools/verify/arch:1 arch-sync check next-in-app is cited by no rule
+tools/verify/arch:1 arch-sync check fonts-local is cited by no rule" "$out" "arch's findings with no Rules section"
+	assert_eq "(none)" "$(asked)" "the files ESLint was asked about"
+}
+
+test_eslint_failing_to_print_its_config_is_an_arch_error_with_node() {
+	needs_node
+	skeleton_project
+	stand_in_tools
+	: > node_modules/.eslint-config
+	echo 2 > node_modules/.eslint-exit
+	step arch
+	assert_status 1
+	assert_eq "tools/verify/arch:1 arch-error check lint-tags: eslint --print-config app/api/health/route.ts exited 2 (see stderr)" "$out" "arch's finding"
+}
+
+# The real ESLint, on the skeleton's config with R2's rule switched off.
+test_the_skeletons_config_with_a_tagged_rule_off_is_a_finding_with_node() {
+	arch_project
+	sed -i 's/^);$/  { rules: { "@typescript-eslint\/no-floating-promises": "off" } },\n);/' eslint.config.mjs
+	grep -q 'no-floating-promises": "off"' eslint.config.mjs || fail "could not switch the rule off"
+	step arch
+	assert_status 1
+	assert_eq "ARCHITECTURE.md:$(tag_line @typescript-eslint/no-floating-promises) R2 lint:@typescript-eslint/no-floating-promises is not on: ESLint's config turns it off for app/api/health/route.ts (eslint --print-config); turn it on (warn or error) in the ESLint config, or change this rule's Enforced by: line" "$out" "arch's finding"
+}

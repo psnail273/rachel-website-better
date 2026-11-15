@@ -23,9 +23,23 @@
 # checks, and runs only the sync check, which needs no tool; the full verify runs
 # them all (#19).
 #
+# The lint-tags check makes each `lint:<rule>` tag true: for every tag on a
+# rule's `Enforced by:` line (factory_arch_lint_tags), the lint step runs that
+# rule. A tag naming one of the lint step's own checks (_lint_checks.awk's
+# assertion-free and fixed-wait, as `awk -v list=1` prints them) holds as it
+# stands; any other names an ESLint rule, which must be on (warn or error) in
+# `eslint --print-config` for one file, the first non-test .ts or .tsx file in
+# scope, under src/ when one is there (_lint_tags.mjs reads the config). With no
+# such file, lint checks no TypeScript, and it asks nothing. It needs the
+# installed ESLint, so static-only it doesn't run. It answers no arch:<id> tag:
+# its findings carry the number of the rule whose tag is off.
+#
 # Findings, on stdout: `file:line R<n> message` for each violation, the sync
-# check's arch-sync, and (from _nextjs.sh) node-missing or tool-missing.
-# dependency-cruiser's own output goes to stderr. Exits 1 on any finding.
+# check's arch-sync, the lint-tags check's `ARCHITECTURE.md:<line> R<n>
+# lint:<rule> is not on: ...`, an arch-error when ESLint can't print its
+# config, and (from _nextjs.sh) node-missing or tool-missing.
+# dependency-cruiser's and ESLint's own output go to stderr. Exits 1 on any
+# finding.
 set -u
 
 : "${FACTORY_CORE:?the arch step runs under the Core runner (factory/core/verify.sh)}"
@@ -79,10 +93,50 @@ check_client_server() { imports_check client-server; }
 check_next_in_app() { imports_check next-in-app; }
 check_fonts_local() { imports_check fonts-local; }
 
+# lint_tags_file: the file the lint-tags check asks ESLint about (see the
+# header), or nothing.
+lint_tags_file() {
+	local -a code
+	mapfile -t code < <(nx_files ts tsx | grep -vxF -f <(nx_files ts tsx | nx_tests))
+	[ "${#code[@]}" -gt 0 ] || return 0
+	printf '%s\n' "${code[@]}" | grep -m 1 '^src/' || printf '%s\n' "${code[0]}"
+}
+
+# check_lint_tags: the lint-tags check's findings, in full (see the header).
+check_lint_tags() {
+	local tags file status
+	tags="$(factory_arch_lint_tags "$ARCH_DOC" | awk -v own="$(awk -v list=1 -f "$dir/_lint_checks.awk" < /dev/null)" '
+		BEGIN { n = split(own, names, "\n"); for (i = 1; i <= n; i++) mine[names[i]] = 1 }
+		!($3 in mine)
+	')"
+	[ -n "$tags" ] || return 0
+	file="$(lint_tags_file)"
+	[ -n "$file" ] || return 0
+	tool_ready eslint || return 0
+	tool eslint --print-config "$file" > "$ARCH_TMP/eslint-config.json" 2> "$ARCH_TMP/eslint.err"
+	status=$?
+	cat "$ARCH_TMP/eslint.err" >&2
+	if [ "$status" -ne 0 ]; then
+		factory_finding "$FACTORY_STEPS_DIR/arch" 1 arch-error "check lint-tags: eslint --print-config $file exited $status (see stderr)"
+		return 0
+	fi
+	printf '%s\n' "$tags" | "${NODE_BIN:-node}" "$dir/_lint_tags.mjs" "$ARCH_TMP/eslint-config.json" "$ARCH_DOC" "$file" ||
+		factory_finding "$FACTORY_STEPS_DIR/arch" 1 arch-error "check lint-tags: could not read ESLint's config for $file (see stderr)"
+}
+
 [ "${FACTORY_ARCH_STATIC_ONLY:-0}" = 1 ] || tool_ready depcruise || exit 1
 
 factory_arch_check client-server check_client_server runtime
 factory_arch_check next-in-app check_next_in_app runtime
 factory_arch_check fonts-local check_fonts_local runtime
 
-factory_arch_main "$ARCH_DOC"
+bad=0
+factory_arch_main "$ARCH_DOC" || bad=1
+if [ "${FACTORY_ARCH_STATIC_ONLY:-0}" != 1 ] && [ -f "$ARCH_DOC" ]; then
+	lint_findings="$(check_lint_tags)"
+	if [ -n "$lint_findings" ]; then
+		printf '%s\n' "$lint_findings"
+		bad=1
+	fi
+fi
+[ "$bad" -eq 0 ]

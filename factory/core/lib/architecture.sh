@@ -5,6 +5,8 @@
 #   **R<n>.** One sentence.
 #   Enforced by: `arch:<id>`, `review`        (also typecheck, lint:<rule>, deviation)
 #   Source: an ADR link or "convention"
+# factory_arch_lint_tags lists the `lint:<rule>` tags, for an adapter's arch step
+# to check that its lint step runs each rule (the Next.js one does).
 #
 # An arch step registers one shell function per check and hands over:
 #   factory_arch_check no-autoloads check_no_autoloads
@@ -49,6 +51,23 @@ factory_arch_parse() {
 			rest = $0
 			while (match(rest, /`arch:[a-z0-9][a-z0-9-]*`/)) {
 				print "tag", rule + 0, NR, substr(rest, RSTART + 6, RLENGTH - 7)
+				rest = substr(rest, RSTART + RLENGTH)
+			}
+		}
+	'
+}
+
+# factory_arch_lint_tags <file>: the file's `lint:<rule>` tags, one per line, in
+# order, as `<n> <line> <rule>`: <rule> as written after `lint:`, on the
+# `Enforced by:` line of rule R<n>. A tag before any rule heading is left out. An
+# adapter's arch step checks each names a rule its lint step runs.
+factory_arch_lint_tags() {
+	tr -d '\r' < "$1" | awk '
+		match($0, /^\*\*R[0-9]+\.\*\*/) { rule = substr($0, 4, RLENGTH - 6) + 0; next }
+		/^Enforced by:/ && rule > 0 {
+			rest = $0
+			while (match(rest, /`lint:[^` ]+`/)) {
+				print rule, NR, substr(rest, RSTART + 6, RLENGTH - 7)
 				rest = substr(rest, RSTART + RLENGTH)
 			}
 		}

@@ -85,4 +85,4 @@ These are tracked and may only shrink; the `deviation` step fails when one grows
 
 ## Keeping it true
 
-An amend lands as one change: the rule text, its check and any ratchet file. The arch step's sync check fails on an `arch:<id>` tag with no check, a check no rule cites, or a reused rule number. The `review`-tagged rules make up the verifier's rubric.
+An amend lands as one change: the rule text, its check and any ratchet file. The arch step's sync check fails on an `arch:<id>` tag with no check, a check no rule cites, or a reused rule number; its lint-tags check fails on a `lint:<rule>` tag whose rule the lint step doesn't run (an ESLint rule off in `eslint --print-config`). The `review`-tagged rules make up the verifier's rubric.

@@ -38,9 +38,10 @@ Draft it from the code, then grill the human on it until they approve it.
 
 - **Draft.** Fill the modules table (folder, what it owns, its public seam) and the layer line from what the code does today, not what it should do. Keep the adapter's default rules that hold for this project; a rule the code breaks stays, and its findings go into the Baseline.
 - **Every rule** has a stable number, one sentence, an `Enforced by:` the arch step's sync check accepts, and a `Source:`. Run `bash tools/verify.sh arch` and fix every sync finding it prints.
+- **Every `lint:<rule>` tag is on**: arch reports each whose rule the lint config leaves off. Port the skeleton's lint config (`factory/adapters/<adapter>/new/`; Next.js: `eslint.config.mjs.txt`'s typescript-eslint blocks) into the project's, beside its own; a package it adds is the human's call. Not done while arch reports one; never baseline it.
 - **Grill.** Walk the human through it one decision at a time: each layer edge, each rule kept or dropped, each module's seam. Lead with your recommendation, quote the code that backs it, and revise the file after each answer. Every rule is a Human's call (it is an amend once Adopted).
 - **Approval** is the human's explicit words in this session. Done when they approved the whole file.
-- The rules changed since adopt.sh recorded the Baseline: `git rm --cached -q tools/verify/ratchet/baseline.txt && rm tools/verify/ratchet/baseline.txt`, then `FACTORY_BASE=HEAD bash factory/core/baseline.sh record`.
+- The rules or the lint config changed since adopt.sh recorded the Baseline: `git rm --cached -q tools/verify/ratchet/baseline.txt && rm tools/verify/ratchet/baseline.txt`, then `FACTORY_BASE=HEAD bash factory/core/baseline.sh record`.
 
 ## 4. Commit
 

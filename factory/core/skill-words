@@ -2,7 +2,7 @@
 # <max words>`, the folder named from the factory folder. A skill not listed has
 # the default, 1000 words. Set at each skill's `wc -w` count on 2026-11-13, so a
 # skill can't grow its words unnoticed: raising one is an edit here.
-skills/factory-adopt 881
+skills/factory-adopt 934
 skills/factory-amend 1700
 skills/factory-run 2816
 skills/factory-spec 973
