@@ -20,6 +20,8 @@ Write the effort as the prompt file's first line, `factory-effort: <level>`, so 
 
 **Infrastructure failure** (the subagent ends in an error: model unavailable, a usage limit, a crash): run the round or check once more, as a fresh subagent from the current commit; it adds no round. A second failure escalates (SKILL.md, Escalation).
 
+**Visual issue** (`verify-rubric.md`'s Design check defines it): the Editor's final message names the contact sheet's folder (`tools/verify/contact-sheet`), and the green check's Verifier judges the sheet beside the Board; a Verifier takes the sheet itself when it is missing or stale.
+
 **A Verifier changes nothing:** `tools/verify.sh` has to write, so a check can't run read-only, and nothing sandboxes it. Its agent file tells it to change nothing and to leave secrets (`.env*`, `tools/verify/secret-paths`) unread, and to leave the Scenario folder unread, which the issue's worktree doesn't hold ([`scenarios.md`](scenarios.md)). Whoever runs it compares the workspace before and after (Subagents): any change voids the verdict. Restore the worktree and run a fresh check; a void verdict is not a Verifier FAIL and adds no round.
 
 ## Prompts

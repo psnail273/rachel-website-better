@@ -68,27 +68,77 @@
 # (local.env) bounds the server's start, the fixture server's, and each stop, as
 # it does for smoke.
 #
-# Prints one results line per Scenario, in path order; nothing when there is
-# none (no folder named, or no file in it declares a test). Exits 0 when every
-# Scenario passed, 1 when one didn't, 2 when it could not run them (the reason on
-# stderr): no Core, Node or pnpm, a scenario-env line that isn't NAME=value, a
-# FACTORY_SCENARIO_FIXTURE_PORT that isn't a port, the offline install failing,
-# next or Playwright not installed, Chromium not starting, the fixture server
-# not listening (another run holding its port), FACTORY_SMOKE_TIMEOUT not whole
-# seconds, next build failing or next start not answering.
+# The looks. Before any Scenario, with nothing served and the state folder
+# empty, the driver holds each page route's look to its baseline: the page
+# routes of ARCHITECTURE.md's `## Routes` table (_routes.mjs; none, and the run
+# has no looks, saying so on stderr), each at 390 and 1280 px wide (the window
+# 900 tall), light and dark, with reduced motion and animations stopped, the
+# whole page, by Playwright's toHaveScreenshot (_scenario_looks.mjs; at most
+# 0.2% of the pixels may differ, maxDiffPixelRatio 0.002 in
+# _scenarios.config.mjs). A baseline is <folder>/looks/<name>.png, its name
+# `<route-slug>-<width>-<scheme>` as the Board names its files (`home` for `/`,
+# `therapy-about` for `/therapy/about`); the folder is the Scenario folder's, so
+# the Editor neither reads nor writes it. A look is a results line of its own,
+# before the Scenarios', named `looks/<name>`, at `<folder>/looks/<name>.png:1`:
+#   PASS     the page looks as its baseline does
+#   FAILURE  it doesn't: the expected, actual and diff images are copied to
+#            <git-dir>/factory/looks/, which stderr names
+#   SKIP     there is no baseline yet: the next Playtest the human approves
+#            records it (stderr says so, naming the page as it is now,
+#            copied to <git-dir>/factory/looks/); the run fails until then
+#   ERROR    the page didn't load, or Playwright reported nothing on it
+# A normal run never records a baseline: it never passes --update-snapshots,
+# and the config says "none". Only the record mode does, which the Driver runs
+# once the human approves a Playtest (factory-run's playtest.md):
+#   bash tools/verify/scenarios record
+# It reads tools/verify/local.env itself, runs the looks alone with
+# --update-snapshots=changed (a baseline that is missing or differs is
+# written), removes each baseline no route has now, and prints the looks'
+# lines; it could not run them (exit 2) with no Scenario folder, named or in
+# the checkout, or no page route.
+#
+# Prints one results line per look, then one per Scenario, in path order;
+# nothing when there is no Scenario (no folder named, or no file in it declares
+# a test). Exits 0 when every look and Scenario passed, 1 when one didn't, 2
+# when it could not run them (the reason on stderr): no Core, Node or pnpm, a
+# scenario-env line that isn't NAME=value, a FACTORY_SCENARIO_FIXTURE_PORT that
+# isn't a port, the offline install failing, next or Playwright not installed,
+# Chromium not starting, the fixture server not listening (another run holding
+# its port), FACTORY_SMOKE_TIMEOUT not whole seconds, next build failing or next
+# start not answering; or a usage error.
 set -u
 
+record=0
+case "$#:${1:-}" in
+	0:) ;;
+	1:record) record=1 ;;
+	*)
+		echo "usage: bash tools/verify/scenarios [record]" >&2
+		exit 2
+		;;
+esac
+if [ "$record" -eq 1 ] && [ -f tools/verify/local.env ]; then
+	set -a
+	# shellcheck disable=SC1091 # the machine's own, gitignored
+	. ./tools/verify/local.env
+	set +a
+fi
 dir="$(dirname "${BASH_SOURCE[0]}")"
 . "$dir/_nextjs.sh"
 . "$dir/_server.sh"
-
-[ -n "$NX_SCENARIOS" ] || exit 0
 
 # cannot <why>: the driver could not run the Scenarios.
 cannot() {
 	echo "scenarios: $*" >&2
 	exit 2
 }
+
+if [ -z "$NX_SCENARIOS" ]; then
+	[ "$record" -eq 0 ] || cannot "record: the project names no Scenario folder (tools/verify/scenario-folder), where the looks' baselines go"
+	exit 0
+fi
+[ "$record" -eq 0 ] || [ -d "$NX_SCENARIOS" ] ||
+	cannot "record: this checkout has no $NX_SCENARIOS/ (an issue's worktree leaves it out): record from a checkout of dev (factory-run's playtest.md)"
 
 tmp="$(mktemp -d)"
 fixtures_pid=""
@@ -105,7 +155,7 @@ scenarios=()
 for f in "${files[@]}"; do
 	[ -n "$(awk -v counts=1 -v declares=1 -v path="$f" -f "$dir/_lint_checks.awk" < "$f")" ] && scenarios+=("$f")
 done
-[ "${#scenarios[@]}" -gt 0 ] || exit 0
+[ "${#scenarios[@]}" -gt 0 ] || [ "$record" -eq 1 ] || exit 0
 
 [ "$NX_LIMIT" -ne 0 ] ||
 	cannot "FACTORY_SMOKE_TIMEOUT is '${FACTORY_SMOKE_TIMEOUT:-}', not a number of seconds from 1 to 999999 (tools/verify/local.env)"
@@ -160,6 +210,21 @@ for t in next playwright; do
 		exit 2
 	fi
 done
+
+# The page routes the looks check; none, and there are no looks.
+routes=()
+"${NODE_BIN:-node}" "$dir/_routes.mjs" ARCHITECTURE.md scenarios-routes > "$tmp/routes"
+status=$?
+if [ "$status" -eq 0 ]; then
+	while IFS= read -r route || [ -n "$route" ]; do
+		route="${route%$'\r'}"
+		[ -z "$route" ] || routes+=("$route")
+	done < "$tmp/routes"
+else
+	[ "$record" -eq 0 ] || cannot "record: no page route to record a look of: $(cat "$tmp/routes")"
+	echo "scenarios: no looks: $(cat "$tmp/routes")" >&2
+fi
+
 if ! "${NODE_BIN:-node}" --input-type=module -e '
 	import { chromium } from "@playwright/test";
 	const browser = await chromium.launch({ headless: true });
@@ -206,10 +271,87 @@ case $? in
 esac
 
 root="$(pwd -P)"
-config="$(cd "$dir" && pwd -P)/_scenarios.config.mjs"
-export FACTORY_SCENARIO_DIR="$root/$NX_SCENARIOS" FACTORY_SCENARIO_ORIGIN="http://127.0.0.1:$NX_PORT"
+verify="$(cd "$dir" && pwd -P)"
+config="$verify/_scenarios.config.mjs"
+export FACTORY_SCENARIO_ORIGIN="http://127.0.0.1:$NX_PORT"
 : > "$tmp/results"
 bad=0
+
+# The looks: one Playwright run of _scenario_looks.mjs, before any Scenario.
+looks="$NX_SCENARIOS/looks"
+if [ "${#routes[@]}" -gt 0 ]; then
+	shots="$(git rev-parse --absolute-git-dir)/factory/looks"
+	rm -rf "$shots"
+	# Each look's name, <route-slug>-<width>-<scheme>, as _scenario_looks.mjs
+	# titles its test.
+	mapfile -t slugs < <(FACTORY_ROUTES_MJS="$verify/_routes.mjs" "${NODE_BIN:-node}" --input-type=module -e '
+		const { pathToFileURL } = await import("node:url");
+		const { routeSlug } = await import(pathToFileURL(process.env.FACTORY_ROUTES_MJS).href);
+		for (const path of process.argv.slice(1)) console.log(routeSlug(path));
+	' "${routes[@]}")
+	names=()
+	for width in 390 1280; do
+		for scheme in light dark; do
+			for slug in "${slugs[@]}"; do
+				names+=("$slug-$width-$scheme")
+			done
+		done
+	done
+	find "$tmp/fixtures" "$tmp/state" -mindepth 1 -delete
+	FACTORY_SCENARIO_ROUTES="$(printf '%s\n' "${routes[@]}")"
+	export FACTORY_SCENARIO_DIR="$verify" FACTORY_SCENARIO_FILE="$verify/_scenario_looks.mjs" \
+		FACTORY_SCENARIO_LOOKS="$root/$looks" FACTORY_SCENARIO_ROUTES \
+		FACTORY_SCENARIO_REPORT="$tmp/report-looks.json" FACTORY_SCENARIO_OUTPUT="$tmp/output-looks"
+	update=()
+	[ "$record" -eq 0 ] || update=(--update-snapshots=changed)
+	nx_client 1 tool playwright test --config "$config" "${update[@]}" >&2
+	nx_client_wait
+	status=$?
+	declare -A found=()
+	if [ -s "$FACTORY_SCENARIO_REPORT" ] &&
+		"${NODE_BIN:-node}" "$dir/_scenario_results.mjs" --each "$FACTORY_SCENARIO_REPORT" > "$tmp/looks"; then
+		while IFS=$'\t' read -r verdict name; do
+			[ -z "$name" ] || found["$name"]="$verdict"
+		done < "$tmp/looks"
+	else
+		echo "scenarios: looks: Playwright exited $status without a report it could read (above)" >&2
+	fi
+	unset FACTORY_SCENARIO_LOOKS FACTORY_SCENARIO_ROUTES
+	while IFS= read -r name; do
+		verdict="${found["$name"]:-ERROR}"
+		printf 'looks/%s\t%s\t%s\n' "$name" "$verdict" "$looks/$name.png:1" >> "$tmp/results"
+		case "$verdict" in
+			SKIP)
+				mkdir -p "$shots"
+				find "$FACTORY_SCENARIO_OUTPUT" -type f -name "$name-actual.png" -exec cp {} "$shots/" \;
+				echo "scenarios: looks/$name: no baseline at $looks/$name.png: the next Playtest the human approves records it (bash tools/verify/scenarios record); the page now: $shots/$name-actual.png" >&2
+				;;
+			FAILURE)
+				mkdir -p "$shots"
+				find "$FACTORY_SCENARIO_OUTPUT" -type f -name "$name-*.png" -exec cp {} "$shots/" \;
+				echo "scenarios: looks/$name: the page doesn't look as its baseline $looks/$name.png does: see $shots/$name-expected.png, -actual.png and -diff.png" >&2
+				;;
+		esac
+		[ "$verdict" = PASS ] || bad=1
+	done < <(printf '%s\n' "${names[@]}" | LC_ALL=C sort)
+fi
+if [ "$record" -eq 1 ]; then
+	# Each baseline no route has now goes.
+	for f in "$looks"/*.png; do
+		[ -f "$f" ] || continue
+		name="$(basename "$f" .png)"
+		case " ${names[*]} " in *" $name "*) ;; *)
+			rm -f "$f"
+			echo "scenarios: record: removed $f: no route has that look now" >&2
+			;;
+		esac
+	done
+	cat "$tmp/server.log" >&2
+	cat "$tmp/results"
+	exit "$bad"
+fi
+
+export FACTORY_SCENARIO_DIR="$root/$NX_SCENARIOS"
 for i in "${!scenarios[@]}"; do
 	f="${scenarios[i]}"
 	# Each Scenario file starts with nothing served and an empty state folder.

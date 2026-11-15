@@ -18,11 +18,22 @@ scenario() {
 	add_fixture "scenarios/$1.ts.txt" "scenarios/$2"
 }
 
+# routes <line...>: ARCHITECTURE.md's Routes table holds these lines alone.
+routes() {
+	{
+		printf '# Architecture\n\n## Routes\n\n```\n'
+		printf '%s\n' "$@"
+		printf '```\n\n## Modules\n'
+	} > ARCHITECTURE.md
+}
+
 # app_project: the skeleton, prepared, with the fixture app as its page (a tap
-# on Serve serves a ball, a second tap a second one); cd there.
+# on Serve serves a ball, a second tap a second one), and no page route in
+# ARCHITECTURE.md, so the run has no looks; cd there.
 app_project() {
 	needs_browser
 	skeleton_project
+	routes '/api/health  app/api/health/route.ts  route handler (GET)'
 	add_fixture scenarios/page.tsx.txt app/page.tsx
 	step prepare
 	[ "$status" -eq 0 ] || fail "prepare failed: $out"$'\n'"$(tail -n 20 "$TEST_TMP/stderr")"
@@ -329,10 +340,12 @@ free_port() {
 # Playwright (tests/fixture/scenarios/playwright.mjs.txt, which logs to
 # $TEST_TMP/playwright.log) and @playwright/test, so the driver runs with Node
 # alone; the fixture server's port, free, in $port and
-# FACTORY_SCENARIO_FIXTURE_PORT; cd there.
+# FACTORY_SCENARIO_FIXTURE_PORT; no page route in ARCHITECTURE.md, so the run
+# has no looks; cd there.
 feed_project() {
 	needs_node
 	skeleton_project
+	routes '/api/health  app/api/health/route.ts  route handler (GET)'
 	mkdir -p "$TEST_TMP/bin" node_modules/.bin node_modules/@playwright/test
 	printf '#!/usr/bin/env bash\nexit 0\n' > "$TEST_TMP/bin/pnpm" && chmod 755 "$TEST_TMP/bin/pnpm" || fail "could not stand in for pnpm"
 	stand_in_next
@@ -487,4 +500,117 @@ test_the_reader_places_errors_outside_every_test_with_node() {
 	echo 'not json' > "$TEST_TMP/r.json"
 	run_cmd node "$reader" "$TEST_TMP/r.json" "$f"
 	assert_status 2
+}
+
+# The driver takes one argument, record, or none; record needs the Scenario
+# folder named and in the checkout, which an issue's worktree leaves out.
+test_the_driver_refuses_an_unknown_argument_and_a_record_without_the_folder() {
+	skeleton_project
+	run_cmd bash tools/verify/scenarios update
+	assert_status 2
+	assert_eq "" "$out"
+	stderr_has "usage: bash tools/verify/scenarios [record]"
+	run_cmd bash tools/verify/scenarios record
+	assert_status 2
+	stderr_has "scenarios: record: this checkout has no scenarios/ (an issue's worktree leaves it out): record from a checkout of dev (factory-run's playtest.md)"
+	[ ! -e scenarios ] || fail "record made the Scenario folder"
+	rm tools/verify/scenario-folder
+	run_cmd bash tools/verify/scenarios record
+	assert_status 2
+	stderr_has "scenarios: record: the project names no Scenario folder (tools/verify/scenario-folder), where the looks' baselines go"
+}
+
+# looks_project: app_project's packages, next standing in to serve $TEST_TMP/site
+# with a page at / and at /about, both page routes of ARCHITECTURE.md, a
+# Scenario that holds, and the real Playwright behind a stand-in that appends
+# its arguments to $TEST_TMP/playwright.log; cd there.
+looks_project() {
+	app_project
+	stand_in_next
+	routes '/  app/page.tsx  Home' '/about  app/about/page.tsx  About' '/api/health  app/api/health/route.ts  route handler (GET)'
+	mkdir -p "$TEST_TMP/site/about" scenarios
+	echo '<!doctype html><html><head><title>t</title></head><body><h1>About</h1></body></html>' > "$TEST_TMP/site/about/index.html"
+	printf '%s\n' 'import { expect, test } from "@playwright/test";' \
+		'test("holds", async ({ page }) => { await page.goto("/"); await expect(page.locator("p")).toHaveText("hi"); });' > scenarios/holds.ts
+	cp node_modules/.bin/playwright node_modules/.bin/playwright.real || fail "could not keep Playwright"
+	stand_in playwright "#!/usr/bin/env bash\necho \"\$*\" >> $(printf '%q' "$TEST_TMP/playwright.log")\nexec \"\$(dirname \"\$0\")/playwright.real\" \"\$@\"\n"
+}
+
+# files_in <dir>: the names of the folder's files, one a line, sorted.
+files_in() {
+	local f
+	for f in "$1"/*; do
+		[ ! -e "$f" ] || basename "$f"
+	done | LC_ALL=C sort
+}
+
+# looks_lines <verdict> <name...>: the looks' results lines for these names, each
+# with <verdict>.
+looks_lines() {
+	local verdict="$1" name
+	shift
+	for name in "$@"; do
+		printf 'looks/%s\t%s\tscenarios/looks/%s.png:1\n' "$name" "$verdict" "$name"
+	done
+}
+
+# Each page route's look, at 390 and 1280 px, light and dark, against its
+# baseline in scenarios/looks/: a normal run never records one (no
+# --update-snapshots), so a missing one fails the run, saying the next approved
+# Playtest records it; record mode writes them, and a later run passes; a page
+# that changes fails its looks, with the images in the git dir; a route gone
+# takes its baselines with it at the next record.
+test_each_page_route_looks_as_its_baseline_with_node() {
+	looks_project
+	local all=(about-1280-dark about-1280-light about-390-dark about-390-light home-1280-dark home-1280-light home-390-dark home-390-light)
+	local about=(about-1280-dark about-1280-light about-390-dark about-390-light)
+	local home=(home-1280-dark home-1280-light home-390-dark home-390-light)
+	local holds=$'holds\tPASS\tscenarios/holds.ts:2'
+	tree > "$TEST_TMP/tree.before"
+
+	drive
+	assert_status 1
+	assert_eq "$(looks_lines SKIP "${all[@]}")"$'\n'"$holds" "$out" "a run with no baselines"
+	local shots
+	shots="$(git rev-parse --absolute-git-dir)/factory/looks"
+	stderr_has "scenarios: looks/home-390-light: no baseline at scenarios/looks/home-390-light.png: the next Playtest the human approves records it (bash tools/verify/scenarios record); the page now: $shots/home-390-light-actual.png"
+	assert_eq "$(printf '%s-actual.png\n' "${all[@]}")" "$(files_in "$shots")" "the pages now, for the human"
+	assert_eq "390" "$(od -An -tu1 -j16 -N4 "$shots/home-390-light-actual.png" | awk '{ print $1 * 16777216 + $2 * 65536 + $3 * 256 + $4 }')" "the page now's width"
+	assert_eq "$(cat "$TEST_TMP/tree.before")" "$(tree)" "the tree after a run with no baselines"
+	! grep -q -- --update-snapshots "$TEST_TMP/playwright.log" || fail "a normal run passed --update-snapshots: $(cat "$TEST_TMP/playwright.log")"
+
+	run_cmd bash "$FACTORY_CORE/scenarios.sh"
+	assert_status 1
+	assert_eq "$(looks_lines SKIP "${all[@]}")"$'\n'"$holds"$'\n'"scenarios: FAIL: 8 of 9 did not pass" "$out" "the Core's run with no baselines"
+
+	: > "$TEST_TMP/playwright.log"
+	run_cmd bash tools/verify/scenarios record
+	assert_status 0
+	assert_eq "$(looks_lines PASS "${all[@]}")" "$out" "record mode"
+	assert_eq "$(printf '%s.png\n' "${all[@]}")" "$(files_in scenarios/looks)" "the baselines recorded"
+	grep -q -- "--update-snapshots=changed" "$TEST_TMP/playwright.log" || fail "record mode didn't pass --update-snapshots=changed: $(cat "$TEST_TMP/playwright.log")"
+
+	: > "$TEST_TMP/playwright.log"
+	drive
+	assert_status 0
+	assert_eq "$(looks_lines PASS "${all[@]}")"$'\n'"$holds" "$out" "a run with every baseline"
+	! grep -q -- --update-snapshots "$TEST_TMP/playwright.log" || fail "a normal run passed --update-snapshots: $(cat "$TEST_TMP/playwright.log")"
+
+	echo '<!doctype html><html><head><title>t</title></head><body><h1 style="font-size:80px">Changed</h1></body></html>' > "$TEST_TMP/site/about/index.html"
+	cp -R scenarios/looks "$TEST_TMP/looks.before"
+	drive
+	assert_status 1
+	assert_eq "$(looks_lines FAILURE "${about[@]}")"$'\n'"$(looks_lines PASS "${home[@]}")"$'\n'"$holds" "$out" "a run with a changed page"
+	assert_eq "about-390-light-actual.png
+about-390-light-diff.png
+about-390-light-expected.png" "$(files_in "$shots" | grep '^about-390-light-')" "the changed look's images"
+	stderr_has "scenarios: looks/about-390-light: the page doesn't look as its baseline scenarios/looks/about-390-light.png does: see $shots/about-390-light-expected.png, -actual.png and -diff.png"
+	diff -r "$TEST_TMP/looks.before" scenarios/looks > /dev/null || fail "a failing run changed the baselines"
+
+	routes '/  app/page.tsx  Home'
+	run_cmd bash tools/verify/scenarios record
+	assert_status 0
+	assert_eq "$(looks_lines PASS "${home[@]}")" "$out" "record mode with /about gone"
+	assert_eq "$(printf '%s.png\n' "${home[@]}")" "$(files_in scenarios/looks)" "the baselines after /about went"
+	stderr_has "scenarios: record: removed scenarios/looks/about-390-light.png: no route has that look now"
 }

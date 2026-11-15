@@ -33,7 +33,7 @@ For each test the brief names:
 - Its assertions are exact, and the criterion's boundary and negative cases are there.
 - Doubles are fakes at the brief's `seam` lines only, and no test reads back a value it stubbed.
 - Its code is straight-line: no sleeps, no loops or branches deciding what to assert, no magic numbers without a name.
-- A property or fuzz test matches an invariant the brief states, with a fixed seed.
+- Each `invariants` line of the brief (`bash factory/core/brief.sh invariants`) has one fast-check property test, titled with its property, driving the seam it names over generated inputs, with no fixed `seed` or `path`; FAIL a line with none, naming it.
 
 Green only: the product code doesn't special-case the tests' inputs.
 
@@ -55,6 +55,27 @@ These are the project's rules no gate fully checks. Judge each against the diff;
 
 <!-- review-rules -->
 
+### Design check
+
+Green only, and only on a **visual issue**: one whose diff against the base (`git diff --name-only <base>...HEAD`) touches a `.tsx` file or a stylesheet under `src/app/` or `app/`, a file under `public/`, a font file, or `docs/design.md`. This is the factory's one definition of a visual issue. On any other issue, or in a project without `tools/verify/contact-sheet` (a stack with none, or one not yet ported), write one design line, PASS, saying which.
+
+Read these yourself (Read shows an image):
+
+- `docs/design.md`: the direction the human chose, with its tokens, type and spacing.
+- The Board, `docs/design/board/`: its images of the pages, each `<route-slug>-<width>-<scheme>.png`.
+- The contact sheet, `<git-dir>/factory/contact-sheet/`, which the Editor names at hand-back: the same names, at 390, 768 and 1280 px, light and dark. Its `index.md` names the commit it was taken from. If it is missing, or was taken from another commit or a changed tree, take it yourself with `bash tools/verify/contact-sheet` → 0. It prints the folder and writes only there and in the build output.
+
+Answer each item yes or no, naming the screenshot you judged it from, and the `file:line` behind a no:
+
+1. **Tokens:** the changed styles use only the colours, type, sizes and spacing `docs/design.md` names.
+2. **Measure:** running text is 65ch wide or less.
+3. **Overflow:** nothing overflows at 390 px: no sideways scroll, and no text cut off or overlapping.
+4. **Focus:** every link and control has a visible focus ring, in both schemes. Read its `:focus-visible` style beside the screenshot.
+5. **Tells:** nothing from frontend-design's list of generic AI-design tells (`factory/third-party/frontend-design/SKILL.md`) appears. This is not applicable to a tell that `docs/design.md` says the human chose for this direction: quote that line.
+6. **Board:** each page's layout matches its Board image at the same width and scheme. Not applicable when `docs/design/board/` is absent or holds no image.
+
+Each no is FAIL, as any rubric miss is. An item that is not applicable is PASS, saying why.
+
 ## Verdict
 
 End your answer with these lines and nothing after them:
@@ -65,7 +86,8 @@ SKIP criterion <n>: (Driver's check) <the check> — the issue marks it
 PASS|FAIL test <name>: <one line> — <evidence>
 PASS|FAIL mutant <file>:<line> <the change>: killed|equivalent|out of the brief — <evidence>
 PASS|FAIL R<n>: <one line> — <evidence>
+PASS|FAIL design <item>: <one line> — <screenshot>
 VERDICT: PASS|FAIL
 ```
 
-One line per criterion, test, surviving mutant and rule in scope for the phase. `VERDICT: PASS` only when every line is PASS, or SKIP for a criterion the issue marks (Driver's check); a SKIP on any other line is a FAIL.
+One line per criterion, test, surviving mutant, rule and design item in scope for the phase (one design line on an issue that isn't visual). `VERDICT: PASS` only when every line is PASS, or SKIP for a criterion the issue marks (Driver's check); a SKIP on any other line is a FAIL.

@@ -6,7 +6,7 @@ After the Drift sweep and the retro the Run prepares a build, checks everything 
 
 From the main checkout, on dev:
 
-1. **Scenarios** first, with [`scenarios.md`](scenarios.md): scripted at the Feature's first end, then run, every Feature's. A Scenario that fails, against the Spec, is a bug filed there before any build.
+1. **Scenarios** first, with [`scenarios.md`](scenarios.md): scripted at the Feature's first end, then run, every Feature's. A Scenario that fails, against the Spec, is a bug filed there before any build. A look that isn't PASS (a `looks/` line) is the human's to judge instead: it gets a human check.
 2. **Build:** `bash tools/verify/playtest`. It prepares a playable build and prints where it is (a file path, a URL, the devices it installed on); the project may have tailored it to install too. Exit 1: its stderr says why. A missing device or toolchain is a setup problem: report it as the build's result, and the human builds and installs it themselves.
 3. **Install and launch** the build the way the project's device doc says (AGENTS.md points to it), unless the step already did. Send no scripted input: the human may be holding the device.
 4. **Log:** capture the game's log from launch, the way the device doc says, and report every error line. Without a device: "not run".
@@ -27,13 +27,14 @@ The playtest build of <Feature title> (Spec #<spec>) <is ready | didn't build he
 1. **Get the build:** <where the playtest step put it: the file, the URL or the devices it is installed on; or why it didn't build, and how to build it yourself>.
 2. **Play it** and judge each check:
    - [ ] <copied from the milestone: a thing to do, and a thing to judge>
+   - [ ] <for each look that isn't PASS: the page looks right at <width> px, <scheme>; the page now, and for a changed look its baseline and their difference: <the images' paths>>
 3. **Report back:** tick each check that passes and comment on the rest, here or in a `/factory-run <spec>` session. That session sorts what you found: a pass closes the Feature, and anything else becomes new issues.
 
 ## Build
 Commit <dev SHA>. <what the playtest step printed, or why it didn't build>
 
 ## Run checks
-- Scenarios: <pass | not run: <why>> — `bash factory/core/scenarios.sh`, exit <code>
+- Scenarios: <pass | <k> looks for you to judge | not run: <why>> — `bash factory/core/scenarios.sh`, exit <code>
   - <Scenario name>: pass
 - <check>: <pass | fail | not run | not measured> — <the evidence: command and exit code, or the log lines>
 
@@ -63,6 +64,15 @@ The bug and Tweak slices take the shape [`slicing.md`](../factory-spec/slicing.m
 
 ## Pass and fail
 
-- **Pass:** every human check passes and the intake opened no bug, Tweak or behaviour change. Close the Playtest issue. Close the milestone once all its issues are closed (the tracker doc's milestone command); the Run, on the next Feature already, carries on, and the Spec closes with its last milestone.
+- **Pass:** every human check passes and the intake opened no bug, Tweak or behaviour change. Record the looks (below), then close the Playtest issue. Close the milestone once all its issues are closed (the tracker doc's milestone command); the Run, on the next Feature already, carries on, and the Spec closes with its last milestone.
 - **Fail:** close the Playtest issue with the links to the new issues. The Run works them in this milestone ahead of every open slice of a later Feature (the Spec's order lists them first; an issue already in flight finishes), sweeps, and opens a Re-playtest issue holding only the failed checks plus a check for each thing the fixes touched (each Tweak among them).
 - **Parked issues** keep the milestone open until they are resolved or the human moves them out, even after a pass.
+
+## Record the looks
+
+On a pass, when the Scenarios ran and the project's driver has looks (Next.js: [`scenarios.md`](scenarios.md)), record them as the human approved them, from the build's commit, never to make a look pass without that approval:
+
+1. From the main checkout: `git worktree add --detach .claude/worktrees/looks-<n> <the Build section's commit>`, `<n>` the Playtest issue's number, and copy `tools/verify/local.env` into it.
+2. In it: `bash tools/verify/scenarios record` → 0. It writes each baseline that is missing or differs and removes those of routes gone, under `<folder>/looks/`. Any other exit: report its stderr on the issue, record nothing, and from the main checkout discard what it wrote: `git worktree remove --force .claude/worktrees/looks-<n>`.
+3. `git add <folder>/looks`, and when it staged anything, `git commit -m "Looks: as the human approved them in Playtest #<n>"`, then `git pull --rebase origin dev` and `git push origin HEAD:dev`.
+4. Pull in the main checkout (`git pull --ff-only`) and `git worktree remove .claude/worktrees/looks-<n>`. Say in the closing comment that the looks were recorded, with the commit.

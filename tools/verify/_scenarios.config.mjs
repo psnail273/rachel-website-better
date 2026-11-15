@@ -8,9 +8,16 @@
 //                             baseURL, so page.goto("/") opens its `/`
 //   FACTORY_SCENARIO_REPORT   where the json reporter writes
 //   FACTORY_SCENARIO_OUTPUT   Playwright's output folder (the driver's temp)
+//   FACTORY_SCENARIO_LOOKS    for the looks' run (_scenario_looks.mjs) alone:
+//                             the baselines' folder, <Scenario folder>/looks
 // One worker, no retries, headless Chromium (the browser bootstrap installs for
 // smoke), Playwright's own timeouts (30 s a test, 5 s an expect; a script may
 // set its own). The list reporter's lines go to the driver's stderr.
+// A screenshot never records itself: updateSnapshots is "none", so a missing
+// or different one fails, and only the driver's record mode, which passes
+// --update-snapshots=changed, writes one. toHaveScreenshot passes while at
+// most 0.2% of the pixels differ (maxDiffPixelRatio 0.002), with animations
+// stopped and the caret hidden; a looks' baseline is <looks>/<name>.png.
 const env = (name) => {
   const value = process.env[name];
   if (!value)
@@ -31,4 +38,18 @@ export default {
     ["json", { outputFile: env("FACTORY_SCENARIO_REPORT") }],
   ],
   use: { baseURL: env("FACTORY_SCENARIO_ORIGIN"), headless: true },
+  updateSnapshots: "none",
+  expect: {
+    toHaveScreenshot: {
+      maxDiffPixelRatio: 0.002,
+      animations: "disabled",
+      caret: "hide",
+    },
+  },
+  ...(process.env.FACTORY_SCENARIO_LOOKS
+    ? {
+        snapshotDir: process.env.FACTORY_SCENARIO_LOOKS,
+        snapshotPathTemplate: "{snapshotDir}/{arg}{ext}",
+      }
+    : {}),
 };

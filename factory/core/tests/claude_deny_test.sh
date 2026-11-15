@@ -315,6 +315,24 @@ test_sonnet_is_refused_every_read_and_write_of_the_scenario_folder() {
 	CALLS
 }
 
+# The Scenarios' screenshot baselines (Next.js: <folder>/looks/) are in the
+# Scenario folder, so the Editor can't record or rewrite one: only the Driver's
+# record after an approved Playtest does.
+test_sonnet_is_refused_every_write_of_a_screenshot_baseline() {
+	scenario_project
+	local tool input
+	while IFS='|' read -r tool input; do
+		sonnet_read "$tool" "$input"
+		assert_refused scenarios
+	done <<- CALLS
+		Write|{"file_path": "$PWD/scenarios/looks/home-390-light.png", "content": "x"}
+		Write|{"file_path": "$wt/scenarios/looks/home-390-light.png", "content": "x"}
+		Bash|{"command": "cp shot.png scenarios/looks/home-390-light.png"}
+		Bash|{"command": "rm -rf $wt/scenarios/looks"}
+		Bash|{"command": "git -C $wt add --sparse scenarios/looks/home-390-light.png"}
+	CALLS
+}
+
 test_sonnet_may_read_and_search_its_worktree_beside_the_scenario_folder() {
 	scenario_project
 	local tool input

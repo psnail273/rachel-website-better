@@ -20,10 +20,17 @@
 // the Scenario's file, else at line 1; so is a report with no test and no error.
 // The line is the first one with the worst status.
 //
+//   node tools/verify/_scenario_results.mjs --each <report.json>
+// prints a line for each test instead, `<status>\t<title>`, in the report's
+// order: the looks' run (_scenario_looks.mjs), whose tests are titled with
+// their baselines' names. An error outside every test prints nothing: the
+// driver counts each look it doesn't find an ERROR.
+//
 // Exits 2 when the report isn't Playwright's JSON.
 import { readFileSync } from "node:fs";
 
-const [reportPath, file] = process.argv.slice(2);
+const each = process.argv[2] === "--each";
+const [reportPath, file] = process.argv.slice(each ? 3 : 2);
 let report;
 try {
   report = JSON.parse(readFileSync(reportPath, "utf8"));
@@ -62,10 +69,20 @@ const found = [];
 const walk = (suite) => {
   for (const spec of suite.specs ?? [])
     for (const test of spec.tests ?? [])
-      found.push({ status: statusOf(test), line: spec.line || 1 });
+      found.push({
+        status: statusOf(test),
+        line: spec.line || 1,
+        title: spec.title,
+      });
   for (const inner of suite.suites ?? []) walk(inner);
 };
 report.suites.forEach(walk);
+if (each) {
+  process.stdout.write(
+    found.map((f) => `${f.status}\t${f.title}\n`).join(""),
+  );
+  process.exit(0);
+}
 // Outside every test: the errors located in the file, else the others (with no
 // test loaded, Playwright adds "No tests found" to a load error).
 const errors = report.errors ?? [];

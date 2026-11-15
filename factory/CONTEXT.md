@@ -74,6 +74,14 @@ _Avoid_: Mood board, mock-up, theme
 The approved **Design direction**'s screenshots, committed in `docs/design/board/` beside the `docs/design.md` written from it: Home and the inner page at 390 and 1280 px, light and dark, named `<route-slug>-<width>-<scheme>.png`. Slices are written to match it: the picture of the goal, where adjectives fall short.
 _Avoid_: Mock-up, design comp, reference images
 
+**Contact sheet**:
+Screenshots of every page route at 390, 768 and 1280 px, light and dark, with reduced motion, named as the **Board**'s are, that `tools/verify/contact-sheet` takes into the checkout's git dir and never commits. The **Editor** of a visual issue takes it at hand-back for the **Design check**.
+_Avoid_: Screenshot set, gallery
+
+**Design check**:
+The **Verifier**'s yes/no check of a visual issue's **Contact sheet** beside the **Board** and `docs/design.md`: tokens and spacing, a 65ch measure, no overflow at 390 px, visible focus rings, no generic AI-design tells, the **Board**'s layout. A visual issue is one whose diff changes what a page renders, as factory-run's `verify-rubric.md` defines it. A no fails the check. It is a filter: the human's **Playtest** and the screenshot baselines it records are the proof.
+_Avoid_: Design review, visual QA
+
 ### Roles
 
 **Driver**:
@@ -173,7 +181,7 @@ The human playing a finished **Feature** on a real build and judging only its fe
 _Avoid_: QA, acceptance test, phone check
 
 **Scenario**:
-A scripted play-through of one of a **Feature**'s behaviours: written in words in the **Spec**, scripted at the **Feature**'s end by a **Verifier**-role agent, and kept where the **Editor** can neither read nor write it. The **Run** runs every **Scenario** before each **Playtest**; one that fails, against the **Spec**, is a bug.
+A scripted play-through of one of a **Feature**'s behaviours: written in words in the **Spec**, scripted at the **Feature**'s end by a **Verifier**-role agent, and kept where the **Editor** can neither read nor write it. The **Run** runs every **Scenario** before each **Playtest**; one that fails, against the **Spec**, is a bug. In Next.js the run first holds each page's look to a screenshot baseline in the **Scenario** folder, which only a passed **Playtest** records.
 _Avoid_: Acceptance test, E2E test (the **Editor**'s own tests), Playtest check
 
 **Tweak**:

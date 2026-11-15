@@ -1,8 +1,8 @@
 // The app's page routes, as ARCHITECTURE.md's `## Routes` table lists them: the
 // smoke step loads each (tools/verify/smoke), and any other step that walks the
-// pages reads them here too.
+// pages reads them here too (contact-sheet, the Scenario driver's looks).
 //   node tools/verify/_routes.mjs <architecture file> <rule>
-// or, from a script: import { readRoutes } from "./_routes.mjs".
+// or, from a script: import { readRoutes, routeSlug } from "./_routes.mjs".
 //
 // The table is the first fenced block after the `## Routes` heading, before the
 // next heading. A line of it is a page route when its first field is a path
@@ -82,6 +82,15 @@ export function readRoutes(text) {
               : "the `## Routes` table lists no page route: a line whose first field is its path, `/` and on",
         };
   return { routes, dynamic, problem };
+}
+
+// routeSlug(route): the route's name in a screenshot's file name, as the Board
+// names its files (factory/CONTEXT.md): `home` for `/`, else the path without
+// its leading and trailing slashes, each other slash a dash (`/therapy/about`
+// is `therapy-about`). A screenshot is `<slug>-<width>-<scheme>.png`.
+export function routeSlug(route) {
+  const path = String(route).replace(/^\/+|\/+$/g, "");
+  return path === "" ? "home" : path.replace(/\//g, "-");
 }
 
 if (

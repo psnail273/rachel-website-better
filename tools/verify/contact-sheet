@@ -1,0 +1,157 @@
+#!/usr/bin/env bash
+# The contact sheet: a screenshot of every page route at three widths, in a light
+# and a dark colour scheme, for the Design check (factory/CONTEXT.md). Not a gate
+# step: the Editor of an issue that changes what the pages render runs it at
+# hand-back, and the Verifier reads what it wrote beside the Board
+# (docs/design/board/) and docs/design.md (factory-run's verify-rubric.md).
+#   bash tools/verify/contact-sheet
+#
+# It builds and starts the app as the smoke step does: the page routes from
+# ARCHITECTURE.md's `## Routes` table (_routes.mjs), next build under the
+# machine-wide build lock, next start on a free port (_server.sh). Then
+# _contact_sheet.mjs, one Chromium, opens each route at 390, 768 and 1280 px
+# wide (the window 900 tall), light and dark, with reduced motion, waits for its
+# network to go quiet, and takes the whole page with animations stopped.
+# Run bare, it reads tools/verify/local.env itself, as verify.sh does for the
+# gate's steps. The server is always stopped, its whole process group, before
+# it exits: on a pass, a finding, an error, and on INT, TERM or HUP.
+#
+# Output: <git-dir>/factory/contact-sheet/ (the checkout's own git dir, never
+# committed), emptied first, holding <route-slug>-<width>-<scheme>.png for each
+# screenshot, named as the Board names its files (`home` for `/`,
+# `therapy-about` for `/therapy/about`), and index.md, which names the commit
+# the sheet was taken from and lists each route's files.
+# stdout, on success, and nothing else: the folder's absolute path.
+#
+# FACTORY_SMOKE_TIMEOUT (local.env; seconds, default 60) bounds each wait: the
+# server's start, each page's load and screenshot, and each stop.
+# FACTORY_BUILD_WAIT (local.env; seconds, default 900) bounds the wait for the
+# build lock.
+#
+# Findings, on stdout instead (next's output goes to stderr), shaped as smoke's:
+#   package.json:1 contact-sheet-build <message>       next build failed
+#   package.json:1 contact-sheet-build-lock <message>  another build held the
+#                                                      build lock past
+#                                                      FACTORY_BUILD_WAIT
+#   tools/verify/local.env:1 contact-sheet-build-lock <message>
+#                                                      the lock's folder can't
+#                                                      be made
+#   package.json:1 contact-sheet-start <message>       next start exited, or
+#                                                      didn't answer in time
+#   ARCHITECTURE.md:<line> contact-sheet-routes <why>  no page route: no
+#                                                      ARCHITECTURE.md, no
+#                                                      `## Routes` table, or no
+#                                                      page line in it
+#   package.json:1 contact-sheet-load <route> <width> <scheme>: <message>
+#                                                      the page never loaded,
+#                                                      or its screenshot wasn't
+#                                                      taken
+#   package.json:1 contact-sheet-folder <message>      no git dir, or the
+#                                                      folder couldn't be
+#                                                      emptied
+#   tools/verify/local.env:1 browser-missing           Chromium didn't start
+#   tools/verify/local.env:1 contact-sheet-setting     FACTORY_SMOKE_TIMEOUT
+#                                                      isn't a whole number of
+#                                                      seconds, 1 to 999999, or
+#                                                      FACTORY_BUILD_WAIT one, 0
+#                                                      to 999999
+#   (and node-missing or tool-missing, as _nextjs.sh has them)
+# Exits 0 with the sheet taken, 1 on any finding; but 75 (NX_TRANSIENT), as
+# smoke does, when the failure is no fault of the code: the build lock held past
+# the wait, next build finding another build running in the checkout, or a
+# request refused a connection.
+set -u
+
+if [ -f tools/verify/local.env ]; then
+	set -a
+	# shellcheck disable=SC1091 # the machine's own, gitignored
+	. ./tools/verify/local.env
+	set +a
+fi
+dir="$(dirname "${BASH_SOURCE[0]}")"
+. "$dir/_nextjs.sh"
+. "$dir/_server.sh"
+
+if [ "$NX_LIMIT" -eq 0 ]; then
+	echo "tools/verify/local.env:1 contact-sheet-setting FACTORY_SMOKE_TIMEOUT is '${FACTORY_SMOKE_TIMEOUT:-}', not a number of seconds from 1 to 999999"
+	exit 1
+fi
+tool_ready next || exit 1
+
+tmp="$(mktemp -d)"
+trap 'nx_stop; rm -rf "$tmp"' EXIT
+nx_on_signal
+
+"${NODE_BIN:-node}" "$dir/_routes.mjs" ARCHITECTURE.md contact-sheet-routes > "$tmp/routes"
+status=$?
+if [ "$status" -ne 0 ]; then
+	if [ "$status" -eq 1 ] && [ -s "$tmp/routes" ]; then
+		cat "$tmp/routes"
+	else
+		echo "ARCHITECTURE.md:1 contact-sheet-routes the route reader (tools/verify/_routes.mjs) exited $status (see stderr)"
+	fi
+	exit 1
+fi
+if ! gitdir="$(git rev-parse --absolute-git-dir 2> /dev/null)"; then
+	echo "package.json:1 contact-sheet-folder the project is no git checkout, and the sheet goes in its git dir"
+	exit 1
+fi
+folder="$gitdir/factory/contact-sheet"
+routes=()
+while IFS= read -r route || [ -n "$route" ]; do
+	route="${route%$'\r'}"
+	[ -z "$route" ] || routes+=("$route")
+done < "$tmp/routes"
+
+nx_build
+status=$?
+if [ "$status" -ne 0 ]; then
+	case "$NX_BUILD_WHY" in
+		setting) echo "tools/verify/local.env:1 contact-sheet-setting $NX_BUILD_MSG" ;;
+		lock) echo "tools/verify/local.env:1 contact-sheet-build-lock $NX_BUILD_MSG" ;;
+		busy) echo "package.json:1 contact-sheet-build-lock $NX_BUILD_MSG" ;;
+		*) echo "package.json:1 contact-sheet-build $NX_BUILD_MSG" ;;
+	esac
+	case "$NX_BUILD_WHY" in busy | collision) exit "$NX_TRANSIENT" ;; esac
+	exit 1
+fi
+
+nx_start "$tmp/server.log"
+nx_await "$tmp/server.log"
+case $? in
+	1)
+		echo "package.json:1 contact-sheet-start next start exited $NX_SERVER_STATUS before it answered (see stderr)"
+		exit 1
+		;;
+	2)
+		echo "package.json:1 contact-sheet-start next start didn't answer within ${NX_LIMIT}s (FACTORY_SMOKE_TIMEOUT in tools/verify/local.env)"
+		exit 1
+		;;
+esac
+
+commit="$(git rev-parse --verify --quiet --short HEAD)" || commit="no commit"
+[ -z "$(git status --porcelain 2> /dev/null)" ] || commit="$commit, with changes not committed"
+rm -rf "$folder" && mkdir -p "$folder" || {
+	echo "package.json:1 contact-sheet-folder could not empty $folder"
+	exit 1
+}
+
+# The browser script closes Chromium on TERM, so nx_stop stops it alone.
+nx_client 0 "${NODE_BIN:-node}" "$dir/_contact_sheet.mjs" "http://127.0.0.1:$NX_PORT" "$NX_LIMIT" "$folder" "$commit" "${routes[@]}" > "$tmp/findings"
+nx_client_wait
+status=$?
+cat "$tmp/server.log" >&2
+cat "$tmp/findings"
+if [ "$status" -ne 0 ] && [ ! -s "$tmp/findings" ]; then
+	echo "package.json:1 contact-sheet-load the browser script (tools/verify/_contact_sheet.mjs) exited $status (see stderr)"
+	exit 1
+fi
+if [ ! -s "$tmp/findings" ]; then
+	printf '%s\n' "$folder"
+	exit 0
+fi
+if grep -qE 'ERR_CONNECTION_REFUSED|ECONNREFUSED' "$tmp/findings"; then
+	echo "contact-sheet: a request was refused a connection: no fault of the code, so run it again" >&2
+	exit "$NX_TRANSIENT"
+fi
+exit 1
