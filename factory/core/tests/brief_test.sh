@@ -88,7 +88,7 @@ test_malformed_lines_each_fail_naming_the_line() {
 brief.md:11 brief-format expected 'test <name>', got: test
 brief.md:13 brief-format test test_one is named twice
 brief.md:14 brief-format expected 'seam <path> <symbol>', got: seam only/a/path.txt
-brief.md:15 brief-format unknown key 'owner'; the keys are: scope test seam removes grows asserts lane
+brief.md:15 brief-format unknown key 'owner'; the keys are: scope test seam removes grows asserts invariants lane
 brief.md:9 brief-format expected 'scope <glob>' with one relative glob, got: scope two words" "$out"
 }
 
@@ -130,7 +130,7 @@ test_listing_a_malformed_brief_prints_only_findings() {
 	write_brief "scope a/**" "bogus line"
 	run_brief scope brief.md
 	assert_status 1
-	assert_eq "brief.md:9 brief-format unknown key 'bogus'; the keys are: scope test seam removes grows asserts lane" "$out"
+	assert_eq "brief.md:9 brief-format unknown key 'bogus'; the keys are: scope test seam removes grows asserts invariants lane" "$out"
 }
 
 test_default_brief_is_in_the_git_dir() {
@@ -939,6 +939,57 @@ test_seal_puts_the_briefs_lane_in_the_run_state() {
 	run_brief seal
 	assert_status 0
 	git config branch.issue/1.factory-lane > /dev/null && fail "the lane outlived the brief's lane line"
+	return 0
+}
+
+# --- invariants ------------------------------------------------------------------
+
+# An invariants line names the seam a property test drives and the property in
+# words, the rest of the line; the brief seals with them, and brief.sh
+# invariants lists them for the Verifier.
+test_a_brief_with_invariants_lines_seals_and_lists_them() {
+	sealed_repo
+	sed -i 's|^seam src/stock/supplier.txt Supplier.place$|&\
+invariants src/stock/ics.txt parseIcs never  throws on any string  \
+invariants ./src/stock/ics.txt parseIcs events come out sorted by start|' .git/factory/brief.md
+	run_brief seal
+	assert_status 0
+	sha="$(git hash-object --no-filters .git/factory/brief.md)"
+	assert_eq "brief: sealed .git/factory/brief.md for issue/1 at $sha" "$out"
+	run_brief invariants
+	assert_status 0
+	assert_eq "src/stock/ics.txt parseIcs never  throws on any string
+src/stock/ics.txt parseIcs events come out sorted by start" "$out"
+}
+
+test_a_brief_without_invariants_lists_none() {
+	write_brief "scope src/**"
+	run_brief invariants brief.md
+	assert_status 0
+	assert_eq "" "$out"
+}
+
+test_a_malformed_invariants_line_is_refused() {
+	write_brief "scope src/**" "invariants src/ics.ts parseIcs" "invariants /src/ics.ts parseIcs never throws" \
+		"invariants" "invariants src/ics.ts parseIcs never throws" "invariants src/fmt.ts formatIcs never throws" \
+		"invariants src/ics.ts  parseIcs  never throws"
+	run_brief check brief.md
+	assert_status 1
+	assert_eq "brief.md:10 brief-format expected 'invariants <path> <symbol> <property>': a relative path, the exported symbol the property drives and the property in words, got: invariants /src/ics.ts parseIcs never throws
+brief.md:11 brief-format expected 'invariants <path> <symbol> <property>': a relative path, the exported symbol the property drives and the property in words, got: invariants
+brief.md:14 brief-format invariant 'never throws' of src/ics.ts parseIcs is named twice
+brief.md:9 brief-format expected 'invariants <path> <symbol> <property>': a relative path, the exported symbol the property drives and the property in words, got: invariants src/ics.ts parseIcs" "$out"
+}
+
+test_seal_refuses_a_malformed_invariants_line() {
+	sealed_repo
+	sed -i 's|^seam src/stock/supplier.txt Supplier.place$|&\
+invariants src/stock/ics.txt parseIcs|' .git/factory/brief.md
+	line="$(grep -n '^invariants ' .git/factory/brief.md | cut -d: -f1)"
+	run_brief seal
+	assert_status 1
+	assert_eq ".git/factory/brief.md:$line brief-format expected 'invariants <path> <symbol> <property>': a relative path, the exported symbol the property drives and the property in words, got: invariants src/stock/ics.txt parseIcs" "$out"
+	git config branch.issue/1.factory-brief-sha > /dev/null && fail "a brief with a malformed invariants line was sealed"
 	return 0
 }
 

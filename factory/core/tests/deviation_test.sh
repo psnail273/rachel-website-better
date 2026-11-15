@@ -296,7 +296,7 @@ test_malformed_brief_fails_naming_the_problem() {
 	commit "src"
 	run_deviation
 	assert_status 1
-	assert_eq "$BRIEF:4 brief-format unknown key 'scopes'; the keys are: scope test seam removes grows asserts lane" "$out"
+	assert_eq "$BRIEF:4 brief-format unknown key 'scopes'; the keys are: scope test seam removes grows asserts invariants lane" "$out"
 }
 
 test_empty_diff_needs_no_brief() {

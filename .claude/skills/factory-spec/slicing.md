@@ -11,6 +11,7 @@ Every slice passes all of these:
 - **Assets first.** The files in the Spec's Assets table arrive in `Kind: asset` slices, one per Feature that first needs any, at the top of that Feature, ahead of every slice that uses them.
 - **Wide refactors use expand–contract.** When one mechanical change (a rename, a retyped shared symbol) breaks too many callers to land green in one slice: an expand slice adds the new form beside the old; migrate slices, each blocked by the expand and sized by blast radius (per folder or module), move callers over; a contract slice, blocked by every migrate slice, deletes the old form.
 - **Dependencies point back.** A slice is blocked only by slices in its own Feature or an earlier one. A dependency that would point forward means the Features are in the wrong order or split in the wrong place: fix the split.
+- **Invariants for data.** A slice that parses, formats or transforms data lists its invariants: the properties that hold for every input, such as "never throws on any input", "comes out sorted", "format then parse gives it back". Each becomes an `invariants` line of the Build Brief and a property test.
 - **No open Human's call.** If slicing finds a decision only the human can make, ask it before approval and log the answer under Human's calls.
 
 ## Kind
@@ -41,6 +42,7 @@ Part of #<spec>
 Kind: build | bug | cleanup | amend | asset
 Lane: small (only when the slice qualifies; leave the line out otherwise)
 Tests only: yes (only for a build slice that changes no product file; leave the line out otherwise)
+Invariants: <property>; <property> (only for a slice that parses, formats or transforms data; leave the line out otherwise)
 
 ## Synopsis
 

@@ -46,6 +46,10 @@ One verdict per Constraint that states a bound or a behaviour, or names a comman
 
 - **Bounds and behaviours:** FAIL a Constraint whose bound or behaviour no test bullet pins: a resource bound (ids, nodes, timers, threads, memory, files), a listener removed on cleanup, a `finally` that closes, a timeout.
 
+### Invariants
+
+One verdict. FAIL a brief whose issue or code parses, formats or transforms data (text into records, records into text, a sort, a time-zone or unit conversion) and has no `invariants` line, naming what it transforms; and an `invariants` line whose property some valid input breaks, naming that input. SKIP when it transforms no data, saying so.
+
 ### Driver-only commands
 
 FAIL a criterion, test bullet or Constraint that asks the Editor to run a command only the Driver runs: `brief.sh`, `lock.sh`, `state.sh`, `baseline.sh`, `start.sh` or `land.sh`. Say so on that criterion's, test's or Constraint's line. A check the brief leaves to the Driver is not one.
@@ -60,7 +64,8 @@ PASS|FAIL test <name>: <one line> — <evidence>
 PASS|FAIL existing tests: <what you searched for, and what reads it> — <evidence>
 PASS|FAIL seams: <each new file the tests import or need, and its seam line> — <evidence>
 PASS|FAIL constraint <n>: <one line> — <evidence>
+PASS|FAIL|SKIP invariants: <what the slice transforms, and each invariants line> — <evidence>
 VERDICT: PASS|FAIL
 ```
 
-One line per criterion and per test, one for the existing tests, one for the seams, and one per Constraint that states a bound or a behaviour, or names a command. `VERDICT: PASS` only when every line is PASS or SKIP.
+One line per criterion and per test, one for the existing tests, one for the seams, one for the invariants, and one per Constraint that states a bound or a behaviour, or names a command. `VERDICT: PASS` only when every line is PASS or SKIP.

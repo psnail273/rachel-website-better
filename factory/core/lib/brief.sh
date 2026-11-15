@@ -33,6 +33,14 @@
 #                         scope, <func> as the adapter's probe names it, <from>
 #                         its count at the base and <to> at HEAD (0 when the func
 #                         is gone), <to> below <from>. One line per func.
+#   invariants <path> <symbol> <property>
+#                         an invariant of a slice that parses, formats or
+#                         transforms data: the seam its property test drives
+#                         (the module's path and the exported symbol) and the
+#                         property in plain words, the rest of the line, which
+#                         is also the property test's title. One line per
+#                         property, each named once per seam; brief.sh
+#                         invariants lists them for the Verifier.
 #   lane small            the small-issue lane: one Editor round, whose stop hook
 #                         records the Lock and moves the chat to green itself
 #                         (hooks/editor-gate.sh). At most one line.
@@ -47,7 +55,7 @@
 # run state, and factory_brief_seal_check fails the Editor's gate and the
 # deviation step if the brief changes after that.
 
-FACTORY_BRIEF_KEYS="scope test seam removes grows asserts lane"
+FACTORY_BRIEF_KEYS="scope test seam removes grows asserts invariants lane"
 
 # The template's `Kind: <kind>. Phase: <phase>.` line.
 FACTORY_BRIEF_KINDS="build bug cleanup amend asset"
@@ -73,6 +81,7 @@ BRIEF_SEAMS=() BRIEF_SEAM_LINES=()
 BRIEF_REMOVES=() BRIEF_REMOVE_LINES=()
 BRIEF_GROWS=() BRIEF_GROW_LINES=()
 BRIEF_ASSERTS=() BRIEF_ASSERT_LINES=()
+BRIEF_INVARIANTS=() BRIEF_INVARIANT_LINES=()
 BRIEF_LANE="" BRIEF_LANE_LINE=0
 # Filled by factory_brief_lint: the Kind and Phase its Kind line names, or "".
 BRIEF_KIND="" BRIEF_PHASE=""
@@ -98,7 +107,7 @@ factory_brief_path() {
 # factory_brief_parse <brief>: fill the BRIEF_* arrays from the brief's block.
 # Prints a finding for each problem, against <brief>, and exits 1 if there were any.
 factory_brief_parse() {
-	local brief="$1" n=0 line key value rest open=0 opened_at=0 blocks=0 bad=0 func from to more
+	local brief="$1" n=0 line key value rest open=0 opened_at=0 blocks=0 bad=0 func from to more symbol words
 	local re_count='^(0|[1-9][0-9]{0,8})$' re_func='^[^[:space:]]+$'
 	BRIEF_SCOPE=() BRIEF_SCOPE_LINES=()
 	BRIEF_TESTS=() BRIEF_TEST_LINES=()
@@ -106,6 +115,7 @@ factory_brief_parse() {
 	BRIEF_REMOVES=() BRIEF_REMOVE_LINES=()
 	BRIEF_GROWS=() BRIEF_GROW_LINES=()
 	BRIEF_ASSERTS=() BRIEF_ASSERT_LINES=()
+	BRIEF_INVARIANTS=() BRIEF_INVARIANT_LINES=()
 	BRIEF_LANE="" BRIEF_LANE_LINE=0
 
 	if [ ! -f "$brief" ]; then
@@ -202,6 +212,21 @@ factory_brief_parse() {
 					BRIEF_ASSERTS+=("$value $func $from $to") BRIEF_ASSERT_LINES+=("$n")
 				fi
 				;;
+			invariants)
+				# The property is the rest of the line, inner spaces kept as written.
+				read -r symbol words <<< "$rest"
+				words="${words%"${words##*[![:space:]]}"}"
+				while [ "${value#./}" != "$value" ]; do value="${value#./}"; done
+				if [ -z "$value" ] || [ "${value#/}" != "$value" ] || [ -z "$symbol" ] || [ -z "$words" ]; then
+					factory_finding "$brief" "$n" brief-format "expected 'invariants <path> <symbol> <property>': a relative path, the exported symbol the property drives and the property in words, got: $line"
+					bad=1
+				elif factory_brief_has_invariant "$value" "$symbol" "$words"; then
+					factory_finding "$brief" "$n" brief-format "invariant '$words' of $value $symbol is named twice"
+					bad=1
+				else
+					BRIEF_INVARIANTS+=("$value $symbol $words") BRIEF_INVARIANT_LINES+=("$n")
+				fi
+				;;
 			lane)
 				if [ "$value" != small ] || [ -n "$rest" ]; then
 					factory_finding "$brief" "$n" brief-format "expected 'lane small', got: $line"
@@ -241,6 +266,16 @@ factory_brief_has_asserts() {
 	local a
 	for a in "${BRIEF_ASSERTS[@]}"; do
 		case "$a" in "$1 $2 "*) return 0 ;; esac
+	done
+	return 1
+}
+
+# factory_brief_has_invariant <path> <symbol> <property>: true when the parsed
+# brief already has that `invariants` line: the same property of the same seam.
+factory_brief_has_invariant() {
+	local i
+	for i in "${BRIEF_INVARIANTS[@]}"; do
+		[ "$i" = "$1 $2 $3" ] && return 0
 	done
 	return 1
 }

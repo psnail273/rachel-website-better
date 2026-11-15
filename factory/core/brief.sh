@@ -9,6 +9,8 @@
 #   bash factory/core/brief.sh seams [brief]   the seams, `<path> <symbol>` per line
 #   bash factory/core/brief.sh removes [brief] the Baseline entries it removes, one per line
 #   bash factory/core/brief.sh grows [brief]   the accepted ratchet growth, `<file> <entry>` per line
+#   bash factory/core/brief.sh invariants [brief]
+#                                              the invariants, `<path> <symbol> <property>` per line
 #
 # [brief] defaults to $FACTORY_BRIEF, else <git-dir>/factory/brief.md. The
 # listings print nothing but the findings when the block is malformed, and exit 1.
@@ -47,13 +49,13 @@ core="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$core/lib/protect.sh"
 
 usage() {
-	echo "usage: bash factory/core/brief.sh check|seal|scope|tests|seams|removes|grows [brief]" >&2
+	echo "usage: bash factory/core/brief.sh check|seal|scope|tests|seams|removes|grows|invariants [brief]" >&2
 	exit 2
 }
 
 [ "$#" -ge 1 ] && [ "$#" -le 2 ] || usage
 what="$1"
-case "$what" in check | seal | scope | tests | seams | removes | grows) ;; *) usage ;; esac
+case "$what" in check | seal | scope | tests | seams | removes | grows | invariants) ;; *) usage ;; esac
 if [ "$#" -eq 2 ]; then
 	brief="$2"
 else
@@ -151,5 +153,6 @@ case "$what" in
 	seams) [ "${#BRIEF_SEAMS[@]}" -eq 0 ] || printf '%s\n' "${BRIEF_SEAMS[@]}" ;;
 	removes) [ "${#BRIEF_REMOVES[@]}" -eq 0 ] || printf '%s\n' "${BRIEF_REMOVES[@]}" ;;
 	grows) [ "${#BRIEF_GROWS[@]}" -eq 0 ] || printf '%s\n' "${BRIEF_GROWS[@]}" ;;
+	invariants) [ "${#BRIEF_INVARIANTS[@]}" -eq 0 ] || printf '%s\n' "${BRIEF_INVARIANTS[@]}" ;;
 esac
 exit 0

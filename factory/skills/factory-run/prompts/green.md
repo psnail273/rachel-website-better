@@ -1,1 +1,1 @@
-Phase: green. Make the locked tests pass under every gate step. The tests the red commit touched are locked: editing them fails the gate.
+Phase: green. Make the locked tests pass under every gate step. The tests the red commit touched are locked: editing them fails the gate. Write one property test for each `invariants` line of the brief, as your write-tests skill says.

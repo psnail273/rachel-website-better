@@ -15,6 +15,7 @@ red, small lane: write the brief's tests by name, so every named test fails on a
 partial: remove the Baseline findings the brief names, and add none.
 green, test-only: write the brief's tests by name, for behaviour that is already built, so every named test passes under every gate step. Change only test files and nothing else: the gate fails any other file, even with a Deviation trailer. If a test can't pass without a product change, stop and name it.
 green, amend: make the change the brief describes, and where it changes a script, write the brief's tests by name for it, so the change and every named test pass under every gate step. An amend has no red phase and no Lock: your gate is the full verify. The gate's own files (`factory/`, `tools/verify/`, the hook config) refuse your writes: the project's checks the brief names are an amend builder's, written before your round, and `factory/` changes only by `/factory-amend`. If the brief needs a gate file that isn't so, stop and name it.
+Each `invariants` line of the brief gets one property test, as your write-tests skill says, once the code it drives is built: in the green phase, or in a partial or test-only round; never in red, where a stub may already hold it.
 Your stop hook runs the phase's gate, when you stop or hand back your report, and sends you its findings until it passes. Commit before you stop: it first blocks any change this round made to what the factory protects (`round-changed`), then any uncommitted file, the formatter's included, before the gate runs.
 
 ## Rules

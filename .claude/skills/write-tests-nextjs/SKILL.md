@@ -34,9 +34,27 @@ Every item holds for every test.
 - **Straight-line.** Arrange, act, assert, with no branches or loops that decide what gets asserted. Give every number a name or derive it from the input the test built. Every assertion runs on every run: none sits under an `if`, in a `try`/`catch`, or in a callback that may never be called (count it with `expect.assertions(n)` when you must).
   - **Many recorded calls.** Assert the count, then each call: `expect(send).toHaveBeenCalledTimes(2)`, `expect(send).toHaveBeenNthCalledWith(1, "ada@example.com")`.
   - **Every item of a collection.** Collect what is wrong in the loop and assert once after it, `expect(problems).toEqual([])`, with the item named in each entry; or use `it.each` with one case per item.
-- **Property tests match the invariants.** A generated-input test checks an invariant the brief states, over a fixed seed or a fixed table of inputs, never `Math.random()` unseeded.
+- **Property tests match the invariants.** A generated-input test checks an `invariants` line of the brief, as **Invariants** below says, never with `Math.random()`.
 - **Fewer checks is a Deviation.** The deviation step counts each test's assertion calls (`expect` and its members, an `assert` or `expect…` helper), named by its `describe` titles and its own joined by `.`, other characters `_` (`total.adds_the_prices`). A rewrite that leaves a test fewer than the base, or removes it, fails `assert-drop` unless the brief declares it (`asserts <file> <name> <from> <to>`).
 - **No special-casing.** In the green phase, product code treats test inputs like any others: no branch on a test's values, names, `NODE_ENV` or `process.env.VITEST`.
+
+## Invariants
+
+Outside the red phase, each `invariants` line of the brief gets one fast-check property beside its seam's tests, titled with the line's property words:
+
+```ts
+import fc from "fast-check";
+
+it("never throws on any string", () => {
+  fc.assert(fc.property(fc.string(), (text) => {
+    expect(() => parseIcs(text)).not.toThrow();
+  }), { numRuns: 200 });
+});
+```
+
+- **Through the seam** the line names. Shape the arbitraries (`fc.string()`, `fc.date()`, `fc.record(...)`) to reach past the first guard too: a VEVENT with a generated DTSTART, not only raw strings.
+- **No fixed seed.** Leave `seed` and `path` out, so each run draws new inputs. A failure prints its shrunk counterexample: add it as an example test, then fix the code.
+- **Fit the budget.** Set `numRuns` so the property takes well under a second, since mutate reruns it per mutant; never lower it to pass.
 
 ## Gate rules
 

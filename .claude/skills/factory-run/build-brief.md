@@ -26,6 +26,7 @@ The Core reads exactly one block, opened by an unindented line `` ```factory-bri
 | `removes <file> <rule> <message>` | Partial mode only: one Baseline entry the issue removes, copied whole from `tools/verify/ratchet/baseline.txt`. The Partial gate passes when the findings sit within the Baseline minus these. |
 | `grows <file> <entry>` | Never at first. Added only after you accept a ratchet growth as a Deviation: the ratchet file and the exact line it gains. One line per added entry. |
 | `asserts <file> <func> <from> <to>` | A drop in a test func's assertion calls that you accept: the test file (in scope), the func as `tools/verify/assert-counts` prints it (`<Class>.<func>` in an inner class), its count at the base and its count at HEAD, `0` once the func is gone. The deviation step counts every func of each test file the branch changes, and fails one whose count falls (`assert-drop`) unless a line names exactly the counts it measured; a line that no longer matches them fails too. A brief that rewrites or folds existing tests (a straight-line cleanup, a sentinel helper, two tests made one) lists each drop it expects; count the base with `git show <base>:<file> \| bash tools/verify/assert-counts <file>`. When the step reports a drop you accept, put an `asserts` line with the counts its finding names in the brief and seal again; a drop you reject is a fix round. |
+| `invariants <path> <symbol> <property>` | Required when the slice parses, formats or transforms data (its issue's `Invariants:` line): one property that holds for every input, in plain words, and the seam its test drives, the module's path and exported symbol. One line per property: `invariants src/server/events parseIcs never throws on any string`, `... events come out sorted by start`, `... formatting then parsing gives the events back`. The Editor writes one fast-check property per line once the code is built (the green phase, or a partial or test-only round), titled with the property's words: a stub often holds one already (`[]` never throws), so it is no `test` line. `brief.sh invariants` lists them for the Verifier. |
 | `lane small` | The issue runs in the small lane (SKILL.md), when its slice says `Lane: small`. Kind build or bug in Phase red, at most 4 `test` lines, no `seam`, and each `scope` line one file: at most 3 product files besides the tests and `docs/deviations.md`, none in the gate. |
 
 ## Template
@@ -82,6 +83,8 @@ removes src/stock/report long-line the line is too long
 # grows tools/verify/ratchet/allowlist.txt src/stock/new_exception
 # A rewrite of existing tests: one line per func whose assertion calls drop, e.g.
 # asserts tests/stock/report_test test_report_lists_due_orders 4 1
+# A slice that parses, formats or transforms data: one line per invariant, e.g.
+# invariants src/stock/reorder_rule ReorderRule.order_size never below the minimum order
 ```
 ````
 
