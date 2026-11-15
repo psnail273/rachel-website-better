@@ -26,9 +26,20 @@ site_project() {
 	export STAND_IN_SITE="$TEST_TMP/site" STAND_IN_PID="$TEST_TMP/server.pid"
 }
 
-# page <html>: the site's `/`.
+# page <html> [route]: the site's page at <route> (default `/`), a page axe
+# finds nothing on but what <html> brings.
 page() {
-	printf '<!doctype html><html><head><title>t</title></head><body><p>hi</p>%s</body></html>\n' "$1" > "$TEST_TMP/site/index.html"
+	mkdir -p "$TEST_TMP/site${2:-/}"
+	printf '<!doctype html><html lang="en"><head><title>t</title></head><body><p>hi</p>%s</body></html>\n' "$1" > "$TEST_TMP/site${2:-/}/index.html"
+}
+
+# routes <line...>: ARCHITECTURE.md's Routes table holds these lines alone.
+routes() {
+	{
+		printf '# Architecture\n\n## Routes\n\n```\n'
+		printf '%s\n' "$@"
+		printf '```\n\n## Modules\n'
+	} > ARCHITECTURE.md
 }
 
 # blocking_project [prefix]: skeleton_project (nothing installed) with a next
@@ -119,6 +130,128 @@ test_a_redirect_passes_and_its_target_is_judged_with_node() {
 	smoke_and_server_gone "a 3xx with no Location"
 	assert_status 1
 	assert_line "package.json:1 smoke-response /: /api/moved answered 307"
+}
+
+# Every page route in the table is loaded, in both schemes; the method line, the
+# route handler and the dynamic route aren't (the last with a note).
+test_every_page_route_in_the_table_is_loaded_with_node() {
+	needs_browser
+	site_project
+	routes '/  app/page.tsx  Home' '/about  app/about/page.tsx  About' \
+		'POST /api/x  app/api/x/route.ts  no page' '/api/health  app/api/health/route.ts  handler' \
+		'/blog/[slug]  app/blog/[slug]/page.tsx  dynamic'
+	page ''
+	page '<script>console.error("boom")</script>' /about
+	smoke_and_server_gone "two routes"
+	assert_status 1
+	assert_eq "package.json:1 smoke-console /about: console error: boom" "$out" "the second route's finding"
+	stderr_has "routes: left out /blog/[slug]: a dynamic segment can't be loaded without a value"
+}
+
+# axe runs on each route in each scheme: a fault in both is a finding for each,
+# one that shows in the dark scheme alone a finding for that one.
+test_an_accessibility_fault_is_a_finding_in_its_scheme_with_node() {
+	needs_browser
+	site_project
+	page '<input type="text">'
+	smoke_and_server_gone "an unlabelled input"
+	assert_status 1
+	assert_eq "package.json:1 smoke-a11y / dark label input: Form elements must have labels
+package.json:1 smoke-a11y / light label input: Form elements must have labels" "$out" "an unlabelled input"
+
+	page '<style>@media (prefers-color-scheme: dark) { p { color: #777; background: #888 } }</style>'
+	smoke_and_server_gone "a contrast fault in the dark"
+	assert_status 1
+	assert_eq "package.json:1 smoke-a11y / dark color-contrast p: Elements must meet minimum color contrast ratio thresholds" "$out" "a fault in the dark scheme alone"
+
+	# A list's items are one finding, however many the page's data makes: the
+	# selector names no position.
+	local item='<li class="card"><input class="field" type="text" style="height:32px;margin:8px"></li>'
+	page "<ul>$item$item$item</ul>"
+	smoke_and_server_gone "three faulty items"
+	assert_status 1
+	assert_eq "package.json:1 smoke-a11y / dark label li.card > input.field: Form elements must have labels
+package.json:1 smoke-a11y / light label li.card > input.field: Form elements must have labels" "$out" "three faulty items"
+	page "<ul>$item</ul>"
+	smoke_and_server_gone "one faulty item"
+	assert_status 1
+	assert_eq "package.json:1 smoke-a11y / dark label li.card > input.field: Form elements must have labels
+package.json:1 smoke-a11y / light label li.card > input.field: Form elements must have labels" "$out" "one faulty item"
+}
+
+# Each same-origin link is requested once, without its hash: one that answers
+# 4xx or 5xx is a finding, naming the route it was first found on; a redirect to
+# a page passes; a route already loaded, an off-site link and a mailto: aren't
+# requested. (Each link is 24px square, or axe's target-size rule finds it.)
+test_a_link_to_a_missing_page_is_a_finding_with_node() {
+	needs_browser
+	site_project
+	routes '/  app/page.tsx  Home' '/about  app/about/page.tsx  About'
+	local big='<style>a { display: inline-block; min-width: 24px; min-height: 24px }</style>'
+	page "$big"'<a href="/missing">a</a> <a href="/missing#top">b</a> <a href="/here#top">c</a> <a href="/moved">d</a> <a href="/about">e</a> <a href="#top">f</a> <a href="http://example.invalid/x">g</a> <a href="mailto:a@example.invalid">h</a>'
+	page "$big"'<a href="/broken">i</a> <a href="/missing">j</a>' /about
+	page '' /here
+	echo moved > "$TEST_TMP/site/moved"
+	echo 308 > "$TEST_TMP/site/moved.status"
+	echo /here > "$TEST_TMP/site/moved.location"
+	echo broken > "$TEST_TMP/site/broken"
+	echo 500 > "$TEST_TMP/site/broken.status"
+	smoke_and_server_gone "dead links"
+	assert_status 1
+	assert_eq "package.json:1 smoke-link / /missing 404
+package.json:1 smoke-link /about /broken 500" "$out" "the dead links"
+}
+
+# No page route to load is a finding, before any build.
+test_no_page_route_is_a_finding_before_the_build_with_node() {
+	lock_project
+	routes 'POST /api/x  app/api/x/route.ts  no page'
+	step smoke
+	assert_status 1
+	assert_eq "ARCHITECTURE.md:3 smoke-routes the \`## Routes\` table lists no page route: a line whose first field is its path, \`/\` and on" "$out" "smoke's finding"
+	[ ! -e "$TEST_TMP/builds" ] || fail "a build ran with no route to load"
+	rm ARCHITECTURE.md
+	step smoke
+	assert_status 1
+	assert_eq "ARCHITECTURE.md:1 smoke-routes can't read ARCHITECTURE.md (ENOENT), whose \`## Routes\` table lists the page routes" "$out" "smoke's finding with no ARCHITECTURE.md"
+}
+
+# routes_of <file>: run the route reader on <file>, with run_cmd.
+routes_of() {
+	run_cmd "${NODE_BIN:-node}" "$NEXTJS_ADAPTER/tools/verify/_routes.mjs" "$1" smoke-routes
+}
+
+# The reader keeps a page line of the Routes table's fenced block (its path
+# first), once, in order; drops a method line, a route handler, a dynamic route
+# (with a note) and anything outside the block.
+test_the_route_reader_keeps_the_page_lines_with_node() {
+	needs_node
+	routes_of "$NEXTJS_FIXTURES/smoke/routes.md.txt"
+	assert_status 0
+	assert_eq "/
+/about
+/contact" "$out" "the page routes"
+	assert_eq "routes: left out /blog/[slug]: a dynamic segment can't be loaded without a value" "$(cat "$TEST_TMP/stderr")" "the note"
+}
+
+# No table, no fenced block under it, no page line or only dynamic ones: a
+# finding at the heading's line, or the first.
+test_the_route_reader_finds_no_table_with_node() {
+	needs_node
+	printf '# Architecture\n\n## Modules\n' > "$TEST_TMP/none.md"
+	routes_of "$TEST_TMP/none.md"
+	assert_status 1
+	assert_eq "$TEST_TMP/none.md:1 smoke-routes no \`## Routes\` section: list the app's page routes there, in a fenced block, one \`<path> <file> <what>\` a line" "$out" "no section"
+
+	printf '# Architecture\n\n## Routes\n\n/ app/page.tsx\n\n## Modules\n\n```\n/ app/page.tsx\n```\n' > "$TEST_TMP/bare.md"
+	routes_of "$TEST_TMP/bare.md"
+	assert_status 1
+	assert_eq "$TEST_TMP/bare.md:3 smoke-routes the \`## Routes\` section has no fenced block: list the app's page routes in one, one \`<path> <file> <what>\` a line" "$out" "no fenced block"
+
+	printf '## Routes\n\n```\n/blog/[slug]  app/blog/[slug]/page.tsx\n```\n' > "$TEST_TMP/dynamic.md"
+	routes_of "$TEST_TMP/dynamic.md"
+	assert_status 1
+	assert_eq "$TEST_TMP/dynamic.md:1 smoke-routes the \`## Routes\` table lists no page route without a dynamic segment (/blog/[slug]), so none can be loaded" "$out" "only a dynamic route"
 }
 
 test_a_missing_browser_is_a_finding_and_the_server_stops_with_node() {

@@ -9,7 +9,8 @@ pnpm 12.18.0
 # The project's own tools: the versions pnpm-lock.yaml installs. package.json
 # names each one exactly; bootstrap and prepare install them --frozen-lockfile.
 # Playwright's version also pins the Chromium build bootstrap installs for smoke;
-# dependency-cruiser is the arch step's.
+# dependency-cruiser is the arch step's; axe is @axe-core/playwright, smoke's
+# accessibility check.
 next 16.4.6
 typescript 6.0.3
 eslint 10.14.0
@@ -18,3 +19,4 @@ vitest 5.1.0
 stryker 10.1.1
 playwright 1.65.0
 dependency-cruiser 18.7.2
+axe 4.14.0

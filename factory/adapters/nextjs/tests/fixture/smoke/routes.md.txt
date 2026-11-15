@@ -1,0 +1,30 @@
+# Architecture
+
+Routes are listed below; `/before` here is prose, not the table.
+
+```
+/before   app/before/page.tsx   not under the Routes heading
+```
+
+## Routes
+
+The table:
+
+```
+/                       app/page.tsx                    Home
+/about                  app/about/page.tsx              About
+POST /api/revalidate    app/api/revalidate/route.ts     a method first: no page
+/api/health             app/api/health/route.ts         route handler (GET)
+/feed.xml               app/feed.xml/route.js           route handler, in JS
+/blog/[slug]            app/blog/[slug]/page.tsx        dynamic
+/about                  app/about/page.tsx              listed twice
+/contact
+```
+
+/after-the-fence  prose after the table
+
+## Modules
+
+```
+/modules  not a route
+```

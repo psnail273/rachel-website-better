@@ -1,12 +1,13 @@
 #!/usr/bin/env node
 // A stand-in for next, for the smoke step's tests: `next build` exits 0, and
 // `next start --hostname <host> --port <port>` serves the files of the folder
-// STAND_IN_SITE names (`/` is index.html; a file <f>.status beside one holds
+// STAND_IN_SITE names (a folder's path is its index.html, so `/` is the site's
+// index.html and `/about` about/index.html; a file <f>.status beside one holds
 // its status, else 200, and <f>.location its Location header; with a file
 // <f>.hang beside it, a request for it writes <f>.hit and never gets an answer;
 // a file that isn't there answers 404), then prints the
 // URL as next start does. It writes its pid to the file STAND_IN_PID names.
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";
 
@@ -19,7 +20,9 @@ if (process.env.STAND_IN_PID)
   writeFileSync(process.env.STAND_IN_PID, String(process.pid));
 const server = createServer((request, response) => {
   const path = new URL(request.url, "http://stand-in").pathname;
-  const file = join(site, path === "/" ? "index.html" : path);
+  const at = join(site, path);
+  const file =
+    existsSync(at) && statSync(at).isDirectory() ? join(at, "index.html") : at;
   if (!existsSync(file)) {
     response.writeHead(404);
     response.end("not here");

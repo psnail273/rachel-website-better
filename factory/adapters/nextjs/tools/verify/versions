@@ -3,8 +3,8 @@
 # finds, nothing for one it doesn't. Node and pnpm are what runs here (local.env
 # may name them); the others are the versions pnpm-lock.yaml locks for the
 # project, as `<tool>` for the package: next, typescript, eslint, prettier,
-# vitest, stryker (@stryker-mutator/core), playwright (@playwright/test) and
-# dependency-cruiser.
+# vitest, stryker (@stryker-mutator/core), playwright (@playwright/test),
+# dependency-cruiser and axe (@axe-core/playwright).
 . "$(dirname "${BASH_SOURCE[0]}")/_nextjs.sh"
 
 if node_ready > /dev/null; then
@@ -21,7 +21,7 @@ if [ -f pnpm-lock.yaml ]; then
 			tool["next"] = "next"; tool["typescript"] = "typescript"; tool["eslint"] = "eslint"
 			tool["prettier"] = "prettier"; tool["vitest"] = "vitest"
 			tool["@stryker-mutator/core"] = "stryker"; tool["@playwright/test"] = "playwright"
-			tool["dependency-cruiser"] = "dependency-cruiser"
+			tool["dependency-cruiser"] = "dependency-cruiser"; tool["@axe-core/playwright"] = "axe"
 		}
 		/^importers:$/ { imp = 1; root = 0; sect = 0; next }
 		/^[^ ]/ { imp = 0; next }
