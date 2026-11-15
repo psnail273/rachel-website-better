@@ -79,6 +79,10 @@ test_the_sonnet_editor_gets_the_adapter_and_project_names() {
 	for agent in verifier amend-builder; do
 		cmp -s "factory/agents/$agent.md" ".claude/agents/$agent.md" || fail "the $agent agent wasn't installed as it is"
 	done
+	grep -qx '^name: designer$' .claude/agents/designer.md || fail "the designer wasn't installed"
+	grep -qF 'designer** of my-game' .claude/agents/designer.md || fail "the designer's <project> wasn't filled in"
+	cmp -s factory/third-party/frontend-design/SKILL.md .claude/skills/frontend-design/SKILL.md ||
+		fail "the frontend-design skill the designer and Verifier preload wasn't installed"
 }
 
 test_factory_project_names_the_project() {

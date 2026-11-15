@@ -66,6 +66,14 @@ _Avoid_: PRD, plan, epic
 A group of a **Spec**'s slices that ends in one **Playtest**; a **Feature** of cleanup issues only, such as an Adoption cleanup, may have none. A **Run** works the first open **Feature**, and the next one while the first's **Playtest** waits on the human; the human sets their order.
 _Avoid_: Milestone, epic, slice
 
+**Design direction**:
+One of two or three clearly different looks (tokens, type, and the layout of Home, one inner page, the header and the footer) that the designer subagent builds as a live prototype in the real app, behind a dev-only switcher, before a **Spec** whose look or feel is a **Human's call** is sliced. Each is checked against `frontend-design`'s list of generic AI-design tells, and at least one breaks from the current `docs/design.md`. The human picks one or mixes them, the designer iterates on the winner until the human approves, and the prototypes are thrown away.
+_Avoid_: Mood board, mock-up, theme
+
+**Board**:
+The approved **Design direction**'s screenshots, committed in `docs/design/board/` beside the `docs/design.md` written from it: Home and the inner page at 390 and 1280 px, light and dark, named `<route-slug>-<width>-<scheme>.png`. Slices are written to match it: the picture of the goal, where adjectives fall short.
+_Avoid_: Mock-up, design comp, reference images
+
 ### Roles
 
 **Driver**:
@@ -85,7 +93,7 @@ The **Driver** or a fallback agent writing an issue's code because the human sai
 _Avoid_: Break, override, solo mode
 
 **Models and effort**:
-Every agent runs on an Anthropic model, named by its pinned id: the main session, the **Driver**, the **Verifier** and the amend builder on `claude-opus-5-5`, the **Editor**, the asset fetcher and the **Spec**'s research subagents on `claude-sonnet-5-5`, mechanical lookups on `claude-haiku-5-5`. The main session runs at effort medium (the project's `.claude/settings.json`, which `hooks.sh generate` writes with `maxEffortLevel` xhigh as a backstop to this rule), and every agent's definition says medium. Whoever dispatches an agent may raise its effort: high for a big change (a slice or an amend touching many files or a **Core** script, or a rebuild after a red land), xhigh after the same tests failed in two rounds in a row, or an amend builder's rework came back twice; never max. The main session decides it for what it dispatches, and an issue's **Driver** for its **Editor** rounds and **Verifier** checks, in its `needs` report; each prompt names it on its first line, `factory-effort: <level>`. Fable (`claude-fable-5-2`) runs only when the human approved it for that one subagent.
+Every agent runs on an Anthropic model, named by its pinned id: the main session, the **Driver**, the **Verifier** and the amend builder on `claude-opus-5-5`, the **Editor**, the asset fetcher and the **Spec**'s research subagents on `claude-sonnet-5-5`, mechanical lookups on `claude-haiku-5-5`, and the designer, for factory-spec's **Design direction** step alone, on Fable, `claude-fable-5-2`, which the human approved on #42. The main session runs at effort medium (the project's `.claude/settings.json`, which `hooks.sh generate` writes with `maxEffortLevel` xhigh as a backstop to this rule), and every agent's definition says medium. Whoever dispatches an agent may raise its effort: high for a big change (a slice or an amend touching many files or a **Core** script, or a rebuild after a red land), xhigh after the same tests failed in two rounds in a row, or an amend builder's rework came back twice; never max. The main session decides it for what it dispatches, and an issue's **Driver** for its **Editor** rounds and **Verifier** checks, in its `needs` report; each prompt names it on its first line, `factory-effort: <level>`. Every other use of Fable (`claude-fable-5-2`) still needs the human's yes for that one subagent.
 _Avoid_: Roles list, editor/verifier choice
 
 ### Running

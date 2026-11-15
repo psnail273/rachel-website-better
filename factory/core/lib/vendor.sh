@@ -97,9 +97,11 @@ factory_vendor_edits() {
 # the project root.
 #   replace  a file adopt.sh always writes (the runner's entry point)
 #   seed     a file adopt.sh writes unless the project has one
-#   tree     a folder whose files adopt.sh seeds one by one
+#   tree     a folder whose files adopt.sh seeds one by one (the factory's
+#            skills, and a third-party skill from third-party/, as it came)
 #   agent    a Claude Code subagent (the Sonnet Editor, the asset
-#            fetcher, the per-issue Driver, the Verifier, the amend builder):
+#            fetcher, the per-issue Driver, the Verifier, the amend builder,
+#            the designer):
 #            its template filled in (factory_agent_render)
 #   skill    the verify-<project> skill folder, written by the adapter's generator
 #            (<source>) through factory/core/verify-skill.sh
@@ -109,11 +111,13 @@ factory_installed_copies() {
 		"seed core/templates/verify.ps1 tools/verify.ps1" \
 		"tree skills .claude/skills" \
 		"tree adapters/$1/skills .claude/skills" \
+		"tree third-party/frontend-design .claude/skills/frontend-design" \
 		"agent agents/editor-sonnet.md .claude/agents/editor-sonnet.md" \
 		"agent agents/asset-fetcher.md .claude/agents/asset-fetcher.md" \
 		"agent agents/driver.md .claude/agents/driver.md" \
 		"agent agents/verifier.md .claude/agents/verifier.md" \
 		"agent agents/amend-builder.md .claude/agents/amend-builder.md" \
+		"agent agents/designer.md .claude/agents/designer.md" \
 		"skill adapters/$1/verify-skill.sh .claude/skills/verify-$2"
 }
 
@@ -211,10 +215,12 @@ factory_repo_tree() {
 # and amend.sh record refreshes there, one `<source> <copy>` line each: a folder
 # or a file under factory/, and the folder at the repo's top that holds a copy of
 # each of its files, or the file's copy. The agents are copied as they are: they
-# hold no <stack> or <project> to fill in.
+# hold no <stack> or <project> to fill in. The Verifier preloads frontend-design,
+# so its skill comes too.
 factory_repo_copies() {
 	printf '%s\n' \
 		"skills/factory-amend .claude/skills/factory-amend" \
+		"third-party/frontend-design .claude/skills/frontend-design" \
 		"agents/amend-builder.md .claude/agents/amend-builder.md" \
 		"agents/verifier.md .claude/agents/verifier.md"
 }

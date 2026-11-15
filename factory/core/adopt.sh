@@ -26,8 +26,9 @@
 #   - installs the copies lib/vendor.sh lists (factory_installed_copies), which
 #     sync.sh later refreshes: tools/verify.sh becomes the runner's entry point
 #     (replacing an older script there), tools/verify.ps1 is seeded, the factory's
-#     skills (factory/skills/ and the adapter's skills/) go into .claude/skills/,
-#     the factory's subagents (the Sonnet Editor, the asset fetcher)
+#     skills (factory/skills/, the adapter's skills/ and the third-party
+#     frontend-design) go into .claude/skills/, the factory's subagents (the
+#     Sonnet Editor, the asset fetcher, the designer and the rest)
 #     into .claude/agents/ with their <stack> and <project> filled in, and the
 #     verify-<project> skill is generated
 #     (verify-skill.sh) when the adapter has a generator. Files already there are

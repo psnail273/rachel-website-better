@@ -21,9 +21,13 @@ Sort every open decision:
 
 Run as many rounds as the answers raise, all in this session. Done when no Human's call is open, including any slicing turns up.
 
-## 3. Draft the Spec
+## 3. Design direction
 
-Create one issue labelled `spec` (the draft stays unapproved until step 4). Its body is an index: it links decisions, tickets and ADRs instead of restating them, and has no user-stories list. Sections, in order:
+When a look-and-feel decision is a Human's call, settle it by sight before you slice, as [`design-direction.md`](design-direction.md) says: the `designer` subagent builds two or three **Design directions** live in the app on a throwaway branch, the human picks or mixes one, and the winner becomes `docs/design.md` and the **Board**, which the slices are written to match. Skip it otherwise, and say why under Decided for you.
+
+## 4. Draft the Spec
+
+Create one issue labelled `spec` (the draft stays unapproved until step 5). Its body is an index: it links decisions, tickets and ADRs instead of restating them, and has no user-stories list. Sections, in order:
 
 - **Synopsis**: two to four plain sentences: what the Spec changes for the player or the developer, why it matters, and what done looks like.
 - **Problem**, **Solution**: from the human's side.
@@ -46,7 +50,7 @@ A **Feature** is a group of slices that ends in one Playtest; a Feature of clean
 
 Show the human the draft and revise the issue for each round of feedback. Done when every section is filled, every slice passes `slicing.md`, and the human has read the whole draft.
 
-## 4. Approve and publish
+## 5. Approve and publish
 
 Publish only on the human's explicit approval in this session. Then, in order:
 
@@ -60,7 +64,7 @@ Done when every slice exists with its label, milestone and dependencies, and the
 
 ## Changing an approved Spec
 
-Given an existing Spec number, read it, its milestones and its open slices first. A change to a Feature's behaviours, the Feature order or the scope, or an amend (an architecture change found later, at a Playtest say), removes `approved` before you edit, then runs steps 2 to 4 again for what changed; publish only new or changed slices and leave closed ones alone. These don't count as a change and keep `approved`:
+Given an existing Spec number, read it, its milestones and its open slices first. A change to a Feature's behaviours, the Feature order or the scope, or an amend (an architecture change found later, at a Playtest say), removes `approved` before you edit, then runs steps 2 to 5 again for what changed; publish only new or changed slices and leave closed ones alone. These don't count as a change and keep `approved`:
 
 - Drift sweep cleanup issues;
 - a **Tweak** from a Playtest, logged under Human's calls in the human's words.

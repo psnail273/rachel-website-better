@@ -124,6 +124,34 @@ test_record_removes_the_copies_of_what_the_factory_dropped() {
 	assert_clean_check
 }
 
+# The third-party frontend-design skill is installed as it came, beside the
+# factory's own skills, and the designer subagent with the rest; record puts
+# back a copy that went missing or was edited.
+test_record_installs_the_vendored_frontend_design_and_the_designer() {
+	adopted
+	local f
+	for f in SKILL.md LICENSE.txt; do
+		cmp -s "factory/third-party/frontend-design/$f" ".claude/skills/frontend-design/$f" || fail "the adoption didn't install frontend-design/$f as it came"
+	done
+	[ ! -e .claude/skills/frontend-design/README.md ] && [ ! -e .claude/skills/third-party ] || fail "the provenance note was installed as a skill"
+	grep -qx 'model: claude-fable-5-2' .claude/agents/designer.md || fail "the designer wasn't installed on Fable"
+	! grep -q '<project>' .claude/agents/designer.md || fail "the designer's <project> wasn't filled in"
+	if grep -qF frontend-design .claude/agents/editor-sonnet.md; then fail "the installed Editor names frontend-design"; fi
+	rm -r .claude/skills/frontend-design
+	echo "the project's edit" >> .claude/agents/designer.md
+	amend check
+	assert_status 1
+	assert_line ".claude/skills/frontend-design/SKILL.md:1 factory-copy missing; factory/ installs it; $AGAIN"
+	assert_line ".claude/agents/designer.md:1 factory-copy differs from what factory/ installs; $AGAIN"
+	amend record
+	assert_status 0
+	assert_eq "installed .claude/skills/frontend-design/LICENSE.txt
+installed .claude/skills/frontend-design/SKILL.md
+refreshed .claude/agents/designer.md" "$(printf '%s\n' "$out" | LC_ALL=C sort)" "what record printed"
+	cmp -s factory/third-party/frontend-design/SKILL.md .claude/skills/frontend-design/SKILL.md || fail "record didn't install the skill as it came"
+	assert_clean_check
+}
+
 # record writes factory/'s files into git, so a record taken over an uncommitted
 # amend can be read back: here the agent list an earlier record saw.
 test_record_reads_back_an_uncommitted_record() {
@@ -1015,7 +1043,8 @@ SH
 	git init -q -b main . || fail "git init failed"
 	amend record
 	assert_status 0
-	assert_eq "installed .claude/skills/factory-amend/SKILL.md" "$(printf '%s\n' "$out" | grep SKILL.md)" "record's copy"
+	assert_eq "installed .claude/skills/factory-amend/SKILL.md
+installed .claude/skills/frontend-design/SKILL.md" "$(printf '%s\n' "$out" | grep SKILL.md | LC_ALL=C sort)" "record's copies"
 	git add -A && git commit -q -m "factory 0.1.0" && git tag -a v0.1.0 -m "factory 0.1.0" || fail "could not commit the workspace"
 	git init -q --bare -b main "$ORIGIN" && git remote add origin "$ORIGIN" &&
 		git push -q origin main v0.1.0 2> /dev/null && git fetch -q origin || fail "could not push the workspace"
@@ -1072,6 +1101,10 @@ test_repo_record_installs_the_agents_and_the_main_model() {
 	factory_workspace
 	cmp -s factory/agents/amend-builder.md .claude/agents/amend-builder.md &&
 		cmp -s factory/agents/verifier.md .claude/agents/verifier.md || fail "the agents weren't copied as they are"
+	# The Verifier preloads frontend-design, so the workspace takes it too.
+	cmp -s factory/third-party/frontend-design/SKILL.md .claude/skills/frontend-design/SKILL.md &&
+		cmp -s factory/third-party/frontend-design/LICENSE.txt .claude/skills/frontend-design/LICENSE.txt || fail "the Verifier's skill wasn't copied as it is"
+	[ ! -e .claude/agents/designer.md ] || fail "the workspace took the designer"
 	grep -qxF '  "model": "claude-opus-5-5",' .claude/settings.json &&
 		grep -qxF '  "effortLevel": "medium",' .claude/settings.json &&
 		grep -qxF '  "maxEffortLevel": "xhigh"' .claude/settings.json || fail "the settings lack the main model, effort and cap: $(cat .claude/settings.json)"

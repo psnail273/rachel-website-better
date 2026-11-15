@@ -4,8 +4,8 @@ tag v0.5.0
 upstream git@git.stuffworks.net:psnail273/factory.git
 file e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 factory/.gdignore
 file 9a50e370f33449d84f1c91fad092990f0fe6b3d9 factory/.shellcheckrc
-file b2f3a96a51f4ff713894260c1bd414a3d96a665f factory/CONTEXT.md
-file 9e1108847012cf08f39b2d9d6f4d14a90998edc8 factory/README.md
+file 6a119d7b80146de1d60aa4fed0311dbdb352505e factory/CONTEXT.md
+file b848dabfc9bbaae57462301e2f16378e9f2b739e factory/README.md
 file 8f0916f768f0487bcf8d33827ce2c8dcecb645c1 factory/VERSION
 file 5b71dbc61fcfb1d5513263ab5efc6ea6700bd781 factory/adapters/godot/ARCHITECTURE.md
 file d94afe65e8f8eebc9e32fc98fc1f4f222ce418dd factory/adapters/godot/adopt.sh
@@ -225,12 +225,13 @@ file a85e94dc7bf8f422f24d09ea49701cd8dfbec438 factory/agents/amend-builder.md
 file 87fcdf5af253f1622a5c8a03adc002276a2b7b65 factory/agents/asset-fetcher.md
 file c7edee82ecf0e81e33989e56bc8a74f2c510e479 factory/agents/check-editor-sonnet.log
 file 8890233f8acf2f28511fb4f0497d920083c5c208 factory/agents/check-editor-sonnet.sh
+file 80250b2b1bd6367b2645ee1a2b66d6890e51939e factory/agents/designer.md
 file a8758c935a4bfa77b49396af04442bdb91f44b87 factory/agents/driver.md
 file c8d2277a7db5a61c3b1972d7a35d1c7e0ce989f0 factory/agents/editor-sonnet.md
-file ea97bd3a95936e39549574386d27764461bd7aa0 factory/agents/verifier.md
-file b95d970e5e9102d0f135ca13dcc6127388687f99 factory/core/adopt.sh
+file a8feeff572846e38aa9555c3596bd66e24ef972f factory/agents/verifier.md
+file 802083108998b7ab2cb52d5686967a4235200fc4 factory/core/adopt.sh
 file b7312b0ce1569aad79fc45effee15d143e0477b7 factory/core/agents.sh
-file ed27ea4785b7815aa71022a8b246eb70affc2ec3 factory/core/amend.sh
+file 4b57661c3b951675ca01fb3be24cee75efbf9e18 factory/core/amend.sh
 file 2fe54c3088f55bf544c73eadf1b48bba697ac7be factory/core/arm.sh
 file 28ba6a10933b580d81a4bc2c6724fa5829ff14a2 factory/core/baseline.sh
 file 54ebd9a666486c6d2eed190c1c4ae9139bd89fc3 factory/core/brief.sh
@@ -268,7 +269,7 @@ file a78752f22408b12604c57cf56995e88fbc3faba3 factory/core/lib/run.sh
 file 5bc118f0001a8575014d9d4f8965bfd547cc8fc0 factory/core/lib/scenarios.sh
 file d897d3d2e3649da0d5df8a7b05f5cd6b054a5304 factory/core/lib/stamp.sh
 file 49161412db4bd9100f621ef37aaa738de5a9c016 factory/core/lib/steps.sh
-file 5287f6d74b781dd9135b46e8a5bb2d6ee31a0af8 factory/core/lib/vendor.sh
+file d68029928639480ae2c38dfd0f0bad2bc54aface factory/core/lib/vendor.sh
 file 078bcdaa69c06b0cda9f2c6ed738330b24102e5b factory/core/lock.sh
 file eee594b1da6c44037070d527b56f6dafcd1f16b8 factory/core/pins.sh
 file 226642a252cf2f2338478953e213555e637e9feb factory/core/prompt.sh
@@ -278,7 +279,7 @@ file f1014d7a16b5f0ed1b19307239c4eb0ba130d832 factory/core/rubric.sh
 file 3626ab6689b2178032483d694a04d33d156bfed1 factory/core/scenarios.sh
 file 752cafa2d153cbb4733829c31853516f427200f7 factory/core/shell-lint.sh
 file 87c570e7953a8cdc905e97bef739df274ecb90a7 factory/core/skill-budget.sh
-file 3ae46c1ab607dd5767c6335310315b2a4fef59be factory/core/skill-words
+file c5e085df9eb90f677810acebd2756e3f317779ec factory/core/skill-words
 file e0b85cd0b923edc988caa5fabe5d4f15deb8c245 factory/core/start.sh
 file 8ba79d0fd9b1b6ff25e63c932239a24e65ce3dae factory/core/state.sh
 file 63a195dc4706ac1560144448b3aae92b874b46f9 factory/core/stress.sh
@@ -290,9 +291,9 @@ file db751ed65d962c1d72d5e3ca4a701d3a25e9037c factory/core/templates/gitattribut
 file d195377215793c65d19236f8e261a4edd90c99f3 factory/core/templates/verify.ps1
 file f2706b656ab1c04131d2a8c1313f321127c22e6f factory/core/templates/verify.sh
 file e7125f4953ffa61cce6ca0edc4b6ede54ba89ee9 factory/core/test.sh
-file f57d14d1cc6c72909ee2f37aa2b638d4ad00f610 factory/core/tests/adopt_test.sh
-file b9033f87edfc6c38ee14313059a071717aaad1fd factory/core/tests/agents_test.sh
-file f70def55cd93c0112aceb1ee17bde0a1be0ab592 factory/core/tests/amend_test.sh
+file 1a1f6d7eac6da2df66a3d47de7f3db63b47c8709 factory/core/tests/adopt_test.sh
+file dcf85bdeb0f7a5d5e1d94c9934b21e67722a7434 factory/core/tests/agents_test.sh
+file 8d62a89378e7ab1f9c29c9fbd9c0af7b38f39f14 factory/core/tests/amend_test.sh
 file 0217883c6ec27089797ba7d2cf7650cdd38a5b13 factory/core/tests/architecture_test.sh
 file 1c3f96c252653cbcaef9c3175ea6763b2ba66e2b factory/core/tests/arm_test.sh
 file fba23038eedbe6fe726e40f3707ea008478f2d17 factory/core/tests/baseline_test.sh
@@ -362,7 +363,7 @@ file b50005b31e74ee2517bb5363b7e5f0372b460061 factory/core/verify.sh
 file 447b8d6ae549a8a25c55e3c8cc7006852fc0e098 factory/skills/factory-adopt/SKILL.md
 file 3c47fdbdb4dead05de89e48b6d8a000ab6e40802 factory/skills/factory-adopt/cleanup.md
 file 00c3644255f90b5659320a67e35c67c258a1564d factory/skills/factory-adopt/tracker.md
-file b4de883d29334bdd946e3cde40cfc7d2d62d3397 factory/skills/factory-amend/SKILL.md
+file fefee4f228fdc6f9d632a6c55956cdb76c3d74fd factory/skills/factory-amend/SKILL.md
 file 2501c9cf5c65ef610621654c03ef16e8ee7105fa factory/skills/factory-amend/brief.md
 file 60f26f2a944f2bb212a23116cb02b4859ee46f5c factory/skills/factory-run/SKILL.md
 file 2e8f6b9a36ea002588b1dc389d69866bc8cb11d6 factory/skills/factory-run/amend-slices.md
@@ -382,8 +383,12 @@ file d294e54050f5dd26862dcbf50948fbfeb4873e6c factory/skills/factory-run/prompts
 file 6941943d6e95d126338ba0a880efd21e9221188f factory/skills/factory-run/retro.md
 file be4bb60a833ff0aa798de9279923d0670f26cf71 factory/skills/factory-run/scenarios.md
 file 7efdeb8ed1cb181d7facb77c3f34768a686a4d98 factory/skills/factory-run/verify-rubric.md
-file 55e06488bf5c4e5acece4b6b1a978ccf129a2809 factory/skills/factory-spec/SKILL.md
+file 572df019aa4aea8d46747dbcd9d3214b75014276 factory/skills/factory-spec/SKILL.md
+file 35cb10ee8c9279cde71718032765fc8fef499e3c factory/skills/factory-spec/design-direction.md
 file 9ae39a66cfe2801c3de085ea1c61b184fa923b60 factory/skills/factory-spec/slicing.md
 file d067b36f4dc1fa24233a35a8fa3b0bd3dc3870e3 factory/skills/repro-first/SKILL.md
+file 4b37159aaf3f005ecb486b2072c0c94647d03d98 factory/third-party/README.md
+file f433b1a53f5b830a205fd2df78e2b34974656c7b factory/third-party/frontend-design/LICENSE.txt
+file a5333457c414d20d625f307df945842c0952ecc3 factory/third-party/frontend-design/SKILL.md
 file 9c85f686fbd73bc25f2b30eae12e2c47d7197f28 factory/tools/claude-usage
 file a1558a94b453f0156cf576e7a90492f4cbe197d4 factory/tools/install.sh

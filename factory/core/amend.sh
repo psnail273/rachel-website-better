@@ -96,8 +96,10 @@
 # checkout's top, factory/core/amend.sh there and no factory-version), run from
 # a checkout or a worktree of it, the same commands work on the repo itself:
 #   record: installs and refreshes the workspace's copies (factory_repo_copies:
-#     .claude/skills/factory-amend/ from factory/skills/factory-amend/, and the
-#     amend-builder and verifier subagents in .claude/agents/), and removes a
+#     .claude/skills/factory-amend/ from factory/skills/factory-amend/,
+#     .claude/skills/frontend-design/ from factory/third-party/frontend-design/,
+#     which the Verifier preloads, and the amend-builder and verifier subagents
+#     in .claude/agents/), and removes a
 #     file there that factory/ no longer has; and writes the workspace's hooks
 #     (FACTORY_WORKSPACE_HOOKS: the wait guard alone, none of a project's), the
 #     main session's model and effort, the effort cap and the Lock lift's allow
