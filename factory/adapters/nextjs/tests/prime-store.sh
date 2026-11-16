@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Prime a pnpm store with the Next.js skeleton's packages, and a folder with the
-# browser its smoke step runs, for the adapter's tests:
+# browsers its smoke step runs, for the adapter's tests:
 #   bash factory/adapters/nextjs/tests/prime-store.sh <dir> [<browsers dir>]
 # then set FACTORY_PNPM_STORE=<dir> and FACTORY_PLAYWRIGHT_BROWSERS=<browsers
 # dir> (in the workspace's local.env). The one command of the adapter's tests
@@ -9,12 +9,12 @@
 # throwaway folder with <dir> as pnpm's store (and fetches the pnpm version
 # packageManager pins, when the machine lacks it). It then proves the store is
 # enough: a second install, offline, with no registry. With <browsers dir>, it
-# then installs Chromium's headless shell there, at the build the skeleton's
-# Playwright pins (as bootstrap does), and proves it starts. Rerun it after the
-# skeleton's lockfile changes; an existing store or folder keeps what it has and
-# gains what it lacks. It installs no system libraries: when Chromium won't
-# start without some, it says so, and pnpm exec playwright install-deps chromium
-# (as root) installs them.
+# then installs Chromium's headless shell, Firefox and WebKit there, at the
+# builds the skeleton's Playwright pins (as bootstrap does), and proves each
+# starts. Rerun it after the skeleton's lockfile changes; an existing store or
+# folder keeps what it has and gains what it lacks. It installs no system
+# libraries: when a browser won't start without some, it says so, naming the
+# engine, and pnpm exec playwright install-deps <engine> (as root) installs them.
 #
 # Needs Node and pnpm (NODE_BIN and PNPM_BIN, else on PATH). pnpm's output goes
 # to stderr; stdout is a line FACTORY_PNPM_STORE=<dir, absolute>, then with a
@@ -66,12 +66,14 @@ if ! pnpm_config_offline=true pnpm_config_registry=http://127.0.0.1:9/ install "
 fi
 echo "FACTORY_PNPM_STORE=$store"
 [ -n "$browsers" ] || exit 0
-if ! (cd "$tmp/online" && PLAYWRIGHT_BROWSERS_PATH="$browsers" node_modules/.bin/playwright install --only-shell chromium >&2); then
-	echo "prime-store: playwright install --only-shell chromium into $browsers failed (above)" >&2
+if ! (cd "$tmp/online" && PLAYWRIGHT_BROWSERS_PATH="$browsers" node_modules/.bin/playwright install --only-shell chromium firefox webkit >&2); then
+	echo "prime-store: playwright install --only-shell chromium firefox webkit into $browsers failed (above)" >&2
 	exit 1
 fi
-if ! (cd "$tmp/online" && PLAYWRIGHT_BROWSERS_PATH="$browsers" node --input-type=module -e 'import { chromium } from "@playwright/test"; await (await chromium.launch()).close();' >&2); then
-	echo "prime-store: Chromium in $browsers doesn't start (above); when it names missing system libraries, install them as root: pnpm exec playwright install-deps chromium" >&2
-	exit 1
-fi
+for engine in chromium firefox webkit; do
+	if ! (cd "$tmp/online" && PLAYWRIGHT_BROWSERS_PATH="$browsers" node --input-type=module -e "import { $engine } from \"@playwright/test\"; await (await $engine.launch()).close();" >&2); then
+		echo "prime-store: $engine in $browsers doesn't start (above); when it names missing system libraries, install them as root: pnpm exec playwright install-deps $engine" >&2
+		exit 1
+	fi
+done
 echo "FACTORY_PLAYWRIGHT_BROWSERS=$browsers"

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The smoke step: the app built for production and started, then each of its
-# page routes loaded in a headless browser, in a light and a dark colour scheme,
-# with an accessibility check on each and a check of the links between them.
+# page routes loaded in three headless browsers, Chromium, Firefox and WebKit
+# (Safari's engine), in a light and a dark colour scheme, with an accessibility
+# check on each and a check of the links between them.
 #   bash tools/verify/smoke
 #
 #   0. _routes.mjs reads the page routes from ARCHITECTURE.md's `## Routes`
@@ -15,13 +16,14 @@
 #      reads the port from the URL next start prints), so runs side by side
 #      never meet; the step polls until the port takes a connection (1 and 2
 #      are _server.sh's, shared with the Scenario driver);
-#   3. _smoke_page.mjs, one Chromium (Playwright, the project's
-#      @playwright/test; bootstrap installs the browser into
-#      PLAYWRIGHT_BROWSERS_PATH) for every route: it loads each route in the
-#      light colour scheme, then the dark, and waits for its network to go
-#      quiet; runs axe-core (@axe-core/playwright: wcag2a, wcag2aa, wcag22aa) on
-#      it; then requests each same-origin link the pages hold, once (off-site
-#      links aren't: the step runs offline).
+#   3. _smoke_page.mjs: one Chromium, one Firefox and one WebKit (Playwright,
+#      the project's @playwright/test; bootstrap installs the three into
+#      PLAYWRIGHT_BROWSERS_PATH), running at once, for every route: each loads
+#      each route in the light colour scheme, then the dark, and waits for its
+#      network to go quiet; runs axe-core (@axe-core/playwright: wcag2a,
+#      wcag2aa, wcag22aa) on it; then, once all three are done, it requests each
+#      same-origin link the pages hold, once, with no browser (off-site links
+#      aren't: the step runs offline).
 # The app's environment for 1 and 2 is tools/verify/smoke-env's NAME=value
 # lines (its header says how; none by default, and the app runs as its own
 # config says): when a value names {fixtures}, the Scenario driver's fixture
@@ -34,12 +36,18 @@
 # INT, TERM or HUP.
 #
 # FACTORY_SMOKE_TIMEOUT (local.env; seconds, default 60) bounds each wait: the
-# server's start, each page's load (each route in each scheme), each axe run and
-# each link's request, and the stop of the server and the browser after TERM,
+# server's start, each page's load (each route in each scheme, in each engine),
+# each axe run and each link's request, and the stop of the server and the browser after TERM,
 # when each is killed. FACTORY_BUILD_WAIT (local.env; seconds,
 # default 900) bounds the wait for the build lock.
 #
-# Findings, on stdout (next's output goes to stderr):
+# Findings, on stdout (next's output goes to stderr). A page finding (console,
+# page-error, response, request-failed, load, a11y) that all three engines
+# report reads as below, naming none; one only some report names them, as one
+# token after the <route>: chromium, firefox and webkit, in that order, those
+# that report it, joined by commas (`smoke-a11y /contact firefox,webkit dark
+# color-contrast ...`, `smoke-console / webkit: console error: ...`), so a
+# finding the Baseline holds keeps matching while all three reproduce it:
 #   package.json:1 smoke-build <message>       next build failed
 #   package.json:1 smoke-build-lock <message>  another build held the build
 #                                              lock past FACTORY_BUILD_WAIT
@@ -61,8 +69,9 @@
 #   package.json:1 smoke-request-failed <route>: <message>
 #                                              a request got no answer
 #   package.json:1 smoke-load <route>: <message>
-#                                              the page never loaded, or axe
-#                                              never finished on it
+#                                              the page never loaded, or a
+#                                              page check (axe, the link
+#                                              reading) never finished on it
 #   package.json:1 smoke-a11y <route> <scheme> <axe rule id> <target selector>: <help>
 #                                              an axe violation on the page in
 #                                              that scheme (light or dark), one
@@ -88,7 +97,10 @@
 #                                              can't read), or didn't listen in
 #                                              time; <line> is the first naming
 #                                              {fixtures}
-#   tools/verify/local.env:1 browser-missing   Chromium didn't start
+#   tools/verify/local.env:1 browser-missing <Engine> didn't start ...
+#                                              a browser didn't start, one line
+#                                              for each (Chromium, Firefox or
+#                                              WebKit); then no page is loaded
 #   tools/verify/local.env:1 smoke-setting     FACTORY_SMOKE_TIMEOUT isn't a whole
 #                                              number of seconds, 1 to 999999, or
 #                                              FACTORY_BUILD_WAIT one, 0 to 999999
@@ -98,7 +110,8 @@
 # never keeps it and runs the step again: the build lock held past the wait,
 # next build finding another build running in the checkout (a smoke-build
 # finding), or a request refused a connection (a finding naming
-# ERR_CONNECTION_REFUSED or ECONNREFUSED).
+# ERR_CONNECTION_REFUSED or ECONNREFUSED, Firefox's NS_ERROR_CONNECTION_REFUSED,
+# or WebKit's "Could not connect to <host>: Connection refused").
 #
 # A project with no pages (a library, an API alone) declares the step a no-op:
 # it keeps this script as the marker line alone (factory/core/lib/steps.sh).
@@ -164,7 +177,7 @@ case $? in
 		;;
 esac
 
-# The browser script closes Chromium on TERM, so nx_stop stops it alone.
+# The browser script closes its browsers on TERM, so nx_stop stops them alone.
 nx_client 0 "${NODE_BIN:-node}" "$dir/_smoke_page.mjs" "http://127.0.0.1:$NX_PORT" "$NX_LIMIT" "${routes[@]}" > "$tmp/findings"
 nx_client_wait
 status=$?
@@ -175,7 +188,7 @@ if [ "$status" -ne 0 ] && [ ! -s "$tmp/findings" ]; then
 	exit 1
 fi
 [ -s "$tmp/findings" ] || exit 0
-if grep -qE 'ERR_CONNECTION_REFUSED|ECONNREFUSED' "$tmp/findings"; then
+if grep -qE 'ERR_CONNECTION_REFUSED|ECONNREFUSED|NS_ERROR_CONNECTION_REFUSED|Could not connect to [^ ]*: Connection refused' "$tmp/findings"; then
 	echo "smoke: a request was refused a connection: no fault of the code, so verify --reuse runs the step again" >&2
 	exit "$NX_TRANSIENT"
 fi

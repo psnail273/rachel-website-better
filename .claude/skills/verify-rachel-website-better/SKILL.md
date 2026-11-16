@@ -25,7 +25,7 @@ When a launch fails, or before the first one on a machine:
 
 - **HTTP**: `curl -sS -i http://localhost:3100<path>` for a page or an API route from the [feature map](feature-map.md); `-X POST -H 'content-type: application/json' -d '<json>'` for a handler that takes a body.
 - **Scripted, the durable way**: a Vitest test that calls the route handler or the function directly. Write it with `write-tests-nextjs`; run one file with `pnpm exec vitest run <file>`.
-- **In a browser**: a one-off Playwright script (`@playwright/test` is installed) that opens the URL headless (`chromium.launch()`), clicks and reads the page. bootstrap installed that browser, where `PLAYWRIGHT_BROWSERS_PATH` (`tools/verify/local.env`) says; the smoke step uses it too. A headed browser is another download, `pnpm exec playwright install chromium`, which uses the network: ask the human first.
+- **In a browser**: a one-off Playwright script (`@playwright/test` is installed) that opens the URL headless (`chromium.launch()`), clicks and reads the page. bootstrap installed that browser, with Firefox and WebKit (Safari's engine: `firefox.launch()`, `webkit.launch()`), where `PLAYWRIGHT_BROWSERS_PATH` (`tools/verify/local.env`) says; the smoke step loads every page in all three. A headed browser is another download, `pnpm exec playwright install chromium`, which uses the network: ask the human first.
 
 ## Evidence
 

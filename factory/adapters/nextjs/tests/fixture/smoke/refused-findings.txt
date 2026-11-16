@@ -1,2 +1,6 @@
 package.json:1 smoke-load /: the page didn't load and go quiet within 60s: page.goto: net::ERR_CONNECTION_REFUSED at http://127.0.0.1/
 package.json:1 smoke-request-failed /: http://127.0.0.1/_next/static/chunks/main.js failed: net::ERR_CONNECTION_REFUSED
+package.json:1 smoke-load / firefox: the page didn't load and go quiet within 60s: page.goto: NS_ERROR_CONNECTION_REFUSED
+package.json:1 smoke-request-failed / firefox: /_next/static/chunks/main.js failed: NS_ERROR_CONNECTION_REFUSED
+package.json:1 smoke-load / webkit: the page didn't load and go quiet within 60s: page.goto: Could not connect to 127.0.0.1: Connection refused
+package.json:1 smoke-console / webkit: console error: Failed to load resource: Could not connect to 127.0.0.1: Connection refused

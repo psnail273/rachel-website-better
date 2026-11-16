@@ -5,17 +5,18 @@
 # (--frozen-lockfile), into node_modules/ and pnpm's store; pnpm first fetches
 # the version package.json's packageManager field pins, when the machine lacks
 # it. After it, prepare reinstalls offline from the store. Then it installs the
-# smoke step's browser, Chromium's headless shell, at the build the installed
-# Playwright (@playwright/test) pins, into PLAYWRIGHT_BROWSERS_PATH (local.env;
-# empty means Playwright's own folder, ~/.cache/ms-playwright on Linux); a
-# browser already there is kept, and then nothing is fetched. A project without
-# @playwright/test installs no browser.
+# smoke step's three browsers, Chromium's headless shell, Firefox and WebKit, at
+# the builds the installed Playwright (@playwright/test) pins, into
+# PLAYWRIGHT_BROWSERS_PATH (local.env; empty means Playwright's own folder,
+# ~/.cache/ms-playwright on Linux); a browser already there is kept, and when
+# all three are, nothing is fetched. A project without @playwright/test installs
+# no browser.
 #   bash tools/verify/bootstrap
 #
 # The installs' output goes to stderr, and so does the reason one failed. It
-# installs no system libraries (that needs root): when Chromium won't start
-# without some, smoke says so, and pnpm exec playwright install-deps chromium
-# installs them.
+# installs no system libraries (that needs root): when a browser won't start
+# without some, smoke says so, naming the engine, and pnpm exec playwright
+# install-deps <engine> installs them.
 # Exits 0 installed, 1 otherwise.
 set -u
 
@@ -36,12 +37,12 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 if [ -x node_modules/.bin/playwright ]; then
-	tool playwright install --only-shell chromium >&2
+	tool playwright install --only-shell chromium firefox webkit >&2
 	status=$?
 	if [ "$status" -ne 0 ]; then
 		where="${PLAYWRIGHT_BROWSERS_PATH:-}"
 		[ -n "$where" ] || where="Playwright's own folder"
-		echo "bootstrap: playwright install --only-shell chromium exited $status (into $where)" >&2
+		echo "bootstrap: playwright install --only-shell chromium firefox webkit exited $status (into $where)" >&2
 		exit 1
 	fi
 fi

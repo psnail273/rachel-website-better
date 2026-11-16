@@ -4,9 +4,10 @@
 # `adopt.sh nextjs` on a project from before the factory records its Baseline.
 #
 # Those two need Node, pnpm, a primed pnpm store (FACTORY_PNPM_STORE) and
-# Chromium (FACTORY_PLAYWRIGHT_BROWSERS), and skip without them; they install
-# offline from the store and run the full verify, the real smoke step's next
-# build, next start and browser too, so they take a while. The rest need
+# the three browsers, Chromium, Firefox and WebKit (FACTORY_PLAYWRIGHT_BROWSERS),
+# and skip without them; they install offline from the store and run the full
+# verify, the real smoke step's next build, next start and browsers too, so they
+# take a while. The rest need
 # nothing.
 
 NEXTJS_ADAPTER="$FACTORY_CORE/../adapters/nextjs"

@@ -6,8 +6,10 @@
 # end to end, on the skeleton.
 #
 # The tests that load a page need Node, pnpm, a primed pnpm store
-# (FACTORY_PNPM_STORE) and Chromium (FACTORY_PLAYWRIGHT_BROWSERS), and skip
-# without them; the rest need Node alone.
+# (FACTORY_PNPM_STORE) and the three browsers, Chromium, Firefox and WebKit
+# (FACTORY_PLAYWRIGHT_BROWSERS), and skip without them; the rest need Node alone.
+# A page finding all three engines report names none; one only some report
+# names them after the route (test_a_finding_some_engines_report_names_them).
 
 # shellcheck disable=SC2154 # out and status: set by run_cmd, in factory/core/tests/lib.sh
 NEXTJS_ADAPTER="$FACTORY_CORE/../adapters/nextjs"
@@ -95,15 +97,15 @@ test_each_fault_on_the_page_is_a_finding_and_the_server_stops_with_node() {
 	echo 500 > "$TEST_TMP/site/api/fail.status"
 	smoke_and_server_gone "a route answering 500"
 	assert_status 1
-	assert_eq "package.json:1 smoke-console /: console error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)
-package.json:1 smoke-response /: /api/fail answered 500" "$out" "a request answered 500"
+	assert_eq "package.json:1 smoke-console / chromium,webkit: console error: Failed to load resource: the server responded with a status of 500 (Internal Server Error)
+package.json:1 smoke-response /: /api/fail answered 500" "$out" "a request answered 500 (Firefox logs no console error for it)"
 
 	page ''
 	echo 503 > "$TEST_TMP/site/index.html.status"
 	smoke_and_server_gone "a page answering 503"
 	assert_status 1
-	assert_eq "package.json:1 smoke-console /: console error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)
-package.json:1 smoke-response /: / answered 503" "$out" "the page answered 503"
+	assert_eq "package.json:1 smoke-console / chromium,webkit: console error: Failed to load resource: the server responded with a status of 503 (Service Unavailable)
+package.json:1 smoke-response /: / answered 503" "$out" "the page answered 503 (Firefox logs no console error for it)"
 }
 
 # A redirect is followed and its target judged; a 3xx with no Location is no
@@ -177,6 +179,22 @@ package.json:1 smoke-a11y / light label li.card > input.field: Form elements mus
 	assert_status 1
 	assert_eq "package.json:1 smoke-a11y / dark label li.card > input.field: Form elements must have labels
 package.json:1 smoke-a11y / light label li.card > input.field: Form elements must have labels" "$out" "one faulty item"
+}
+
+# A fault all three engines report names none, as when smoke ran Chromium
+# alone; one only some report names them after the route, chromium, firefox and
+# webkit in that order: here an unlabelled input only Firefox gets, and a
+# console error all but Chromium log.
+test_a_finding_some_engines_report_names_them_with_node() {
+	needs_browser
+	site_project
+	page '<script>console.error("everywhere")</script><script>if (!/Chrome\//.test(navigator.userAgent)) console.error("not in chromium")</script><script>if (/Firefox\//.test(navigator.userAgent)) document.body.insertAdjacentHTML("beforeend", "<input type=text>")</script>'
+	smoke_and_server_gone "faults in some engines"
+	assert_status 1
+	assert_eq "package.json:1 smoke-a11y / firefox dark label input: Form elements must have labels
+package.json:1 smoke-a11y / firefox light label input: Form elements must have labels
+package.json:1 smoke-console / firefox,webkit: console error: not in chromium
+package.json:1 smoke-console /: console error: everywhere" "$out" "the findings of some engines and of all"
 }
 
 # Each same-origin link is requested once, without its hash: one that answers
@@ -254,14 +272,49 @@ test_the_route_reader_finds_no_table_with_node() {
 	assert_eq "$TEST_TMP/dynamic.md:1 smoke-routes the \`## Routes\` table lists no page route without a dynamic segment (/blog/[slug]), so none can be loaded" "$out" "only a dynamic route"
 }
 
+# missing_line <Engine> <engine>: the glob browser-missing's line for the engine
+# matches.
+missing_line() {
+	printf '%s' "tools/verify/local.env:1 browser-missing $1 didn't start (*); run bash tools/verify/bootstrap, which installs it into PLAYWRIGHT_BROWSERS_PATH (tools/verify/local.env), and if it names missing system libraries: pnpm exec playwright install-deps $2"
+}
+
+# No browser installed: a browser-missing line for each engine, in order, and no
+# page loaded.
 test_a_missing_browser_is_a_finding_and_the_server_stops_with_node() {
 	needs_store
 	site_project
 	page ''
 	smoke_and_server_gone "a missing browser"
 	assert_status 1
-	[[ $out == "tools/verify/local.env:1 browser-missing Chromium didn't start ("*"); run bash tools/verify/bootstrap, which installs it into PLAYWRIGHT_BROWSERS_PATH (tools/verify/local.env), and if it names missing system libraries: pnpm exec playwright install-deps chromium" ]] ||
-		fail "smoke's finding: $out"
+	local lines
+	mapfile -t lines <<< "$out"
+	[ "${#lines[@]}" -eq 3 ] || fail "smoke's findings, not one for each engine: $out"
+	# shellcheck disable=SC2053 # the right side is a glob
+	[[ ${lines[0]} == $(missing_line Chromium chromium) ]] || fail "Chromium's finding: ${lines[0]}"
+	# shellcheck disable=SC2053
+	[[ ${lines[1]} == $(missing_line Firefox firefox) ]] || fail "Firefox's finding: ${lines[1]}"
+	# shellcheck disable=SC2053
+	[[ ${lines[2]} == $(missing_line WebKit webkit) ]] || fail "WebKit's finding: ${lines[2]}"
+}
+
+# One engine that won't start (here Firefox, not installed: the browsers folder
+# holds Chromium and WebKit alone) is a finding naming it, and no page is loaded
+# in the others (the page's console error would be a finding).
+test_an_engine_that_doesnt_start_is_a_finding_naming_it_with_node() {
+	needs_browser
+	site_project
+	page '<script>console.error("boom")</script>'
+	local d
+	mkdir -p "$TEST_TMP/two-browsers"
+	for d in "$FACTORY_PLAYWRIGHT_BROWSERS"/chromium_headless_shell-* "$FACTORY_PLAYWRIGHT_BROWSERS"/webkit-*; do
+		[ -d "$d" ] || fail "no $d in FACTORY_PLAYWRIGHT_BROWSERS (prime it: bash factory/adapters/nextjs/tests/prime-store.sh <store> <browsers>)"
+		ln -s "$d" "$TEST_TMP/two-browsers/" || fail "could not link $d"
+	done
+	export PLAYWRIGHT_BROWSERS_PATH="$TEST_TMP/two-browsers"
+	smoke_and_server_gone "a missing Firefox"
+	assert_status 1
+	# shellcheck disable=SC2053 # the right side is a glob
+	[[ $out == $(missing_line Firefox firefox) ]] || fail "smoke's finding: $out"
 }
 
 test_a_failed_build_is_a_finding_with_node() {
@@ -381,7 +434,7 @@ test_a_signal_while_the_page_loads_leaves_no_process_with_node() {
 	smoke_apart
 	wait_until "the page's request" test -e "$TEST_TMP/site/index.html.hit"
 	pids="$(descendants "$smoke")"
-	[ "$(printf '%s\n' "$pids" | grep -c .)" -ge 3 ] || fail "too few processes under the step (the server, node and Chromium): $pids"
+	[ "$(printf '%s\n' "$pids" | grep -c .)" -ge 5 ] || fail "too few processes under the step (the server, node and the three browsers): $pids"
 	kill -TERM "$smoke"
 	wait_until "the step to exit" eval '! kill -0 "$smoke" 2> /dev/null'
 	wait "$smoke"
@@ -407,9 +460,10 @@ test_the_limit_must_be_seconds_with_node() {
 	assert_eq "package.json:1 smoke-start next start exited 3 before it answered (see stderr)" "$out" "smoke's finding with a limit of 08"
 }
 
-# bootstrap installs the pinned Playwright's Chromium where local.env says, and
-# fetches nothing when it is there (the download host is a dead port).
-test_bootstrap_installs_the_browser_where_local_env_says_with_node() {
+# bootstrap installs the pinned Playwright's Chromium, Firefox and WebKit where
+# local.env says, and fetches nothing when they are there (the download host is
+# a dead port).
+test_bootstrap_installs_the_browsers_where_local_env_says_with_node() {
 	needs_browser
 	skeleton_project
 	echo "PLAYWRIGHT_BROWSERS_PATH=$FACTORY_PLAYWRIGHT_BROWSERS" > tools/verify/local.env
@@ -421,7 +475,7 @@ test_bootstrap_installs_the_browser_where_local_env_says_with_node() {
 	: > tools/verify/local.env
 	PLAYWRIGHT_BROWSERS_PATH="$TEST_TMP/empty" step bootstrap
 	assert_status 1
-	stderr_has "bootstrap: playwright install --only-shell chromium exited 1 (into $TEST_TMP/empty)"
+	stderr_has "bootstrap: playwright install --only-shell chromium firefox webkit exited 1 (into $TEST_TMP/empty)"
 }
 
 # lock_project [build]: skeleton_project (nothing installed) with a next whose

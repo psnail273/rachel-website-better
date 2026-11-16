@@ -1,48 +1,64 @@
-// The smoke step's browser: loads each page route headless in Chromium
-// (Playwright, the project's @playwright/test), in a light and a dark colour
-// scheme, and prints what went wrong on it.
+// The smoke step's browsers: loads each page route headless in three engines,
+// Chromium, Firefox and WebKit (Safari's engine) (Playwright, the project's
+// @playwright/test), in a light and a dark colour scheme, and prints what went
+// wrong on it.
 //   node tools/verify/_smoke_page.mjs <origin> <seconds> <route>...
-// It opens <origin><route> in a fresh browser context for each scheme, and waits,
-// at most <seconds> for each load, for the page to load and its network to go
-// quiet (Playwright's networkidle: no request for 500 ms), so the requests its
-// scripts make count too. On a page that loaded it then runs axe-core
-// (@axe-core/playwright: the wcag2a, wcag2aa and wcag22aa rules), at most
-// <seconds> too, and gathers its same-origin links. Once every route is loaded,
-// each link (its #hash left off, each once, a route already loaded left out)
-// is requested with GET, redirects followed, at most <seconds> each. Off-site
-// links aren't requested: the step runs offline.
+// It starts the three browsers at once, one each, and each loads the routes in
+// turn, while the others do the same. It opens <origin><route> in a fresh
+// browser context for each scheme, and waits, at most <seconds> for each load,
+// for the page to load and its network to go quiet (Playwright's networkidle: no
+// request for 500 ms), so the requests its scripts make count too. On a page
+// that loaded it then runs the page checks (CHECKS), each at most <seconds>:
+// axe-core (@axe-core/playwright: the wcag2a, wcag2aa and wcag22aa rules), and
+// the reading of its same-origin links. Once every engine has loaded every
+// route, each link (its #hash left off, each once, a route already loaded left
+// out) is requested once, with no browser (Playwright's request), with GET,
+// redirects followed, at most <seconds> each. Off-site links aren't requested:
+// the step runs offline.
 //
 // stdout: one finding a line, sorted, each once, the origin left out of every
 // message, and its host and port alone written <host> (the server's port
 // changes from run to run, and a finding must not):
-//   package.json:1 smoke-console <route>: console error: <text>
-//   package.json:1 smoke-page-error <route>: uncaught <name>: <message>
-//   package.json:1 smoke-response <route>: <request path> answered <status>
-//   package.json:1 smoke-request-failed <route>: <request path> failed: <reason>
-//   package.json:1 smoke-load <route>: <why the page never loaded, or axe or the
-//                  link reading never finished on it>
-//   package.json:1 smoke-a11y <route> <light|dark> <axe rule id> <target>: <help>
+//   package.json:1 smoke-console <route>[ <engines>]: console error: <text>
+//   package.json:1 smoke-page-error <route>[ <engines>]: uncaught <name>: <message>
+//   package.json:1 smoke-response <route>[ <engines>]: <request path> answered <status>
+//   package.json:1 smoke-request-failed <route>[ <engines>]: <request path> failed: <reason>
+//   package.json:1 smoke-load <route>[ <engines>]: <why the page never loaded, or
+//                  a page check never finished on it>
+//   package.json:1 smoke-a11y <route>[ <engines>] <light|dark> <axe rule id> <target>: <help>
 //   package.json:1 smoke-link <from route> <href> <status, or failed: <reason>>
-//   tools/verify/local.env:1 browser-missing <why Chromium didn't start>
-// The first five name no scheme: a fault in both schemes is one finding. An
-// axe <target> is a selector for the element with no position in it: its tag,
-// id and classes, under its parent's (`li.card > p.title`), so the items of a
-// list, however many the page's data makes, are one finding; an element axe
-// finds inside a frame or a shadow root keeps axe's own selector, its parts
-// joined by " >>> ". A link's <from route> is the first route it was found on.
+//   tools/verify/local.env:1 browser-missing <Engine> didn't start (<why>); ...
+// A page finding all three engines report names none, so it reads as it did
+// when smoke ran Chromium alone; one only some report names them, as the token
+// <engines> after the route: their names, chromium, firefox and webkit in that
+// order, joined by commas (`smoke-a11y /contact firefox,webkit dark ...`). A
+// smoke-link, from the one request, names none. browser-missing is one line for
+// each engine that didn't start, naming it; then no page is loaded.
+// The page findings name no scheme but smoke-a11y: a fault in both schemes is
+// one finding. An axe <target> is a selector for the element with no position
+// in it: its tag, id and classes, under its parent's (`li.card > p.title`), so
+// the items of a list, however many the page's data makes, are one finding; an
+// element axe finds inside a frame or a shadow root keeps axe's own selector,
+// its parts joined by " >>> ". A link's <from route> is the first route, in the
+// order given, any engine found it on.
 // A response is judged on its status: 2xx passes, and so does a redirect (3xx
 // with a Location), whose target is judged in turn; any other fails. A link
 // fails on a final status of 400 or more.
-// Exits 0 when it got as far as judging the pages (findings or none), 1 when
-// Chromium didn't start.
+// Exits 0 when it got as far as judging the pages (findings or none), 1 when a
+// browser didn't start.
 import { AxeBuilder } from "@axe-core/playwright";
-import { chromium, request } from "@playwright/test";
+import { chromium, firefox, request, webkit } from "@playwright/test";
 
 const [origin, seconds, ...routes] = process.argv.slice(2);
 const limit = Number(seconds) * 1000;
 const TAGS = ["wcag2a", "wcag2aa", "wcag22aa"];
 const SCHEMES = ["light", "dark"];
-const out = [];
+// The engines, in the order a finding names them.
+const ENGINES = [
+  { name: "chromium", title: "Chromium", type: chromium },
+  { name: "firefox", title: "Firefox", type: firefox },
+  { name: "webkit", title: "WebKit", type: webkit },
+];
 const host = origin.replace(/^[a-z]+:\/\//, "");
 const strip = (s) =>
   String(s)
@@ -53,8 +69,26 @@ const strip = (s) =>
     .replace(/\s+/g, " ")
     .trim();
 const firstLine = (e) => String(e?.message ?? e).split("\n")[0];
+
+// out: the findings that name no engine (smoke-link). pageFindings: each page
+// finding, by its line with no engine named, with the engines that found it.
+const out = [];
+const pageFindings = new Map();
 const line = (rule, message) =>
   out.push(`package.json:1 ${rule} ${strip(message)}`);
+// pageFinding(engine, rule, route, rest): <engine> found <rule> on <route>;
+// <rest> is the message after the route (": <text>", or " <scheme> ...").
+const pageFinding = (engine, rule, route, rest) => {
+  const key = `package.json:1 ${rule} ${strip(route + rest)}`;
+  const known = pageFindings.get(key) ?? {
+    rule,
+    route,
+    rest,
+    engines: new Set(),
+  };
+  known.engines.add(engine.name);
+  pageFindings.set(key, known);
+};
 
 // within(promise, what): the promise, or a rejection once the limit runs out.
 const within = (promise, what) => {
@@ -102,51 +136,96 @@ const describe = async (page, target) => {
   }
 };
 
-let browser;
-try {
-  browser = await chromium.launch({ headless: true });
-} catch (e) {
-  const first = strip(
-    String(e?.message ?? e)
-      .split("\n")
-      .find((l) => l.trim() !== "") ?? "unknown",
-  );
-  console.log(
-    `tools/verify/local.env:1 browser-missing Chromium didn't start (${first}); run bash tools/verify/bootstrap, which installs it into PLAYWRIGHT_BROWSERS_PATH (tools/verify/local.env), and if it names missing system libraries: pnpm exec playwright install-deps chromium`,
-  );
-  process.exit(1);
-}
+// launch(engine): { browser } for the engine, or { missing: <its
+// browser-missing line> } when it doesn't start.
+const launch = async (engine) => {
+  try {
+    return { browser: await engine.type.launch({ headless: true }) };
+  } catch (e) {
+    const why =
+      String(e?.message ?? e)
+        .split("\n")
+        .map((l) =>
+          strip(
+            l.replace(/[║╔╗╚╝═]/g, "").replace(/^\s*browserType\.launch:/, ""),
+          ),
+        )
+        .find((l) => l !== "") ?? "unknown";
+    return {
+      missing: `tools/verify/local.env:1 browser-missing ${engine.title} didn't start (${why}); run bash tools/verify/bootstrap, which installs it into PLAYWRIGHT_BROWSERS_PATH (tools/verify/local.env), and if it names missing system libraries: pnpm exec playwright install-deps ${engine.name}`,
+    };
+  }
+};
 
-// links: each same-origin link, without its hash, and the route it was first
-// found on.
+// links: each same-origin link, without its hash, and the index of the first
+// route (in the order given) any engine found it on.
 const links = new Map();
 const loaded = new Set(routes.map((r) => noHash(origin + r)));
 
-// visit(route, scheme): load the route in the scheme, judge it, run axe on it
-// and gather its links.
-const visit = async (route, scheme) => {
-  const finding = (rule, message) => line(rule, `${route}: ${message}`);
+// The page checks, run in turn on each page that loaded, in each engine and
+// scheme, each at most <seconds>. A check is { what, run }: run({ page, route,
+// at, scheme, finding }) judges the page, finding(rule, rest) reporting what it
+// finds (rest as pageFinding has it); a check that throws or runs out of time
+// is a smoke-load finding, "<what> didn't run: <why>". Add a check here.
+const CHECKS = [
+  {
+    what: "axe",
+    run: async ({ page, scheme, finding }) => {
+      const result = await new AxeBuilder({ page }).withTags(TAGS).analyze();
+      for (const v of result.violations)
+        for (const node of v.nodes) {
+          const target = await describe(page, node.target);
+          finding("smoke-a11y", ` ${scheme} ${v.id} ${target}: ${v.help}`);
+        }
+    },
+  },
+  {
+    what: "the link reading",
+    run: async ({ page, at }) => {
+      const hrefs = await page.$$eval("a[href]", (as) =>
+        as.map((a) => a.href).filter((h) => typeof h === "string"),
+      );
+      for (const href of hrefs) {
+        let url;
+        try {
+          url = new URL(href);
+        } catch {
+          continue;
+        }
+        if (url.origin !== origin) continue;
+        const key = noHash(url.href);
+        if (!loaded.has(key) && (links.get(key) ?? Infinity) > at)
+          links.set(key, at);
+      }
+    },
+  },
+];
+
+// visit(engine, browser, route, at, scheme): load the route (routes[at]) in
+// the scheme, judge it, and run the page checks on it.
+const visit = async (engine, browser, route, at, scheme) => {
+  const finding = (rule, rest) => pageFinding(engine, rule, route, rest);
   const context = await browser.newContext({ colorScheme: scheme });
   try {
     const page = await context.newPage();
     page.on("console", (m) => {
       if (m.type() === "error")
-        finding("smoke-console", `console error: ${m.text()}`);
+        finding("smoke-console", `: console error: ${m.text()}`);
     });
     page.on("pageerror", (e) =>
-      finding("smoke-page-error", `uncaught ${e.name}: ${e.message}`),
+      finding("smoke-page-error", `: uncaught ${e.name}: ${e.message}`),
     );
     page.on("response", (r) => {
       const status = r.status();
       const redirect =
         status >= 300 && status < 400 && r.headers()["location"] !== undefined;
       if ((status < 200 || status >= 300) && !redirect)
-        finding("smoke-response", `${r.url()} answered ${status}`);
+        finding("smoke-response", `: ${r.url()} answered ${status}`);
     });
     page.on("requestfailed", (r) =>
       finding(
         "smoke-request-failed",
-        `${r.url()} failed: ${r.failure()?.errorText ?? "unknown"}`,
+        `: ${r.url()} failed: ${r.failure()?.errorText ?? "unknown"}`,
       ),
     );
     try {
@@ -157,68 +236,73 @@ const visit = async (route, scheme) => {
     } catch (e) {
       finding(
         "smoke-load",
-        `the page didn't load and go quiet within ${seconds}s: ${firstLine(e)}`,
+        `: the page didn't load and go quiet within ${seconds}s: ${firstLine(e)}`,
       );
       return;
     }
-    try {
-      const result = await within(
-        new AxeBuilder({ page }).withTags(TAGS).analyze(),
-        "axe",
-      );
-      for (const v of result.violations)
-        for (const node of v.nodes) {
-          const target = await describe(page, node.target);
-          line("smoke-a11y", `${route} ${scheme} ${v.id} ${target}: ${v.help}`);
-        }
-    } catch (e) {
-      finding("smoke-load", `axe didn't run: ${firstLine(e)}`);
-    }
-    let hrefs = [];
-    try {
-      hrefs = await page.$$eval("a[href]", (as) =>
-        as.map((a) => a.href).filter((h) => typeof h === "string"),
-      );
-    } catch (e) {
-      finding("smoke-load", `its links weren't read: ${firstLine(e)}`);
-    }
-    for (const href of hrefs) {
-      let url;
+    for (const check of CHECKS) {
       try {
-        url = new URL(href);
-      } catch {
-        continue;
+        await within(
+          check.run({ page, route, at, scheme, finding }),
+          check.what,
+        );
+      } catch (e) {
+        finding("smoke-load", `: ${check.what} didn't run: ${firstLine(e)}`);
       }
-      if (url.origin !== origin) continue;
-      const key = noHash(url.href);
-      if (!loaded.has(key) && !links.has(key)) links.set(key, route);
     }
   } finally {
     await context.close();
   }
 };
 
+// The engines' browsers, started at once; none loads a page unless all three
+// start.
+const started = await Promise.all(ENGINES.map(launch));
+const missing = started.filter((s) => s.missing).map((s) => s.missing);
 try {
-  for (const route of routes)
-    for (const scheme of SCHEMES) await visit(route, scheme);
-  const api = await request.newContext();
-  try {
-    for (const [url, from] of links) {
-      try {
-        const r = await api.get(url, { timeout: limit, maxRedirects: 20 });
-        if (r.status() >= 400)
-          line("smoke-link", `${from} ${url} ${r.status()}`);
-        await r.dispose();
-      } catch (e) {
-        line("smoke-link", `${from} ${url} failed: ${firstLine(e)}`);
+  if (missing.length === 0) {
+    await Promise.all(
+      ENGINES.map(async (engine, i) => {
+        for (const [at, route] of routes.entries())
+          for (const scheme of SCHEMES)
+            await visit(engine, started[i].browser, route, at, scheme);
+      }),
+    );
+    const api = await request.newContext();
+    try {
+      for (const [url, at] of links) {
+        const from = routes[at];
+        try {
+          const r = await api.get(url, { timeout: limit, maxRedirects: 20 });
+          if (r.status() >= 400)
+            line("smoke-link", `${from} ${url} ${r.status()}`);
+          await r.dispose();
+        } catch (e) {
+          line("smoke-link", `${from} ${url} failed: ${firstLine(e)}`);
+        }
       }
+    } finally {
+      await api.dispose();
     }
-  } finally {
-    await api.dispose();
   }
 } finally {
-  await browser.close();
+  await Promise.all(started.map((s) => s.browser?.close()));
 }
+if (missing.length > 0) {
+  process.stdout.write(missing.map((l) => l + "\n").join(""));
+  process.exit(1);
+}
+
+for (const [key, { rule, route, rest, engines }] of pageFindings)
+  out.push(
+    engines.size === ENGINES.length
+      ? key
+      : `package.json:1 ${rule} ${strip(
+          `${route} ${ENGINES.filter((e) => engines.has(e.name))
+            .map((e) => e.name)
+            .join(",")}${rest}`,
+        )}`,
+  );
 process.stdout.write(
   [...new Set(out)]
     .sort()

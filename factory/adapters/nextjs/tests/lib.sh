@@ -12,8 +12,8 @@
 # on: bootstrap's plain install too. Playwright gets no download host either, and
 # a browsers folder of the test's own (empty) unless the test calls
 # needs_browser, which skips without FACTORY_PLAYWRIGHT_BROWSERS, a folder
-# holding the pinned Playwright's Chromium (prime-store.sh primes it too), and
-# points Playwright there.
+# holding the pinned Playwright's Chromium, Firefox and WebKit (prime-store.sh
+# primes it too), and points Playwright there.
 #
 # A test that calls needs_node, needs_store or needs_browser, itself or through a
 # helper, runs a real tool: its name ends in _with_node, so test.sh starts it
@@ -82,7 +82,7 @@ needs_store() {
 	export PLAYWRIGHT_DOWNLOAD_HOST=http://127.0.0.1:9 PLAYWRIGHT_BROWSERS_PATH="$TEST_TMP/no-browsers"
 }
 
-# needs_browser: needs_store, and Chromium for the pinned Playwright in
+# needs_browser: needs_store, and the browsers for the pinned Playwright in
 # FACTORY_PLAYWRIGHT_BROWSERS, which Playwright uses from here on.
 needs_browser() {
 	needs_store
