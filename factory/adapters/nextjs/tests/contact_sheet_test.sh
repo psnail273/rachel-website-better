@@ -121,3 +121,23 @@ test_a_bad_limit_is_a_setting_finding() {
 	assert_eq "tools/verify/local.env:1 contact-sheet-setting FACTORY_SMOKE_TIMEOUT is 'soon', not a number of seconds from 1 to 999999" "$out" "contact-sheet's finding"
 	[ ! -e "$(git rev-parse --absolute-git-dir)/factory/contact-sheet" ] || fail "contact-sheet made its folder on a bad setting"
 }
+
+# It reads smoke's tools/verify/smoke-env: a bad line is a finding of its own,
+# before the build.
+test_a_bad_smoke_env_is_a_finding_before_the_build_with_node() {
+	needs_node
+	skeleton_project
+	mkdir -p node_modules/.bin
+	printf '#!/usr/bin/env bash\necho "$1" >> %q\nexit 3\n' "$TEST_TMP/next.log" > node_modules/.bin/next && chmod 755 node_modules/.bin/next ||
+		fail "could not stand in for next"
+	routes '/  app/page.tsx  Home'
+	printf 'feed_url=x\n' > tools/verify/smoke-env
+	step contact-sheet
+	assert_status 1
+	assert_eq "tools/verify/smoke-env:1 contact-sheet-env 'feed_url=x' is not NAME=value, NAME in capitals, digits and _, and none of the steps' own (NX_*, FACTORY_*)" "$out" "contact-sheet's finding"
+	printf 'FEED_URL={fixtures}/feed.ics\n' > tools/verify/smoke-env
+	step contact-sheet
+	assert_status 1
+	assert_eq "tools/verify/smoke-env:1 contact-sheet-env {fixtures}/feed.ics names no fixture: tools/verify/smoke-fixtures/feed.ics is no file" "$out" "contact-sheet's finding"
+	[ ! -e "$TEST_TMP/next.log" ] || fail "next ran on a bad smoke-env: $(cat "$TEST_TMP/next.log")"
+}

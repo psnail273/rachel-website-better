@@ -22,8 +22,16 @@
 #      quiet; runs axe-core (@axe-core/playwright: wcag2a, wcag2aa, wcag22aa) on
 #      it; then requests each same-origin link the pages hold, once (off-site
 #      links aren't: the step runs offline).
-# The server is always stopped, its whole process group, before the step exits:
-# on a pass, a finding, an error, and on INT, TERM or HUP.
+# The app's environment for 1 and 2 is tools/verify/smoke-env's NAME=value
+# lines (its header says how; none by default, and the app runs as its own
+# config says): when a value names {fixtures}, the Scenario driver's fixture
+# server (_scenario_fixtures.mjs) starts before the build, on a port the OS
+# picks free, serving the committed files of tools/verify/smoke-fixtures/, so
+# what the app fetches is the same whatever the date or the live service holds
+# (_server.sh's nx_step_env).
+# The server and the fixture server are always stopped, the server's whole
+# process group, before the step exits: on a pass, a finding, an error, and on
+# INT, TERM or HUP.
 #
 # FACTORY_SMOKE_TIMEOUT (local.env; seconds, default 60) bounds each wait: the
 # server's start, each page's load (each route in each scheme), each axe run and
@@ -64,6 +72,22 @@
 #   package.json:1 smoke-link <from route> <href> <status>
 #                                              a same-origin link that answered
 #                                              4xx or 5xx (or `failed: <reason>`)
+#   tools/verify/smoke-env:<line> smoke-env '<line>' is not NAME=value, ...
+#                                              a line that isn't NAME=value, or
+#                                              names one of the steps' own
+#                                              (NX_*, FACTORY_*)
+#   tools/verify/smoke-env:<line> smoke-env {fixtures}/<path> names no fixture: ...
+#                                              no file
+#                                              tools/verify/smoke-fixtures/<path>
+#   tools/verify/smoke-env:<line> smoke-env {fixtures}/<path> carries a query, ...
+#                                              a query after it, which no smoke
+#                                              fixture answers
+#   tools/verify/smoke-env:<line> smoke-env the fixture server ...
+#                                              the fixture server exited before
+#                                              it listened (a seed file it
+#                                              can't read), or didn't listen in
+#                                              time; <line> is the first naming
+#                                              {fixtures}
 #   tools/verify/local.env:1 browser-missing   Chromium didn't start
 #   tools/verify/local.env:1 smoke-setting     FACTORY_SMOKE_TIMEOUT isn't a whole
 #                                              number of seconds, 1 to 999999, or
@@ -109,6 +133,10 @@ while IFS= read -r route || [ -n "$route" ]; do
 	route="${route%$'\r'}"
 	[ -z "$route" ] || routes+=("$route")
 done < "$tmp/routes"
+
+# The app's environment (tools/verify/smoke-env), and the fixture server when
+# it names one, before the build.
+nx_step_env smoke-env "$tmp" || exit 1
 
 nx_build
 status=$?

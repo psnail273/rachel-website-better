@@ -641,3 +641,94 @@ test_a_refused_connection_is_a_transient_failure_with_node() {
 	assert_status 1
 	assert_eq "package.json:1 smoke-console /: console error: boom" "$out" "smoke's finding"
 }
+
+# env_project: skeleton_project with stand-ins for next (env-next.sh: it logs
+# `<command>|FEED_URL|CACHE_PATH|<what FEED_URL answers>` to $TEST_TMP/next.log,
+# then serves $TEST_TMP/site) and for the browser script (no findings), so the
+# step runs with Node alone; cd there.
+env_project() {
+	needs_node
+	skeleton_project
+	mkdir -p node_modules/.bin "$TEST_TMP/site"
+	cp "$NEXTJS_FIXTURES/smoke/next.mjs.txt" "$TEST_TMP/next.mjs" &&
+		cp "$NEXTJS_FIXTURES/smoke/env-next.sh.txt" node_modules/.bin/next && chmod 755 node_modules/.bin/next ||
+		fail "could not stand in for next"
+	cp "$NEXTJS_FIXTURES/smoke/page-findings.mjs.txt" tools/verify/_smoke_page.mjs || fail "could not stand in for the browser script"
+	: > "$TEST_TMP/findings"
+	export STAND_IN_SITE="$TEST_TMP/site" STAND_IN_FINDINGS="$TEST_TMP/findings" \
+		STAND_IN_NEXT="$TEST_TMP/next.mjs" STAND_IN_LOG="$TEST_TMP/next.log"
+}
+
+# port_free <port>: nothing listens on it.
+port_free() {
+	node -e 'require("node:net").createServer().on("error", () => process.exit(1)).listen(Number(process.argv[1]), "127.0.0.1", function () { this.close(); });' "$1"
+}
+
+# smoke-env's lines are the env of next build and next start; {fixtures} is the
+# fixture server on a free port, the same for both, serving the committed files
+# of tools/verify/smoke-fixtures/ at any depth, and {state} a folder of the
+# step's own. Both are gone when the step ends.
+test_smoke_env_serves_the_committed_fixtures_to_the_build_and_the_server_with_node() {
+	env_project
+	mkdir -p tools/verify/smoke-fixtures/feeds
+	printf 'BEGIN:VCALENDAR\nEND:VCALENDAR\n' > tools/verify/smoke-fixtures/feeds/cal.ics
+	printf '%s\n' '' 'FEED_URL={fixtures}/feeds/cal.ics' 'CACHE_PATH={state}/events.sqlite' >> tools/verify/smoke-env
+	step smoke
+	assert_status 0
+	assert_eq "" "$out" "smoke's findings"$'\n'"$(tail -n 20 "$TEST_TMP/stderr")"
+	local feed cache state port
+	feed="$(head -n 1 "$TEST_TMP/next.log" | cut -d'|' -f2)"
+	cache="$(head -n 1 "$TEST_TMP/next.log" | cut -d'|' -f3)"
+	[[ $feed =~ ^http://127\.0\.0\.1:([0-9]+)/feeds/cal\.ics$ ]] || fail "FEED_URL is not {fixtures}/feeds/cal.ics: $feed"
+	port="${BASH_REMATCH[1]}"
+	state="${cache%/events.sqlite}"
+	[ "$state" != "$cache" ] && [ -n "$state" ] || fail "CACHE_PATH is not {state}/events.sqlite: $cache"
+	assert_eq "build|$feed|$cache|200 text/calendar \"BEGIN:VCALENDAR\\nEND:VCALENDAR\\n\"
+start|$feed|$cache|200 text/calendar \"BEGIN:VCALENDAR\\nEND:VCALENDAR\\n\"" "$(cat "$TEST_TMP/next.log")" "the env of next build and next start, and what the feed answered"
+	[ ! -e "$state" ] || fail "the state folder outlived the step: $state"
+	port_free "$port" || fail "the fixture server outlived the step, on port $port"
+}
+
+# The adapter's smoke-env names nothing: the app gets no env of the step's, and
+# no fixture server starts (a seed it couldn't read would stop it).
+test_an_empty_smoke_env_starts_no_fixture_server_with_node() {
+	env_project
+	mkdir -p tools/verify/smoke-fixtures && ln -s nowhere tools/verify/smoke-fixtures/broken.ics || fail "could not make the seed"
+	step smoke
+	assert_status 0
+	assert_eq "" "$out" "smoke's findings"
+	assert_eq "build|||
+start|||" "$(cat "$TEST_TMP/next.log")" "the env of next build and next start"
+}
+
+# A line that isn't NAME=value or names the steps' own, a {fixtures} target with
+# no file, and a seed the fixture server can't read: each is a finding at its
+# line, before the build.
+test_a_bad_smoke_env_is_a_finding_before_the_build_with_node() {
+	env_project
+	local base n line
+	base="$(cat tools/verify/smoke-env)"
+	n="$(($(wc -l < tools/verify/smoke-env) + 2))"
+	for line in 'feed_url=x' 'FEED_URL' ' FEED_URL=x' '1FEED=x' 'FACTORY_X=x' 'NX_LIMIT=9'; do
+		printf '%s\n\n%s\n' "$base" "$line" > tools/verify/smoke-env
+		step smoke
+		assert_status 1
+		assert_eq "tools/verify/smoke-env:$n smoke-env '$line' is not NAME=value, NAME in capitals, digits and _, and none of the steps' own (NX_*, FACTORY_*)" "$out" "the line '$line'"
+	done
+	mkdir -p tools/verify/smoke-fixtures
+	echo here > tools/verify/smoke-fixtures/here.json
+	printf '%s\n' 'BASE={fixtures}' 'FEED_URL={fixtures}/feed.ics {fixtures}/here.json' 'MORE={fixtures}/a/b.ics#top' \
+		'QUERY={fixtures}/here.json?x=1' 'TOP={fixtures}/here.json#top' > tools/verify/smoke-env
+	step smoke
+	assert_status 1
+	assert_eq "tools/verify/smoke-env:2 smoke-env {fixtures}/feed.ics names no fixture: tools/verify/smoke-fixtures/feed.ics is no file
+tools/verify/smoke-env:3 smoke-env {fixtures}/a/b.ics names no fixture: tools/verify/smoke-fixtures/a/b.ics is no file
+tools/verify/smoke-env:4 smoke-env {fixtures}/here.json carries a query, but a smoke fixture answers its path alone" "$out" "the missing fixtures and the query"
+	printf '%s\n' '# the feed' 'FEED_URL={fixtures}/here.json' > tools/verify/smoke-env
+	ln -s nowhere tools/verify/smoke-fixtures/broken.ics || fail "could not make the broken seed"
+	step smoke
+	assert_status 1
+	assert_eq "tools/verify/smoke-env:2 smoke-env the fixture server (tools/verify/_scenario_fixtures.mjs) exited 1 before it listened (see stderr)" "$out" "a seed the server can't read"
+	stderr_has "fixtures: seed: ENOENT"
+	[ ! -e "$TEST_TMP/next.log" ] || fail "next ran on a bad smoke-env: $(cat "$TEST_TMP/next.log")"
+}

@@ -8,13 +8,16 @@
 #
 # It builds and starts the app as the smoke step does: the page routes from
 # ARCHITECTURE.md's `## Routes` table (_routes.mjs), next build under the
-# machine-wide build lock, next start on a free port (_server.sh). Then
+# machine-wide build lock, next start on a free port (_server.sh), with the
+# app's environment from tools/verify/smoke-env and its fixture server, as
+# smoke has them (_server.sh's nx_step_env). Then
 # _contact_sheet.mjs, one Chromium, opens each route at 390, 768 and 1280 px
 # wide (the window 900 tall), light and dark, with reduced motion, waits for its
 # network to go quiet, and takes the whole page with animations stopped.
 # Run bare, it reads tools/verify/local.env itself, as verify.sh does for the
 # gate's steps. The server is always stopped, its whole process group, before
-# it exits: on a pass, a finding, an error, and on INT, TERM or HUP.
+# it exits, and the fixture server: on a pass, a finding, an error, and on INT,
+# TERM or HUP.
 #
 # Output: <git-dir>/factory/contact-sheet/ (the checkout's own git dir, never
 # committed), emptied first, holding <route-slug>-<width>-<scheme>.png for each
@@ -49,6 +52,13 @@
 #   package.json:1 contact-sheet-folder <message>      no git dir, or the
 #                                                      folder couldn't be
 #                                                      emptied
+#   tools/verify/smoke-env:<line> contact-sheet-env <why>
+#                                                      a bad smoke-env line, a
+#                                                      fixture it names that
+#                                                      isn't there, or the
+#                                                      fixture server not
+#                                                      listening, as smoke's
+#                                                      smoke-env findings
 #   tools/verify/local.env:1 browser-missing           Chromium didn't start
 #   tools/verify/local.env:1 contact-sheet-setting     FACTORY_SMOKE_TIMEOUT
 #                                                      isn't a whole number of
@@ -102,6 +112,10 @@ while IFS= read -r route || [ -n "$route" ]; do
 	route="${route%$'\r'}"
 	[ -z "$route" ] || routes+=("$route")
 done < "$tmp/routes"
+
+# The app's environment (tools/verify/smoke-env), and the fixture server when
+# it names one, before the build.
+nx_step_env contact-sheet-env "$tmp" || exit 1
 
 nx_build
 status=$?

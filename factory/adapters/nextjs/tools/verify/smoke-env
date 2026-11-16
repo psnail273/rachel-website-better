@@ -1,0 +1,26 @@
+# The app's environment for the smoke step and the contact sheet
+# (tools/verify/smoke, tools/verify/contact-sheet): one NAME=value per line, set
+# for their next build and next start, so the gate's answer doesn't hang on what
+# a live service holds today. Blank lines and # comments are ignored; NAME is
+# capitals, digits and _, not starting with a digit, and none of the steps' own
+# (NX_*, FACTORY_*). The value is the rest of the line, as written. In it the
+# step puts:
+#   {fixtures}  the Scenario driver's fixture server (_scenario_fixtures.mjs),
+#               http://127.0.0.1:<port>, on a port the OS picks free, the same
+#               for the build and the start; it starts only when a value names
+#               it. It serves the committed files of tools/verify/smoke-fixtures/:
+#               the file smoke-fixtures/<path> at {fixtures}/<path> (any depth;
+#               its Content-Type by its extension: .ics text/calendar, .json
+#               application/json, .html text/html, .xml application/xml, .txt
+#               text/plain, else application/octet-stream), and nothing else.
+#               Each {fixtures}/<path> a value names must be a file there, with
+#               no query after it (the server would answer 404; a #fragment
+#               isn't sent, so it may follow), or it's a finding.
+#   {state}     a folder of the step's own, empty at its start, gone at its end
+# For example, an app that reads a feed and keeps a cache:
+#   FEED_URL={fixtures}/feed.ics       (and tools/verify/smoke-fixtures/feed.ics)
+#   CACHE_PATH={state}/cache.sqlite
+# Date what a fixture holds so the pages it gives never change: events far in
+# the future (2099), and past ones only as the app needs them.
+# None by default: the app runs as its own config says, and no fixture server
+# starts.

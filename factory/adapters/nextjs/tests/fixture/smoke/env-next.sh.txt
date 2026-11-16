@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# A stand-in for next, for the smoke-env tests: it appends
+# `<command>|$FEED_URL|$CACHE_PATH|<what FEED_URL answers>` to the file
+# STAND_IN_LOG names (the answer its status, Content-Type and body as JSON;
+# empty with no FEED_URL), then runs smoke's stand-in (the file STAND_IN_NEXT
+# names, next.mjs), which builds nothing and serves STAND_IN_SITE.
+answer=""
+if [ -n "${FEED_URL:-}" ]; then
+	answer="$(node -e 'fetch(process.env.FEED_URL).then(async (r) => console.log(r.status, r.headers.get("content-type"), JSON.stringify(await r.text())), (e) => console.log("failed", e.message))')"
+fi
+printf '%s|%s|%s|%s\n' "$1" "${FEED_URL:-}" "${CACHE_PATH:-}" "$answer" >> "$STAND_IN_LOG"
+exec node "$STAND_IN_NEXT" "$@"

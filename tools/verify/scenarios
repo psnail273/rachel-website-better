@@ -141,8 +141,7 @@ fi
 	cannot "record: this checkout has no $NX_SCENARIOS/ (an issue's worktree leaves it out): record from a checkout of dev (factory-run's playtest.md)"
 
 tmp="$(mktemp -d)"
-fixtures_pid=""
-trap 'nx_stop; [ -z "$fixtures_pid" ] || nx_halt "$fixtures_pid" "$fixtures_pid"; rm -rf "$tmp"' EXIT
+trap 'nx_stop; rm -rf "$tmp"' EXIT
 nx_on_signal
 
 # The Scenarios: the folder's code files that declare a test.
@@ -166,27 +165,9 @@ env_file="$dir/scenario-env"
 fixtures_port="${FACTORY_SCENARIO_FIXTURE_PORT:-47391}"
 fixtures_origin="http://127.0.0.1:$fixtures_port"
 mkdir -p "$tmp/fixtures" "$tmp/state"
-env_names=() env_values=() wants_fixtures=0
-if [ -f "$env_file" ]; then
-	n=0
-	while IFS= read -r line || [ -n "$line" ]; do
-		n=$((n + 1))
-		line="${line%$'\r'}"
-		[[ $line =~ ^[[:space:]]*(#|$) ]] && continue
-		name="" value=""
-		if [[ $line =~ ^([A-Z_][A-Z0-9_]*)=(.*)$ ]]; then
-			name="${BASH_REMATCH[1]}" value="${BASH_REMATCH[2]}"
-		fi
-		case "$name" in '' | NX_* | FACTORY_*)
-			cannot "tools/verify/scenario-env:$n: '$line' is not NAME=value, NAME in capitals, digits and _, and none of the driver's own (NX_*, FACTORY_*)"
-			;;
-		esac
-		case "$value" in *"{fixtures}"*) wants_fixtures=1 ;; esac
-		value="${value//\{fixtures\}/"$fixtures_origin"}"
-		env_names+=("$name")
-		env_values+=("${value//\{state\}/"$tmp/state"}")
-	done < "$env_file"
-fi
+nx_env_read "$env_file" ||
+	cannot "tools/verify/scenario-env:$NX_ENV_BAD: '$NX_ENV_LINE' is not NAME=value, NAME in capitals, digits and _, and none of the driver's own (NX_*, FACTORY_*)"
+wants_fixtures="$NX_ENV_FIXTURES"
 if [ "$wants_fixtures" -eq 1 ]; then
 	case "$fixtures_port" in
 		'' | *[!0-9]* | 0* | ??????*) port_ok=0 ;;
@@ -237,28 +218,14 @@ fi
 # The fixture server, when scenario-env names it: up (its own line says so)
 # before next build, or the driver can't run them.
 if [ "$wants_fixtures" -eq 1 ]; then
-	nx_hold
-	"${NODE_BIN:-node}" "$dir/_scenario_fixtures.mjs" "$fixtures_port" "$tmp/fixtures" > "$tmp/fixtures.log" 2>&1 < /dev/null &
-	fixtures_pid=$!
-	nx_release
-	end=$((SECONDS + NX_LIMIT))
-	until grep -q '^listening on ' "$tmp/fixtures.log"; do
-		if ! kill -0 "$fixtures_pid" 2> /dev/null; then
-			wait "$fixtures_pid"
-			status=$?
-			fixtures_pid=""
-			cat "$tmp/fixtures.log" >&2
-			cannot "the fixture server exited $status before it listened on 127.0.0.1:$fixtures_port (above): another Scenario run may hold the port; FACTORY_SCENARIO_FIXTURE_PORT in tools/verify/local.env names another"
-		fi
-		[ "$SECONDS" -lt "$end" ] ||
-			cannot "the fixture server didn't listen on 127.0.0.1:$fixtures_port within ${NX_LIMIT}s (FACTORY_SMOKE_TIMEOUT in tools/verify/local.env)"
-		sleep 0.1
-	done
+	nx_fixtures_up "$fixtures_port" "$tmp/fixtures" "$tmp/fixtures.log"
+	case $? in
+		1) cannot "the fixture server exited $NX_FIXTURES_STATUS before it listened on 127.0.0.1:$fixtures_port (above): another Scenario run may hold the port; FACTORY_SCENARIO_FIXTURE_PORT in tools/verify/local.env names another" ;;
+		2) cannot "the fixture server didn't listen on 127.0.0.1:$fixtures_port within ${NX_LIMIT}s (FACTORY_SMOKE_TIMEOUT in tools/verify/local.env)" ;;
+	esac
 	export FACTORY_SCENARIO_FIXTURES="$fixtures_origin"
 fi
-for i in "${!env_names[@]}"; do
-	export "${env_names[i]}=${env_values[i]}"
-done
+nx_env_export "$tmp/state"
 
 nx_build
 status=$?
