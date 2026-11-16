@@ -185,7 +185,7 @@ file 6fa2a4f3d1dc90ddb344a1f4d8a9fbe69081eecc factory/adapters/nextjs/tests/muta
 file d0a634a656f68932e85b95149139ed322572ec75 factory/adapters/nextjs/tests/names_test.sh
 file 74950168c992a51a001ba7ce6538866e57fe2b51 factory/adapters/nextjs/tests/prime-store.sh
 file 49614a6dba0bf1df583ce48cb3a6fd3ce240d31e factory/adapters/nextjs/tests/scenarios_test.sh
-file 7b90a25be687362d101763c1504b4cc246faa351 factory/adapters/nextjs/tests/smoke_test.sh
+file 375c5aa88f6e7b1ac8558fbf008af804cb8e2ea3 factory/adapters/nextjs/tests/smoke_test.sh
 file e00006b753f14659affb39fbeb6f2fbb4c6c00a0 factory/adapters/nextjs/tests/steps_test.sh
 file 2f13b4cca0ed02a2bf3c5e4b71969a88d076006c factory/adapters/nextjs/tests/test_step_test.sh
 file 05d678310165db988ef683f8eeec4758e15c6dbb factory/adapters/nextjs/tests/verify_skill_test.sh

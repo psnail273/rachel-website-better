@@ -62,9 +62,19 @@ blocking_project() {
 	chmod 755 node_modules/.bin/next
 }
 
-# server_gone: the stand-in server's pid is no process.
+# pid_gone <file>: the pid in <file> is no process. Called once the step has
+# stopped the server's group: a pid file still empty or missing then is a
+# server killed before it wrote its pid, gone too (waiting on it would only run
+# out the hang guard).
+pid_gone() {
+	local pid
+	pid="$(cat "$1" 2> /dev/null)"
+	[ -z "$pid" ] || ! kill -0 "$pid" 2> /dev/null
+}
+
+# server_gone: the stand-in server's pid, in $TEST_TMP/server.pid, is no process.
 server_gone() {
-	[ -s "$TEST_TMP/server.pid" ] && ! kill -0 "$(cat "$TEST_TMP/server.pid")" 2> /dev/null
+	pid_gone "$TEST_TMP/server.pid"
 }
 
 # smoke_and_server_gone <what>: run the step, then wait for the server to be gone.
@@ -592,13 +602,16 @@ test_a_server_that_exits_before_it_answers_is_a_finding_with_node() {
 }
 
 # The server's leader exits, the server it started runs on, in its group: the
-# step stops that too.
+# step stops that too. The leader writes the child's pid to a file of its own
+# before it exits, so the step's stop can't leave it unwritten (the child's own
+# server.pid can be: the stop may come between its truncate and its write).
 test_a_server_that_exits_leaving_a_child_is_stopped_too_with_node() {
-	blocking_project "$(printf '%q' "$TEST_TMP/server") & echo \$! > $(printf '%q' "$TEST_TMP/server.pid"); exit 3"
+	blocking_project "$(printf '%q' "$TEST_TMP/server") & echo \$! > $(printf '%q' "$TEST_TMP/child.pid"); exit 3"
 	step smoke
 	assert_status 1
 	assert_eq "package.json:1 smoke-start next start exited 3 before it answered (see stderr)" "$out" "smoke's finding"
-	wait_until "the server's child to stop" server_gone
+	[ -s "$TEST_TMP/child.pid" ] || fail "the leader didn't write its child's pid"
+	wait_until "the server's child to stop" pid_gone "$TEST_TMP/child.pid"
 }
 
 test_a_server_that_never_answers_is_stopped_at_the_limit_with_node() {
