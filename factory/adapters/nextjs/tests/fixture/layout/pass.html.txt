@@ -1,0 +1,19 @@
+<a class="skip" href="#main">Skip to content</a>
+<header><div data-shell><a href="/">Brand</a></div></header>
+<main id="main" tabindex="-1"><div data-shell>
+<section data-section data-bleed aria-label="Hero"><div class="art"><div data-shell><p data-lead>A statement in lead type that runs on across the whole column, set justified so that every line but its last reaches the far edge of its box in each engine, and long enough to wrap onto a second line even at the widest width the layout check measures, which is nineteen hundred and twenty pixels&nbsp;wide.</p></div></div></section>
+<section data-section aria-labelledby="h-about"><div data-sidebar="lead">
+<h1 id="h-about" data-heading="1" data-sidebar-head>About</h1>
+<div data-sidebar-aside><div class="photo"></div></div>
+<div data-sidebar-body><div data-prose><p>Running copy beside the photo, which sits in the slot of the sidebar at a desktop width and above the copy on a phone, long enough to take two lines at the&nbsp;measure.</p></div></div>
+</div></section>
+<section data-section aria-labelledby="h-two"><h2 id="h-two" data-heading="2">Two halves</h2>
+<div data-switcher="pair"><div><ul data-list><li>One item</li><li>Another item</li></ul></div><div><ul data-rows><li>A row</li><li>A second row</li></ul></div></div></section>
+<section data-section aria-labelledby="h-centre"><h2 id="h-centre" data-heading="2">Centred</h2>
+<div data-center><figure data-quote><blockquote><p>A quote set in the middle of the&nbsp;column.</p></blockquote><figcaption>Someone</figcaption></figure></div></section>
+<section data-section aria-labelledby="h-form"><h2 id="h-form" data-heading="2">Write</h2>
+<form data-form><label for="name">Name</label> <input id="name" type="text"></form></section>
+<section data-section aria-labelledby="h-events"><h2 id="h-events" data-heading="2">Upcoming</h2>
+<ul data-events tabindex="0" aria-label="Upcoming"><li>First</li><li>Second</li><li>Third</li><li>Fourth</li><li>Fifth</li></ul></section>
+</div></main>
+<footer><div data-shell><p>Footer</p></div></footer>

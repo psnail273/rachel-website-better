@@ -7,7 +7,8 @@
 # The test that takes the sheet starts a real Chromium (and the stand-in server
 # in the background) and needs Node, pnpm, a primed pnpm store
 # (FACTORY_PNPM_STORE) and Chromium (FACTORY_PLAYWRIGHT_BROWSERS); it skips
-# without them. The routes' test needs Node alone, the setting's nothing.
+# without them. So does the one that takes a page carrying the layout
+# contract's [data-shell] (smoke's tests/fixture/layout/). The routes' test needs Node alone, the setting's nothing.
 
 # shellcheck disable=SC2154 # out and status: set by run_cmd, in factory/core/tests/lib.sh
 NEXTJS_ADAPTER="$FACTORY_CORE/../adapters/nextjs"
@@ -83,7 +84,7 @@ therapy-about-768-dark.png
 therapy-about-768-light.png" "$(files_in "$folder")" "the sheet's files"
 	assert_eq "# Contact sheet
 
-Taken from $head: each page route at 390, 768, 1280 px wide (the window 900 tall, the whole page captured), light and dark, with reduced motion. Each file is \`<route-slug>-<width>-<scheme>.png\`, named as the Board's are (\`docs/design/board/\`).
+Taken from $head: each page route at 390, 768, 1280 px wide (the window 900 tall, the whole page captured), light and dark, with reduced motion, and at 1920 px, light, when its page carries [data-shell]. Each file is \`<route-slug>-<width>-<scheme>.png\`, named as the Board's are (\`docs/design/board/\`).
 
 - \`/\`: home-390-light.png, home-390-dark.png, home-768-light.png, home-768-dark.png, home-1280-light.png, home-1280-dark.png
 - \`/therapy/about\`: therapy-about-390-light.png, therapy-about-390-dark.png, therapy-about-768-light.png, therapy-about-768-dark.png, therapy-about-1280-light.png, therapy-about-1280-dark.png
@@ -92,7 +93,13 @@ Taken from $head: each page route at 390, 768, 1280 px wide (the window 900 tall
 
 What axe checked at 390 and 1280 px and couldn't decide (its incomplete results; smoke's rules), such as the contrast of text over an image: judge each by eye in the screenshots it names. None gates. One line per route, rule and selector:
 
-- \`/therapy/about\` color-contrast \`p.over\`: Element's background color could not be determined due to a background gradient (therapy-about-390-light.png, therapy-about-390-dark.png, therapy-about-1280-light.png, therapy-about-1280-dark.png)" "$(cat "$folder/index.md")" "the index"
+- \`/therapy/about\` color-contrast \`p.over\`: Element's background color could not be determined due to a background gradient (therapy-about-390-light.png, therapy-about-390-dark.png, therapy-about-1280-light.png, therapy-about-1280-dark.png)
+
+## Layout to judge
+
+What the layout check (_layout.mjs) reports on the pages that carry [data-shell], in the light scheme: lines of one word, ragged and short paragraphs. None gates: judge each by eye in the screenshot it names, a fault when it shows (a word stranded on a line of its own, a paragraph's right edge ragged, a statement stopping well short with empty space beside it), none when the break reads as meant. One line per route, width, check and selector:
+
+- none" "$(cat "$folder/index.md")" "the index"
 	assert_eq "390 768 1280" "$(png_width "$folder/home-390-light.png") $(png_width "$folder/home-768-dark.png") $(png_width "$folder/therapy-about-1280-light.png")" "the screenshots' widths"
 	! cmp -s "$folder/home-390-light.png" "$folder/home-390-dark.png" || fail "the dark scheme's screenshot is the light one's"
 	wait_until "the server to stop" eval '! kill -0 "$(cat "$TEST_TMP/server.pid")" 2> /dev/null'
@@ -102,7 +109,86 @@ What axe checked at 390 and 1280 px and couldn't decide (its incomplete results;
 	step contact-sheet
 	assert_status 0
 	assert_eq "Taken from $head, with changes not committed:" "$(sed -n 3p "$folder/index.md" | sed 's/: each page route.*/:/')" "the index of a changed tree"
-	assert_eq "- none" "$(tail -n 1 "$folder/index.md")" "the list of a sheet axe decided everything on"
+	assert_eq "- none" "$(sed -n '/^## Axe/,/^## Layout/p' "$folder/index.md" | sed -n '/^- /p')" "the list of a sheet axe decided everything on"
+}
+
+# layout_page <fixture> <route>: the stand-in's page at <route>, smoke's
+# tests/fixture/layout/<fixture>.html.txt under the layout contract's styles.
+layout_page() {
+	mkdir -p "$TEST_TMP/site$2"
+	printf '<!doctype html><html lang="en"><head><title>t</title><style>%s</style></head><body>%s</body></html>\n' \
+		"$(cat "$NEXTJS_FIXTURES/layout/contract.css.txt")" "$(cat "$NEXTJS_FIXTURES/layout/$1.html.txt")" > "$TEST_TMP/site$2/index.html" ||
+		fail "could not write the page $1"
+}
+
+# index_has <folder> <line>: the sheet's index holds the line.
+index_has() {
+	grep -qxF -- "$2" "$1/index.md" || fail "no line '$2' in the index:"$'\n'"$(cat "$1/index.md")"
+}
+
+# A page that carries [data-shell] is taken at 1920 px too, light, and the
+# index lists what the layout check leaves to the eye on it, one line per route,
+# width, check and selector, naming its screenshot: a heading of four words with
+# one on its last line, a ragged paragraph, a short statement. None gates: the
+# sheet exits 0 with no finding. A page without [data-shell] gets no 1920 px
+# screenshot and no line.
+test_the_layout_checks_left_to_the_eye_are_listed_and_gate_nothing_with_node() {
+	needs_browser
+	skeleton_project
+	step prepare
+	[ "$status" -eq 0 ] || fail "prepare failed on the skeleton: $out"$'\n'"$(tail -n 20 "$TEST_TMP/stderr")"
+	rm -f node_modules/.bin/next && cp "$NEXTJS_FIXTURES/smoke/next.mjs.txt" node_modules/.bin/next && chmod 755 node_modules/.bin/next ||
+		fail "could not stand in for next"
+	export STAND_IN_SITE="$TEST_TMP/site" STAND_IN_PID="$TEST_TMP/server.pid"
+	routes '/  app/page.tsx  Home' '/plain  app/plain/page.tsx  Plain'
+	layout_page reported /
+	page '' /plain
+	local folder
+	folder="$(git rev-parse --absolute-git-dir)/factory/contact-sheet"
+
+	step contact-sheet
+	assert_status 0
+	assert_eq "$folder" "$out" "contact-sheet's stdout"
+	assert_eq "home-1280-dark.png
+home-1280-light.png
+home-1920-light.png
+home-390-dark.png
+home-390-light.png
+home-768-dark.png
+home-768-light.png
+index.md
+plain-1280-dark.png
+plain-1280-light.png
+plain-390-dark.png
+plain-390-light.png
+plain-768-dark.png
+plain-768-light.png" "$(files_in "$folder")" "the sheet's files"
+	assert_eq "1920" "$(png_width "$folder/home-1920-light.png")" "the 1920 px screenshot's width"
+	assert_eq '- `/`: home-390-light.png, home-390-dark.png, home-768-light.png, home-768-dark.png, home-1280-light.png, home-1280-dark.png, home-1920-light.png' "$(grep '^- `/`:' "$folder/index.md")" "the route's files"
+	# The lines' lengths are the fonts'; their format is fixed.
+	assert_eq '- `/` 390 one-word `section > p.tag`
+- `/` 390 one-word `section > h2#h-word`
+- `/` 390 one-word `section > p.cta`
+- `/` 390 ragged `div.ragged > p`
+- `/` 390 short `section > p`
+- `/` 768 one-word `section > p.tag`
+- `/` 768 one-word `section > h2#h-word`
+- `/` 768 one-word `section > p.cta`
+- `/` 768 ragged `div.ragged > p`
+- `/` 768 short `section > p`
+- `/` 1280 one-word `section > p.tag`
+- `/` 1280 one-word `section > h2#h-word`
+- `/` 1280 one-word `section > p.cta`
+- `/` 1280 ragged `div.ragged > p`
+- `/` 1280 short `section > p`
+- `/` 1920 one-word `section > p.tag`
+- `/` 1920 one-word `section > h2#h-word`
+- `/` 1920 one-word `section > p.cta`
+- `/` 1920 ragged `div.ragged > p`
+- `/` 1920 short `section > p`' "$(sed -n '/^## Layout to judge/,$p' "$folder/index.md" | sed -n 's/^\(- .*`\): ".*/\1/p')" "the layout lines"
+	index_has "$folder" '- `/` 390 one-word `section > h2#h-word`: "One two three four" breaks 3/1 words a line (want no line of one word) (home-390-light.png)'
+	index_has "$folder" '- `/` 1920 one-word `section > h2#h-word`: "One two three four" breaks 3/1 words a line (want no line of one word) (home-1920-light.png)'
+	wait_until "the server to stop" eval '! kill -0 "$(cat "$TEST_TMP/server.pid")" 2> /dev/null'
 }
 
 # No page route to take is a finding, before any build; so is no ARCHITECTURE.md.

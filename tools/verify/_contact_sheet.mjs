@@ -1,7 +1,7 @@
 // The contact sheet's browser (tools/verify/contact-sheet): one headless
 // Chromium (Playwright, the project's @playwright/test) takes a full-page
 // screenshot of each page route at each width, in each colour scheme, and lists
-// what axe couldn't decide on it.
+// what axe couldn't decide on it, and what the layout check reports on it.
 //   node tools/verify/_contact_sheet.mjs <origin> <seconds> <folder> <commit> <route>...
 // For each route, each width (390, 768, 1280; the window 900 tall) and each
 // scheme (light, dark), in that order, it opens <origin><route> in a fresh
@@ -12,7 +12,12 @@
 // Board names its files. At 390 and 1280 px (AXE_WIDTHS, smoke's axe widths) it
 // then runs axe on the page (_axe.mjs: smoke's rules) and keeps its incomplete
 // results: what axe checked and couldn't decide, such as the contrast of text
-// over an image or a gradient. Then <folder>/index.md lists each route's
+// over an image or a gradient. In the light scheme it then runs the layout
+// check (_layout.mjs, smoke's) on a page that carries [data-shell] and keeps
+// its reported items: one-word lines, ragged and short paragraphs, which no
+// measure can rule on alone; a route whose page had one at 390 px is taken at
+// 1920 px too (<slug>-1920-light.png), light alone, so each of the layout
+// check's widths has a screenshot. Then <folder>/index.md lists each route's
 // screenshots, under a line naming <commit>, the commit the sheet was taken
 // from, and under `## Axe couldn't decide` those results, for the Verifier to
 // judge by eye: one line per route, rule and selector (_axe.mjs's describe),
@@ -21,8 +26,13 @@
 // (its help when it gives none), or `- none`; an axe run that failed is a line
 // of its own there,
 //   - `<route>` <width> <scheme>: axe didn't run: <why>
-// and no finding: the list gates nothing. The folder must exist; the caller
-// empties it first.
+// and no finding: the list gates nothing. Under `## Layout to judge` come the
+// layout check's reported items, for the Verifier to judge by eye in the
+// screenshot each names: one line per route, width, check and selector,
+//   - `<route>` <width> <check> `<selector>`: <measured> (want <expected>) (<screenshot>)
+// in the order taken, or `- none`; a layout check that failed is a line there,
+//   - `<route>` <width> light: the layout check didn't run: <why>
+// and no finding either. The folder must exist; the caller empties it first.
 //
 // stdout: one finding a line, sorted, the origin left out of every message:
 //   package.json:1 contact-sheet-load <route> <width> <scheme>: <why the page
@@ -35,6 +45,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { chromium } from "@playwright/test";
 import { axe, describe } from "./_axe.mjs";
+import { layoutOf, REPORTED } from "./_layout.mjs";
 import { routeSlug } from "./_routes.mjs";
 
 const [origin, seconds, folder, commit, ...routes] = process.argv.slice(2);
@@ -75,6 +86,10 @@ try {
 // lines for the axe runs that failed.
 const undecided = new Map();
 const unrun = [];
+// layoutLines: the layout check's reported items, and its failed runs, as the
+// index lists them; shelled: the routes whose page carried [data-shell].
+const layoutLines = [];
+const shelled = new Set();
 
 // undecide(route, name, page): axe's incomplete results on the page, whose
 // screenshot is <name>, kept in undecided.
@@ -124,6 +139,20 @@ const shoot = async (route, width, scheme) => {
           `- \`${route}\` ${width} ${scheme}: axe didn't run: ${strip(firstLine(e))}`,
         );
       }
+    if (scheme === "light")
+      try {
+        const layout = await layoutOf(page);
+        if (layout) shelled.add(route);
+        for (const item of layout?.items ?? [])
+          if (REPORTED.includes(item.check))
+            layoutLines.push(
+              `- \`${route}\` ${width} ${item.check} \`${item.selector}\`: ${strip(item.measured)} (want ${item.want}) (${name})`,
+            );
+      } catch (e) {
+        layoutLines.push(
+          `- \`${route}\` ${width} light: the layout check didn't run: ${strip(firstLine(e))}`,
+        );
+      }
     return name;
   } catch (e) {
     out.push(
@@ -138,7 +167,7 @@ const shoot = async (route, width, scheme) => {
 const index = [
   "# Contact sheet",
   "",
-  `Taken from ${commit}: each page route at ${WIDTHS.join(", ")} px wide (the window ${HEIGHT} tall, the whole page captured), light and dark, with reduced motion. Each file is \`<route-slug>-<width>-<scheme>.png\`, named as the Board's are (\`docs/design/board/\`).`,
+  `Taken from ${commit}: each page route at ${WIDTHS.join(", ")} px wide (the window ${HEIGHT} tall, the whole page captured), light and dark, with reduced motion, and at 1920 px, light, when its page carries [data-shell]. Each file is \`<route-slug>-<width>-<scheme>.png\`, named as the Board's are (\`docs/design/board/\`).`,
   "",
 ];
 try {
@@ -149,6 +178,10 @@ try {
         const name = await shoot(route, width, scheme);
         if (name) names.push(name);
       }
+    if (shelled.has(route)) {
+      const name = await shoot(route, 1920, "light");
+      if (name) names.push(name);
+    }
     index.push(`- \`${route}\`: ${names.join(", ") || "no screenshot"}`);
   }
 } finally {
@@ -167,6 +200,15 @@ const undecidedLines = [...undecided].map(
 );
 if (undecidedLines.length + unrun.length === 0) index.push("- none");
 index.push(...undecidedLines, ...unrun);
+index.push(
+  "",
+  "## Layout to judge",
+  "",
+  "What the layout check (_layout.mjs) reports on the pages that carry [data-shell], in the light scheme: lines of one word, ragged and short paragraphs. None gates: judge each by eye in the screenshot it names, a fault when it shows (a word stranded on a line of its own, a paragraph's right edge ragged, a statement stopping well short with empty space beside it), none when the break reads as meant. One line per route, width, check and selector:",
+  "",
+);
+if (layoutLines.length === 0) index.push("- none");
+index.push(...layoutLines);
 writeFileSync(join(folder, "index.md"), index.join("\n") + "\n");
 process.stdout.write(
   [...new Set(out)]

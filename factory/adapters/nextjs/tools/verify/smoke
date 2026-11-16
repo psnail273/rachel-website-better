@@ -3,7 +3,8 @@
 # page routes loaded in three headless browsers, Chromium, Firefox and WebKit
 # (Safari's engine), at phone and desktop widths, in a light and a dark colour
 # scheme, with accessibility checks on each (axe, reflow at 320 px, focus in
-# forced colours) and a check of the links between them.
+# forced colours), a layout check on each page that carries the layout
+# contract's [data-shell], and a check of the links between them.
 #   bash tools/verify/smoke
 #
 #   0. _routes.mjs reads the page routes from ARCHITECTURE.md's `## Routes`
@@ -25,6 +26,13 @@
 #        390 and 1280 px wide, light and dark: axe-core (@axe-core/playwright,
 #          _axe.mjs: wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa and
 #          best-practice);
+#        390, 768, 1280 and 1920 px wide, light: the layout check (_layout.mjs,
+#          whose header has the layout contract and each check's rule), on a
+#          page with a [data-shell] alone: the column's edges in header, main
+#          and footer and between routes, nothing outside the column but in
+#          [data-bleed], section and heading gaps, narrow prose alone, lone
+#          blocks; 768 and 1920 load only a route whose page had one at 390,
+#          so a project without the contract pays one query a page;
 #        320 px wide, light: reflow, no sideways scroll (WCAG 1.4.10);
 #        1280 px wide, light, forced colours (forcedColors: 'active'): each
 #          element a Tab reaches shows a visible focus indicator when focused,
@@ -52,7 +60,8 @@
 # seconds, default 900) bounds the wait for the build lock.
 #
 # Findings, on stdout (next's output goes to stderr). A page finding (console,
-# page-error, response, request-failed, load, a11y, reflow, forced-colors)
+# page-error, response, request-failed, load, a11y, layout, reflow,
+# forced-colors)
 # found everywhere its check ran reads as below, naming no engine or width; one
 # found only in some engines names them, as a token after the <route>:
 # chromium, firefox and webkit, in that order, those that report it, joined by
@@ -62,7 +71,8 @@
 # smallest first, joined by commas (`smoke-a11y / 390px dark color-contrast
 # ...`, `smoke-a11y /contact webkit 390px light ...`). So a finding the
 # Baseline holds keeps matching while all three engines reproduce it at both of
-# axe's widths:
+# axe's widths (a layout finding: at the four widths where some page carried
+# [data-shell]):
 #   package.json:1 smoke-build <message>       next build failed
 #   package.json:1 smoke-build-lock <message>  another build held the build
 #                                              lock past FACTORY_BUILD_WAIT
@@ -85,15 +95,24 @@
 #                                              a request got no answer
 #   package.json:1 smoke-load <route>: <message>
 #                                              the page never loaded, or a
-#                                              page check (axe, reflow,
-#                                              forced colours, the link
-#                                              reading) never finished on it
+#                                              page check (layout, axe,
+#                                              reflow, forced colours, the
+#                                              link reading) never finished
+#                                              on it
 #   package.json:1 smoke-a11y <route> <scheme> <axe rule id> <target selector>: <help>
 #                                              an axe violation on the page in
 #                                              that scheme (light or dark), one
 #                                              per selector, which names no
 #                                              position, so a list's items are
 #                                              one finding however many
+#   package.json:1 smoke-layout <route> <check> <selector>: <measured> (want <expected>)
+#                                              a page with a [data-shell]
+#                                              departs from the layout
+#                                              contract: <check> is edges,
+#                                              outside, sections, headings,
+#                                              prose or lone; the one-word,
+#                                              ragged and short checks are the
+#                                              contact sheet's, not findings
 #   package.json:1 smoke-reflow <route>: scrolls horizontally at 320px (<n>px wide[, widest <target selector>])
 #                                              the page scrolls sideways 320 px
 #                                              wide, naming the element reaching

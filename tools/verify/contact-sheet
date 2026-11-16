@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# The contact sheet: a screenshot of every page route at three widths, in a light
-# and a dark colour scheme, for the Design check (factory/CONTEXT.md). Not a gate
-# step: the Editor of an issue that changes what the pages render runs it at
-# hand-back, and the Verifier reads what it wrote beside the Board
+# The contact sheet: a screenshot of every page route at three widths (and at
+# 1920 px for a page with [data-shell]), in a light and a dark colour scheme, for
+# the Design check (factory/CONTEXT.md). Not a gate step: the Editor of an issue
+# that changes what the pages render runs it at hand-back, and the Verifier
+# reads what it wrote beside the Board
 # (docs/design/board/) and docs/design.md (factory-run's verify-rubric.md).
 #   bash tools/verify/contact-sheet
 #
@@ -16,7 +17,10 @@
 # network to go quiet, and takes the whole page with animations stopped; at 390
 # and 1280 px it runs axe with smoke's rules (_axe.mjs) and keeps what axe
 # couldn't decide (its incomplete results, such as text over an image) for the
-# index.
+# index; in the light scheme, on a page that carries the layout contract's
+# [data-shell], it runs the layout check (_layout.mjs) and keeps what it
+# reports (one-word lines, ragged and short paragraphs), and takes that route
+# at 1920 px too, light alone.
 # Run bare, it reads tools/verify/local.env itself, as verify.sh does for the
 # gate's steps. The server is always stopped, its whole process group, before
 # it exits, and the fixture server: on a pass, a finding, an error, and on INT,
@@ -28,8 +32,10 @@
 # `therapy-about` for `/therapy/about`), and index.md, which names the commit
 # the sheet was taken from and lists each route's files, then, under `## Axe
 # couldn't decide`, axe's incomplete results, one line per route, rule and
-# selector, naming the screenshots they showed in, for the Verifier to judge by
-# eye (_contact_sheet.mjs has the format). They gate nothing: no finding.
+# selector, naming the screenshots they showed in, and under `## Layout to
+# judge` the layout check's reported items, one line per route, width, check
+# and selector, naming its screenshot, for the Verifier to judge by eye
+# (_contact_sheet.mjs has the format). They gate nothing: no finding.
 # stdout, on success, and nothing else: the folder's absolute path.
 #
 # FACTORY_SMOKE_TIMEOUT (local.env; seconds, default 60) bounds each wait: the

@@ -1,0 +1,33 @@
+/* The layout contract (tools/verify/_layout.mjs's header), as a project keeps
+   it, in whole px so the tests' numbers are the same in every engine. */
+html { scrollbar-gutter: stable; --space-section: 64px; --space-heading: 24px }
+@media (min-width: 1000px) { html { --space-section: 96px; --space-heading: 32px } }
+body { margin: 0; font: 16px/24px sans-serif; display: flex; flex-direction: column; min-height: 100vh }
+h1, h2, p, ul, figure, blockquote, form { margin: 0 }
+h1, h2 { font-size: 24px; line-height: 32px }
+[data-shell] { box-sizing: border-box; inline-size: 100%; max-inline-size: 1200px; margin-inline: auto; padding-inline: 20px }
+header, footer { padding-block: 16px }
+main { flex: none; padding-block: 24px var(--space-section) }
+main > [data-shell] { display: flex; flex-direction: column; gap: var(--space-section) }
+footer { flex: 1 0 auto }
+[data-heading] { margin-block-end: var(--space-heading) }
+[data-lead], [data-prose] p { text-align: justify }
+[data-prose], [data-center] { inline-size: 100%; max-inline-size: 560px; margin-inline: auto }
+[data-center] { text-align: center }
+[data-sidebar] { display: grid; grid-template-columns: minmax(0, 1fr) }
+@media (min-width: 640px) {
+  [data-sidebar] { grid-template-columns: minmax(0, 1fr) 240px; grid-template-rows: auto 1fr; column-gap: 32px }
+  [data-sidebar-head] { grid-area: 1 / 1 }
+  [data-sidebar-body] { grid-area: 2 / 1 }
+  [data-sidebar-aside] { grid-area: 1 / 2 / span 2 }
+}
+@media (max-width: 639px) { [data-sidebar-aside] { margin-block-end: var(--space-heading) } }
+.photo { block-size: 160px; background: #ddd }
+[data-switcher] { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 288px), 1fr)); gap: 32px }
+[data-bleed] .art { margin-inline: -20px; padding-block: 24px; background: #eef }
+[data-events] { display: flex; gap: 16px; overflow-x: auto; padding: 0; list-style: none }
+[data-events] li { flex: 0 0 300px; block-size: 48px; background: #eee }
+[data-events]:focus-visible { outline: 2px solid }
+a { display: inline-block; min-block-size: 24px }
+.skip { position: absolute; left: 1rem; top: -5rem }
+.skip:focus { position: fixed; top: 1rem }

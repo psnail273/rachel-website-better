@@ -13,7 +13,12 @@
 // turn, while the others do the same. For each route it opens <origin><route>
 // in a fresh browser context for each view (VIEWS), in turn, the window 900 px
 // tall, with reduced motion:
-//   390 and 1280 px wide, light and dark  axe, the link reading
+//   390 and 1280 px wide, light           the layout check, axe, the link
+//                                         reading
+//   390 and 1280 px wide, dark            axe, the link reading
+//   768 and 1920 px wide, light           the layout check, loaded only for a
+//                                         route whose page had a [data-shell]
+//                                         at 390 px in that engine
 //   320 px wide, light                    the reflow check, the link reading
 //   1280 px wide, light, forced colours   the forced-colours check, the link
 //                                         reading
@@ -46,6 +51,15 @@
 //                box-shadow computes to none): Chromium and Firefox do;
 //                WebKit's Playwright emulates the media query alone, so it
 //                doesn't run there;
+//   layout       _layout.mjs's layout check, on a page with a [data-shell]
+//                alone (a page without one costs one query, and its 768 and
+//                1920 px views aren't loaded): the layout contract's gating
+//                checks (edges, outside, sections, headings, prose, lone; the
+//                contract and each check's rule are in _layout.mjs's header).
+//                The edges between routes are compared once every route is
+//                loaded, at each width, in each engine, against the first
+//                checked route. Its reported checks (one-word, ragged, short)
+//                aren't findings: the contact sheet lists them;
 //   link reading the page's same-origin links.
 // Once every engine has loaded every route, each link (its #hash left off,
 // each once, a route already loaded left out) is requested once, with no
@@ -62,6 +76,8 @@
 //   package.json:1 smoke-load <route>[ <engines>][ <widths>]: <why the page never
 //                  loaded, or a page check never finished on it>
 //   package.json:1 smoke-a11y <route>[ <engines>][ <widths>] <light|dark> <axe rule id> <target>: <help>
+//   package.json:1 smoke-layout <route>[ <engines>][ <widths>] <check> <selector>:
+//                  <measured> (want <expected>)
 //   package.json:1 smoke-reflow <route>[ <engines>]: scrolls horizontally at 320px
 //                  (<scrollWidth>px wide[, widest <target>])
 //   package.json:1 smoke-forced-colors <route>[ <engines>] <target>: no visible
@@ -77,6 +93,11 @@
 //              dark ...`);
 //   <widths>   the window widths it was found at, smallest first, each with px,
 //              joined by commas (`smoke-a11y / 390px dark color-contrast ...`).
+// smoke-layout ran in the engines and at the widths where some page had a
+// [data-shell]: a layout finding at all four widths in every engine names
+// neither (`smoke-layout /about outside div.wide: ...`); one at 390px alone
+// names it (`smoke-layout /about 390px lone ...`). Its <measured> holds whole
+// px, so a fault that measures the same at every width is one finding.
 // So a finding all three engines report at both of axe's widths reads as it did
 // when smoke ran Chromium alone at one width, and a forced-colours finding
 // both Chromium and Firefox report names none. A smoke-link, from the one
@@ -98,6 +119,14 @@
 // browser didn't start, 2 on arguments it can't read.
 import { chromium, firefox, request, webkit } from "@playwright/test";
 import { axe, describe, selectorOf } from "./_axe.mjs";
+import {
+  acrossRoutes,
+  dimensions,
+  GATING,
+  LAYOUT_WIDTHS,
+  layoutOf,
+  findingText,
+} from "./_layout.mjs";
 
 const USAGE =
   "usage: node tools/verify/_smoke_page.mjs <origin> <seconds> [--cookie <name>=<value>] <route>...";
@@ -139,14 +168,19 @@ const ENGINES = [
 ];
 // The views each route is loaded in, in each engine, in this order: a fresh
 // browser context each, HEIGHT tall, with reduced motion, running the named
-// CHECKS. To check another width, add a view.
+// CHECKS. To check another width, add a view. A view with shell: true is loaded
+// only for a route whose page the layout check found [data-shell] on, in that
+// engine, at an earlier view: its loads find what any load does, but don't
+// count as those rules having run there (so a finding on another route isn't
+// named for a width it was never loaded at).
 const AXE_WIDTHS = [390, 1280];
 const VIEWS = [
   ...AXE_WIDTHS.flatMap((width) =>
     ["light", "dark"].map((scheme) => ({
       width,
       scheme,
-      checks: ["axe", "links"],
+      checks:
+        scheme === "light" ? ["layout", "axe", "links"] : ["axe", "links"],
     })),
   ),
   { width: 320, scheme: "light", checks: ["reflow", "links"] },
@@ -156,6 +190,9 @@ const VIEWS = [
     forcedColors: "active",
     checks: ["forced-colors", "links"],
   },
+  ...LAYOUT_WIDTHS.filter((width) => !AXE_WIDTHS.includes(width)).map(
+    (width) => ({ width, scheme: "light", checks: ["layout"], shell: true }),
+  ),
 ];
 // The rules every view can find, whatever its checks.
 const EVENT_RULES = [
@@ -254,6 +291,12 @@ const launch = async (engine) => {
 // route (in the order given) any engine found it on.
 const links = new Map();
 const loaded = new Set(routes.map((r) => noHash(origin + r)));
+
+// The layout check's, by engine: shells, the routes whose page carries
+// [data-shell]; columns, by width, main's column on each, in the routes' order,
+// for the edges between routes.
+const shells = new Map();
+const columns = new Map();
 
 // reflowOf(): in the page, null when it doesn't scroll sideways, else its
 // width and the element reaching furthest right that no ancestor clips (or
@@ -400,12 +443,27 @@ const unfocusedOf = () => {
 
 // The page checks, by name, that a view runs on each page that loaded, in each
 // engine, each at most <seconds>. A check is { rule, what, run }: run({ page,
-// route, at, view, finding }) judges the page, finding(rule, rest) reporting
-// what it finds (rest as pageFinding has it), and returns false when it can't
-// run in this engine; else it counts as <rule> having run there, at the view's
-// width. A check that throws or runs out of time is a smoke-load finding,
-// "<what> didn't run: <why>". Add a check here, and name it in a view.
+// route, at, view, engine, finding }) judges the page, finding(rule, rest)
+// reporting what it finds (rest as pageFinding has it), and returns false when
+// it can't run in this engine (the layout check: no [data-shell]); else it
+// counts as <rule> having run there, at the view's width. A check that throws
+// or runs out of time is a smoke-load finding, "<what> didn't run: <why>". Add a check here, and name it in a view.
 const CHECKS = {
+  layout: {
+    rule: "smoke-layout",
+    what: "the layout check",
+    run: async ({ page, route, at, view, engine, finding }) => {
+      const layout = await layoutOf(page);
+      if (!layout) return false;
+      shells.get(engine.name).add(route);
+      const byWidth = columns.get(engine.name);
+      if (!byWidth.has(view.width)) byWidth.set(view.width, []);
+      byWidth.get(view.width).push({ route, at, column: layout.column });
+      for (const item of layout.items)
+        if (GATING.includes(item.check))
+          finding("smoke-layout", findingText(item));
+    },
+  },
   axe: {
     rule: "smoke-a11y",
     what: "axe",
@@ -485,9 +543,11 @@ const CHECKS = {
 // visit(engine, browser, route, at, view): load the route (routes[at]) in the
 // view, judge it, and run the view's page checks on it.
 const visit = async (engine, browser, route, at, view) => {
+  if (view.shell && !shells.get(engine.name).has(route)) return;
   const finding = (rule, rest) =>
     pageFinding(engine, view.width, rule, route, rest);
-  for (const rule of EVENT_RULES) didRun(rule, engine, view.width);
+  if (!view.shell)
+    for (const rule of EVENT_RULES) didRun(rule, engine, view.width);
   const context = await browser.newContext({
     viewport: { width: view.width, height: HEIGHT },
     colorScheme: view.scheme,
@@ -533,7 +593,7 @@ const visit = async (engine, browser, route, at, view) => {
       const check = CHECKS[name];
       try {
         const done = await within(
-          check.run({ page, route, at, view, finding }),
+          check.run({ page, route, at, view, engine, finding }),
           check.what,
         );
         if (check.rule && done !== false)
@@ -555,9 +615,20 @@ try {
   if (missing.length === 0) {
     await Promise.all(
       ENGINES.map(async (engine, i) => {
+        shells.set(engine.name, new Set());
+        columns.set(engine.name, new Map());
         for (const [at, route] of routes.entries())
           for (const view of VIEWS)
             await visit(engine, started[i].browser, route, at, view);
+        for (const [width, pages] of columns.get(engine.name))
+          for (const item of acrossRoutes(pages.sort((a, b) => a.at - b.at)))
+            pageFinding(
+              engine,
+              width,
+              "smoke-layout",
+              item.route,
+              findingText(item),
+            );
       }),
     );
     const api = await request.newContext({
@@ -589,24 +660,12 @@ if (missing.length > 0) {
   process.exit(1);
 }
 
-// covers(found, where): <found> holds every one of <where>.
-const covers = (found, where) => [...where].every((x) => found.has(x));
 for (const [key, { rule, route, rest, engines, widths }] of pageFindings) {
-  const where = ran.get(rule) ?? { engines: new Set(), widths: new Set() };
-  const tokens = [];
-  if (!covers(engines, where.engines))
-    tokens.push(
-      ENGINES.filter((e) => engines.has(e.name))
-        .map((e) => e.name)
-        .join(","),
-    );
-  if (!covers(widths, where.widths))
-    tokens.push(
-      [...widths]
-        .sort((a, b) => a - b)
-        .map((w) => `${w}px`)
-        .join(","),
-    );
+  const tokens = dimensions(
+    { engines, widths },
+    ran.get(rule) ?? { engines: new Set(), widths: new Set() },
+    ENGINES.map((e) => e.name),
+  );
   out.push(
     tokens.length === 0
       ? key

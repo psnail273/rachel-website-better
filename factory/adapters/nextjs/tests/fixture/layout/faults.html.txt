@@ -1,0 +1,19 @@
+<header><div data-shell class="off"><a href="/">Brand</a></div></header>
+<main><div data-shell>
+<section data-section data-bleed aria-label="Hero"><div class="art"><p>A hero that leaves the column, as only data-bleed&nbsp;may.</p></div></section>
+<section data-section aria-labelledby="h-wide"><h1 id="h-wide" data-heading="1">Wide</h1>
+<div class="wide">A box that reaches past the column's right&nbsp;edge.</div></section>
+<section data-section class="pushed" aria-labelledby="h-pushed"><h2 id="h-pushed" data-heading="2" class="spaced">Pushed down</h2>
+<div data-prose class="narrow"><p>Narrow copy, with nothing beside&nbsp;it.</p></div></section>
+<section data-section aria-labelledby="h-late"><h2 id="h-late" data-heading="2">Late</h2>
+<div data-center class="late"><p>Centred until the widest&nbsp;width.</p></div></section>
+</div></main>
+<footer><div data-shell><p>Footer</p></div></footer>
+<style>
+.off { padding-inline-start: 60px }
+.wide { margin-inline-end: -10px }
+.pushed { margin-block-start: 10px }
+.spaced { margin-block-end: calc(var(--space-heading) + 12px) }
+.narrow { max-inline-size: 150px }
+@media (min-width: 1500px) { .late { margin-inline: 0 auto } }
+</style>

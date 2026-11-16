@@ -11,7 +11,8 @@
 # A page finding all three engines report names none; one only some report
 # names them after the route (test_a_finding_some_engines_report_names_them);
 # one found at only one of axe's widths names it after that
-# (test_an_accessibility_fault_at_one_width_names_it).
+# (test_an_accessibility_fault_at_one_width_names_it). The layout check runs
+# on the pages of tests/fixture/layout/, under the layout contract's styles.
 
 # shellcheck disable=SC2154 # out and status: set by run_cmd, in factory/core/tests/lib.sh
 NEXTJS_ADAPTER="$FACTORY_CORE/../adapters/nextjs"
@@ -277,6 +278,59 @@ test_a_page_wider_than_320px_is_a_finding_with_node() {
 	assert_eq "" "$out" "a page that clips its overflow"
 }
 
+# layout_page <fixture> [route] [css]: the site's page at <route> (default
+# `/`): tests/fixture/layout/<fixture>.html.txt as its body, under the layout
+# contract's styles (contract.css.txt) and <css>.
+layout_page() {
+	mkdir -p "$TEST_TMP/site${2:-/}"
+	printf '<!doctype html><html lang="en"><head><title>t</title><style>%s%s</style></head><body>%s</body></html>\n' \
+		"$(cat "$NEXTJS_FIXTURES/layout/contract.css.txt")" "${3:-}" "$(cat "$NEXTJS_FIXTURES/layout/$1.html.txt")" > "$TEST_TMP/site${2:-/}/index.html" ||
+		fail "could not write the page $1"
+}
+
+# The layout check, on each route whose page carries [data-shell], at 390, 768,
+# 1280 and 1920 px in each engine: the page that keeps the whole contract (a
+# bleeding hero, a Sidebar, a Switcher, a Center with a quote, a form, a strip
+# of events that scrolls in its own box) is no finding, and a page without
+# [data-shell] is skipped; on /faults each departure is one finding, naming no
+# width when it shows at all four (the header's edge, a box outside the column
+# beside a hero data-bleed lets out, a section and a heading gap, narrow prose
+# alone) and the width when it shows at one (a block off-centre at 1920 px
+# alone); /narrow's column, on a page of its own whose shells agree, is off /'s
+# at the two widths where it's narrower than the window.
+test_the_layout_check_finds_each_departure_from_the_contract_with_node() {
+	needs_browser
+	site_project
+	routes '/  app/page.tsx  Home' '/faults  app/faults/page.tsx  Faults' \
+		'/narrow  app/narrow/page.tsx  Narrow' '/plain  app/plain/page.tsx  Plain'
+	layout_page pass
+	layout_page faults /faults
+	layout_page pass /narrow '[data-shell] { max-inline-size: 900px }'
+	page '' /plain
+	smoke_and_server_gone "the layout faults"
+	assert_status 1
+	assert_eq "package.json:1 smoke-layout /faults 1920px lone section > div.late: 560px wide in a 1160px cell, 0px | 600px either side (want 0.9 of it, or centred, ±2px)
+package.json:1 smoke-layout /faults edges header > div.off: content box left +40px, right 0px from main's (want main's, ±1px)
+package.json:1 smoke-layout /faults headings section.pushed > h2#h-pushed.spaced: gap below is --space-heading +12px (want --space-heading, ±1px)
+package.json:1 smoke-layout /faults outside section > div.wide: reaches 10px past the column's right edge (want inside the column, or in [data-bleed])
+package.json:1 smoke-layout /faults prose section.pushed > div.narrow: 150px wide, nothing beside it (want 0.6 of the column or more, or something beside it)
+package.json:1 smoke-layout /faults sections div > section.pushed: gap above is --space-section +10px (want --space-section, ±1px)
+package.json:1 smoke-layout /narrow 1280px,1920px edges main#main > div: content box left +150px, right -150px from /'s (want /'s, ±1px)" "$out" "the layout findings"
+}
+
+# A project without the contract is unaffected: no page carries [data-shell],
+# so nothing is measured and nothing is loaded at the layout check's own
+# widths, 768 and 1920 px (a load there would request a file that isn't
+# there: a finding).
+test_a_page_without_a_shell_loads_at_no_layout_width_with_node() {
+	needs_browser
+	site_project
+	page '<script>if ([768, 1920].includes(innerWidth)) fetch("/api/missing")</script>'
+	smoke_and_server_gone "a page with no shell"
+	assert_status 0
+	assert_eq "" "$out" "smoke's findings on a page with no shell"
+}
+
 # server_started: the stand-in server printed its URL; its port in $port.
 server_started() {
 	[[ "$(cat "$TEST_TMP/server.out" 2> /dev/null)" =~ http://127\.0\.0\.1:([0-9]+) ]] && port="${BASH_REMATCH[1]}"
@@ -311,6 +365,88 @@ package.json:1 smoke-a11y / light label main > input: Form elements must have la
 	run_cmd node tools/verify/_smoke_page.mjs "http://127.0.0.1:$port" 60
 	assert_status 2
 	stderr_has "usage: node tools/verify/_smoke_page.mjs <origin> <seconds> [--cookie <name>=<value>] <route>..."
+	kill "$server"
+	wait_until "the stand-in server to stop" server_gone
+}
+
+# The layout check runs on its own too, against any server, with a cookie set
+# in every browser context (here the photo reaches past the column only when
+# the cookie is set): its findings as smoke prints them, then what it reports
+# for the eye, Chromium's, one line per route, width, check and selector
+# (/reported: a heading of four words with one on its last line, a ragged
+# paragraph, a short statement), and on stderr the routes it checked and those
+# it skipped for want of [data-shell]. Arguments it can't read are its usage
+# and exit 2.
+test_the_layout_check_runs_on_its_own_with_a_cookie_with_node() {
+	needs_browser
+	site_project
+	layout_page pass / '.b .photo { margin-inline-end: -30px }'
+	sed -i 's|</body>|<script>if (document.cookie.split("; ").includes("direction=b")) document.body.classList.add("b")</script></body>|' "$TEST_TMP/site/index.html"
+	layout_page reported /reported
+	layout_page pass /far '.photo { position: relative; left: 2500px }'
+	layout_page pass /parked 'body { overflow-x: hidden } .photo { position: relative; left: 2500px }'
+	page '<script>setInterval(() => fetch("/"), 100)</script>' /busy
+	page '' /plain
+	port=""
+	# server: no local, so the EXIT trap, which runs after the function returns,
+	# still sees it.
+	node node_modules/.bin/next start --hostname 127.0.0.1 --port 0 > "$TEST_TMP/server.out" 2>&1 &
+	server=$!
+	trap 'kill "$server" 2> /dev/null; wait "$server"' EXIT
+	wait_until "the stand-in server to listen" server_started
+	run_cmd node tools/verify/_layout.mjs "http://127.0.0.1:$port" 60 --cookie direction=b / /plain /reported
+	assert_status 0
+	assert_eq "package.json:1 smoke-layout / outside div > div.photo: reaches 30px past the column's right edge (want inside the column, or in [data-bleed])" "$(grep '^package' <<< "$out")" "the findings with the cookie"
+	# The reported lines' lengths are the fonts'; their format is fixed.
+	assert_eq "reported: /reported 390px one-word section > p.tag
+reported: /reported 390px one-word section > h2#h-word
+reported: /reported 390px one-word section > p.cta
+reported: /reported 390px ragged div.ragged > p
+reported: /reported 390px short section > p
+reported: /reported 768px one-word section > p.tag
+reported: /reported 768px one-word section > h2#h-word
+reported: /reported 768px one-word section > p.cta
+reported: /reported 768px ragged div.ragged > p
+reported: /reported 768px short section > p
+reported: /reported 1280px one-word section > p.tag
+reported: /reported 1280px one-word section > h2#h-word
+reported: /reported 1280px one-word section > p.cta
+reported: /reported 1280px ragged div.ragged > p
+reported: /reported 1280px short section > p
+reported: /reported 1920px one-word section > p.tag
+reported: /reported 1920px one-word section > h2#h-word
+reported: /reported 1920px one-word section > p.cta
+reported: /reported 1920px ragged div.ragged > p
+reported: /reported 1920px short section > p" "$(grep -v '^package' <<< "$out" | sed 's/: ".*//')" "the reported lines"
+	[[ "$out" =~ reported:\ /reported\ 390px\ one-word\ section\ \>\ h2#h-word:\ \"One\ two\ three\ four\"\ breaks\ 3/1\ words\ a\ line\ \(want\ no\ line\ of\ one\ word\) ]] ||
+		fail "the one-word line isn't as the header has it: $out"
+	[[ "$out" =~ reported:\ /reported\ 390px\ short\ section\ \>\ p:\ \"A\ short\ statement.\"\ 1\ line,\ the\ longest\ [0-9]+px\ of\ [0-9]+px\ \(want\ [0-9]+px\ \(0.75\ of\ its\ box\)\) ]] ||
+		fail "the short line isn't as the header has it: $out"
+	[[ "$out" =~ reported:\ /reported\ 390px\ one-word\ section\ \>\ p\.tag:\ \"Licensed\ psychotherapist,\ clarinetist,\ r…\"\ breaks\ 1/2/2\ words\ a\ line ]] ||
+		fail "the hero tagline isn't a label: $out"
+	stderr_has "layout: 1 finding(s), 20 reported; checked / /reported; skipped (no [data-shell]) /plain"
+
+	run_cmd node tools/verify/_layout.mjs "http://127.0.0.1:$port/" 60 /
+	assert_status 0
+	assert_eq "" "$out" "the findings without the cookie"
+	stderr_has "layout: 0 finding(s), 0 reported; checked /; skipped (no [data-shell]) none"
+
+	# A box past the window's right edge, which the page scrolls to, is outside;
+	# one where body's overflow-x hides it, or the skip link above the window
+	# (on every page here), is not; a page that
+	# never goes quiet is a smoke-load finding as smoke prints it, its width
+	# unnamed, though the shell pages were loaded at 768 and 1920 px too.
+	run_cmd node tools/verify/_layout.mjs "http://127.0.0.1:$port" 15 / /far /parked /busy
+	assert_status 0
+	assert_eq "package.json:1 smoke-layout /far outside div > div.photo: reaches 2500px past the column's right edge (want inside the column, or in [data-bleed])
+package.json:1 smoke-load /busy: the page didn't load and go quiet within 15s: page.goto: Timeout 15000ms exceeded." "$out" "the findings past the window and on a busy page"
+
+	run_cmd node tools/verify/_layout.mjs "http://127.0.0.1:$port" 60 --cookie novalue /
+	assert_status 2
+	stderr_has "--cookie takes <name>=<value>, not 'novalue'"
+	run_cmd node tools/verify/_layout.mjs "http://127.0.0.1:$port" 60
+	assert_status 2
+	stderr_has "usage: node tools/verify/_layout.mjs <origin> <seconds> [--cookie <name>=<value>] <route>..."
 	kill "$server"
 	wait_until "the stand-in server to stop" server_gone
 }

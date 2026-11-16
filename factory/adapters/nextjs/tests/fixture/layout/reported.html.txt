@@ -1,0 +1,9 @@
+<header><div data-shell><a href="/">Brand</a></div></header>
+<main><div data-shell>
+<section data-section data-bleed aria-label="Hero"><h1>Name</h1><p class="tag">Licensed<br>psychotherapist, clarinetist,<br>recorder player</p><p class="cta">Book a<br>session</p></section>
+<section data-section aria-labelledby="h-word"><h2 id="h-word" data-heading="2">One two three<br>four</h2>
+<div data-prose class="ragged"><p>aa bb<br>cc dd<br>ee ff<br>gg hh</p></div></section>
+<section data-section aria-label="Short"><p data-lead>A short statement.</p></section>
+</div></main>
+<footer><div data-shell><p>Footer</p></div></footer>
+<style>.ragged { max-inline-size: none }</style>

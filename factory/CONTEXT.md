@@ -75,11 +75,11 @@ The approved **Design direction**'s screenshots, committed in `docs/design/board
 _Avoid_: Mock-up, design comp, reference images
 
 **Contact sheet**:
-Screenshots of every page route at 390, 768 and 1280 px, light and dark, with reduced motion, named as the **Board**'s are, that `tools/verify/contact-sheet` takes into the checkout's git dir and never commits. Its index lists what axe couldn't decide at 390 and 1280 px, such as text over an image, for the **Verifier** to judge by eye. The **Editor** of a visual issue takes it at hand-back for the **Design check**.
+Screenshots of every page route at 390, 768 and 1280 px, light and dark, with reduced motion, named as the **Board**'s are, that `tools/verify/contact-sheet` takes into the checkout's git dir and never commits. A page that carries the layout contract's `[data-shell]` is taken at 1920 px too, light. Its index lists what axe couldn't decide at 390 and 1280 px, such as text over an image, and what smoke's layout check reports and leaves to the eye (lines of one word, ragged and short paragraphs), for the **Verifier** to judge by eye. The **Editor** of a visual issue takes it at hand-back for the **Design check**.
 _Avoid_: Screenshot set, gallery
 
 **Design check**:
-The **Verifier**'s yes/no check of a visual issue's **Contact sheet** beside the **Board** and `docs/design.md`: tokens and spacing, a 65ch measure, no overflow at 390 px, visible focus rings, no generic AI-design tells, the **Board**'s layout, and what axe couldn't decide. A visual issue is one whose diff changes what a page renders, as factory-run's `verify-rubric.md` defines it. A no fails the check. It is a filter: the human's **Playtest** and the screenshot baselines it records are the proof.
+The **Verifier**'s yes/no check of a visual issue's **Contact sheet** beside the **Board** and `docs/design.md`: tokens and spacing, a 65ch measure, no overflow at 390 px, visible focus rings, no generic AI-design tells, the **Board**'s layout, what axe couldn't decide, and what the layout check left to the eye. A visual issue is one whose diff changes what a page renders, as factory-run's `verify-rubric.md` defines it. A no fails the check. It is a filter: the human's **Playtest** and the screenshot baselines it records are the proof.
 _Avoid_: Design review, visual QA
 
 ### Roles
