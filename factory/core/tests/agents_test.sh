@@ -117,3 +117,48 @@ test_the_vendored_frontend_design_is_as_recorded() {
 	done
 	grep -qx 'name: frontend-design' "$dir/frontend-design/SKILL.md" || fail "the vendored skill isn't named frontend-design"
 }
+
+# The design step serves on localhost:3000 alone (#55 item 5): next dev binds
+# 0.0.0.0 by default, so the host is explicit, and the LAN address and port
+# 3100 are gone.
+test_the_design_step_serves_on_localhost_3000() {
+	local dd="$FACTORY_CORE/../skills/factory-spec/design-direction.md"
+	grep -qF 'pnpm exec next dev -H localhost -p 3000' "$dd" || fail "step 2 doesn't start next dev on localhost:3000"
+	grep -qxF 'factory-dev-server: http://localhost:3000/' "$dd" || fail "the designer's prompt doesn't name http://localhost:3000/"
+	grep -qF 'ssh -L 3000:localhost:3000' "$dd" || fail "step 2 doesn't say how to reach the server through a tunnel"
+	grep -qF 'Never pick another port yourself' "$dd" || fail "step 2 doesn't keep the Driver off another port"
+	! grep -qE '3100|hostname -I' "$dd" "$FACTORY_AGENTS_DIR/designer.md" || fail "the design step still names port 3100 or the LAN address"
+}
+
+# A fresh verifier critiques each build and iterate round before the human
+# sees it (#55 item 4): its step comes before the human's, the iterate round
+# runs it, and the designer has a critique round to answer it.
+test_the_critique_comes_before_the_human_picks() {
+	local dd="$FACTORY_CORE/../skills/factory-spec/design-direction.md" critique human
+	critique="$(grep -n '^## 4\. The critique$' "$dd" | cut -d: -f1)"
+	human="$(grep -n '^## 5\. The human picks$' "$dd" | cut -d: -f1)"
+	[ -n "$critique" ] && [ -n "$human" ] && [ "$critique" -lt "$human" ] || fail "the critique isn't the step before the human picks"
+	grep -qF 'subagent_type: verifier' "$dd" || fail "the critique isn't a verifier's"
+	grep -qF 'At most two `critique` rounds' "$dd" || fail "the critique's rounds have no end"
+	grep -qF "run step 4's critique on its report, show the human" "$dd" || fail "an iterate round reaches the human uncritiqued"
+	grep -qF 'End with PASS, or FAIL and the findings.' "$dd" || fail "the critique's prompt has no verdict line"
+	grep -qF '`factory-design: build`, `iterate`, `critique` or `board`' "$FACTORY_AGENTS_DIR/designer.md" || fail "the designer has no critique round"
+	grep -qF '## Round `critique`' "$FACTORY_AGENTS_DIR/designer.md" || fail "the designer doesn't say what a critique round does"
+}
+
+# The designer runs the adapter's standalone checks, with its direction's
+# cookie, as the scripts' own usage reads, and prints axe's undecided results
+# with the functions _axe.mjs exports.
+test_the_designer_runs_the_standalone_checks_as_their_usage_reads() {
+	local d="$FACTORY_AGENTS_DIR/designer.md" verify="$FACTORY_CORE/../adapters/nextjs/tools/verify" s
+	for s in _smoke_page _layout; do
+		grep -qF "node tools/verify/$s.mjs <origin> <seconds> [--cookie <name>=<value>] <route>..." "$verify/$s.mjs" ||
+			fail "$s.mjs's usage changed: the designer's command may no longer match it"
+		grep -qF "node tools/verify/$s.mjs <origin> 60 --cookie design-direction=<key> <route>..." "$d" ||
+			fail "the designer doesn't run $s.mjs with its direction's cookie"
+	done
+	grep -qF 'data-shell' "$d" || fail "the designer isn't told to carry the layout contract"
+	grep -qF 'import { axe, describe } from "./tools/verify/_axe.mjs";' "$d" || fail "shots.mjs doesn't print axe's undecided results"
+	grep -qE '^export const (axe|describe) =' "$verify/_axe.mjs" && [ "$(grep -cE '^export const (axe|describe) =' "$verify/_axe.mjs")" = 2 ] ||
+		fail "_axe.mjs no longer exports axe and describe"
+}

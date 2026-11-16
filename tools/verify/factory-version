@@ -237,10 +237,10 @@ file a85e94dc7bf8f422f24d09ea49701cd8dfbec438 factory/agents/amend-builder.md
 file 87fcdf5af253f1622a5c8a03adc002276a2b7b65 factory/agents/asset-fetcher.md
 file c7edee82ecf0e81e33989e56bc8a74f2c510e479 factory/agents/check-editor-sonnet.log
 file 8890233f8acf2f28511fb4f0497d920083c5c208 factory/agents/check-editor-sonnet.sh
-file 80250b2b1bd6367b2645ee1a2b66d6890e51939e factory/agents/designer.md
+file 4989f1d16974a557e165f36b43025dd59eb8273c factory/agents/designer.md
 file a8758c935a4bfa77b49396af04442bdb91f44b87 factory/agents/driver.md
 file 68caf3ac73827987bdddb721aa2357848662c7e3 factory/agents/editor-sonnet.md
-file a8feeff572846e38aa9555c3596bd66e24ef972f factory/agents/verifier.md
+file f8302e72de2ea635d1509b24a368679af4843473 factory/agents/verifier.md
 file 802083108998b7ab2cb52d5686967a4235200fc4 factory/core/adopt.sh
 file b7312b0ce1569aad79fc45effee15d143e0477b7 factory/core/agents.sh
 file 4b57661c3b951675ca01fb3be24cee75efbf9e18 factory/core/amend.sh
@@ -304,7 +304,7 @@ file d195377215793c65d19236f8e261a4edd90c99f3 factory/core/templates/verify.ps1
 file f2706b656ab1c04131d2a8c1313f321127c22e6f factory/core/templates/verify.sh
 file e7125f4953ffa61cce6ca0edc4b6ede54ba89ee9 factory/core/test.sh
 file 1a1f6d7eac6da2df66a3d47de7f3db63b47c8709 factory/core/tests/adopt_test.sh
-file a399002ace6ca1bbe0b67874db92d2ced7cf7a97 factory/core/tests/agents_test.sh
+file fec3c220e0958859d27f411c96c1f8dc46cbcfdb factory/core/tests/agents_test.sh
 file 1b47e93f3c4d29f1de7985ce548bc66760bd6087 factory/core/tests/amend_test.sh
 file 0217883c6ec27089797ba7d2cf7650cdd38a5b13 factory/core/tests/architecture_test.sh
 file 1c3f96c252653cbcaef9c3175ea6763b2ba66e2b factory/core/tests/arm_test.sh
@@ -396,7 +396,7 @@ file 6941943d6e95d126338ba0a880efd21e9221188f factory/skills/factory-run/retro.m
 file d4d07faf1d10fffecbe6e7324c854031dac17c20 factory/skills/factory-run/scenarios.md
 file 2cc23ea6c1c9782f614f1dc9dc999da599f15d7c factory/skills/factory-run/verify-rubric.md
 file 572df019aa4aea8d46747dbcd9d3214b75014276 factory/skills/factory-spec/SKILL.md
-file 35cb10ee8c9279cde71718032765fc8fef499e3c factory/skills/factory-spec/design-direction.md
+file daf22e71f194189511e6eed6a50e8c7230f0f69f factory/skills/factory-spec/design-direction.md
 file 9ae39a66cfe2801c3de085ea1c61b184fa923b60 factory/skills/factory-spec/slicing.md
 file d067b36f4dc1fa24233a35a8fa3b0bd3dc3870e3 factory/skills/repro-first/SKILL.md
 file fbb8a8f22ac9087da21b527e88371c6bf21c801c factory/third-party/README.md
