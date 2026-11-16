@@ -74,7 +74,7 @@ The arch and smoke steps judge the code your tests and stubs add, by the rules i
 - **Client stays client.** A `"use client"` file, and every file it imports, never imports a server-only module: one under `server/`, a route handler, or one that imports `server-only`. An `import type` is fine. Test server code from its own test file, not through a client component.
 - **Next stays in `app/`.** A module outside `app/` imports nothing from `next` or `next/*`, so its tests run without Next: a stub under `lib/` takes plain values (a `URL`, a body), not a `NextRequest`. Tests themselves may import `next/server`.
 - **Fonts** come from `next/font/local`; `next/font/google` fails arch.
-- **Smoke** builds, starts and loads each page route of `ARCHITECTURE.md`'s Routes table, light and dark. A console or uncaught error, a non-2xx response (a redirect's target is judged), an axe violation (WCAG 2 A/AA, 2.2 AA) or a same-origin link answering 4xx/5xx fails it: a stub a page reaches returns its empty value, never throws.
+- **Smoke** loads each page route of `ARCHITECTURE.md`'s Routes table at 390 and 1280px, light and dark. A console or uncaught error, a non-2xx response, an axe violation, sideways scroll at 320px, no focus ring in forced colours, or a broken same-origin link fails it: a stub a page reaches returns its empty value, never throws.
 
 ## Durable tests
 

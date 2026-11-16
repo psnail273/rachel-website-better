@@ -43,8 +43,10 @@ png_width() {
 
 # Two page routes give twelve screenshots, each route at 390, 768 and 1280 px,
 # light and dark, named as the Board names its files, and an index naming the
-# commit; the route handler and the method line get none. stdout is the folder
-# alone, and the server is gone after.
+# commit; the route handler and the method line get none. The index lists what
+# axe couldn't decide at 390 and 1280 px (the contrast of text over a gradient),
+# naming the screenshots, and no finding. stdout is the folder alone, and the
+# server is gone after; on a page axe decides everything on, the list is none.
 test_the_sheet_holds_each_page_route_at_each_width_and_scheme_with_node() {
 	needs_browser
 	skeleton_project
@@ -56,7 +58,7 @@ test_the_sheet_holds_each_page_route_at_each_width_and_scheme_with_node() {
 	routes '/  app/page.tsx  Home' '/therapy/about  app/therapy/about/page.tsx  About' \
 		'POST /api/x  app/api/x/route.ts  no page' '/api/health  app/api/health/route.ts  handler'
 	page '<style>@media (prefers-color-scheme: dark) { body { background: #000; color: #fff } }</style>' /
-	page '' /therapy/about
+	page '<p class="over" style="background-image: linear-gradient(#000, #fff); color: #777">over</p>' /therapy/about
 	git add -A && git commit -qm init || fail "could not commit the project"
 	local head folder
 	head="$(git rev-parse --short HEAD)"
@@ -84,15 +86,23 @@ therapy-about-768-light.png" "$(files_in "$folder")" "the sheet's files"
 Taken from $head: each page route at 390, 768, 1280 px wide (the window 900 tall, the whole page captured), light and dark, with reduced motion. Each file is \`<route-slug>-<width>-<scheme>.png\`, named as the Board's are (\`docs/design/board/\`).
 
 - \`/\`: home-390-light.png, home-390-dark.png, home-768-light.png, home-768-dark.png, home-1280-light.png, home-1280-dark.png
-- \`/therapy/about\`: therapy-about-390-light.png, therapy-about-390-dark.png, therapy-about-768-light.png, therapy-about-768-dark.png, therapy-about-1280-light.png, therapy-about-1280-dark.png" "$(cat "$folder/index.md")" "the index"
+- \`/therapy/about\`: therapy-about-390-light.png, therapy-about-390-dark.png, therapy-about-768-light.png, therapy-about-768-dark.png, therapy-about-1280-light.png, therapy-about-1280-dark.png
+
+## Axe couldn't decide
+
+What axe checked at 390 and 1280 px and couldn't decide (its incomplete results; smoke's rules), such as the contrast of text over an image: judge each by eye in the screenshots it names. None gates. One line per route, rule and selector:
+
+- \`/therapy/about\` color-contrast \`p.over\`: Element's background color could not be determined due to a background gradient (therapy-about-390-light.png, therapy-about-390-dark.png, therapy-about-1280-light.png, therapy-about-1280-dark.png)" "$(cat "$folder/index.md")" "the index"
 	assert_eq "390 768 1280" "$(png_width "$folder/home-390-light.png") $(png_width "$folder/home-768-dark.png") $(png_width "$folder/therapy-about-1280-light.png")" "the screenshots' widths"
 	! cmp -s "$folder/home-390-light.png" "$folder/home-390-dark.png" || fail "the dark scheme's screenshot is the light one's"
 	wait_until "the server to stop" eval '! kill -0 "$(cat "$TEST_TMP/server.pid")" 2> /dev/null'
 
 	echo changed >> ARCHITECTURE.md
+	page '' /therapy/about
 	step contact-sheet
 	assert_status 0
 	assert_eq "Taken from $head, with changes not committed:" "$(sed -n 3p "$folder/index.md" | sed 's/: each page route.*/:/')" "the index of a changed tree"
+	assert_eq "- none" "$(tail -n 1 "$folder/index.md")" "the list of a sheet axe decided everything on"
 }
 
 # No page route to take is a finding, before any build; so is no ARCHITECTURE.md.

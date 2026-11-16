@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # The smoke step: the app built for production and started, then each of its
 # page routes loaded in three headless browsers, Chromium, Firefox and WebKit
-# (Safari's engine), in a light and a dark colour scheme, with an accessibility
-# check on each and a check of the links between them.
+# (Safari's engine), at phone and desktop widths, in a light and a dark colour
+# scheme, with accessibility checks on each (axe, reflow at 320 px, focus in
+# forced colours) and a check of the links between them.
 #   bash tools/verify/smoke
 #
 #   0. _routes.mjs reads the page routes from ARCHITECTURE.md's `## Routes`
@@ -19,11 +20,20 @@
 #   3. _smoke_page.mjs: one Chromium, one Firefox and one WebKit (Playwright,
 #      the project's @playwright/test; bootstrap installs the three into
 #      PLAYWRIGHT_BROWSERS_PATH), running at once, for every route: each loads
-#      each route in the light colour scheme, then the dark, and waits for its
-#      network to go quiet; runs axe-core (@axe-core/playwright: wcag2a,
-#      wcag2aa, wcag22aa) on it; then, once all three are done, it requests each
-#      same-origin link the pages hold, once, with no browser (off-site links
-#      aren't: the step runs offline).
+#      each route in each view (the window 900 tall, reduced motion), waits for
+#      its network to go quiet, and checks it:
+#        390 and 1280 px wide, light and dark: axe-core (@axe-core/playwright,
+#          _axe.mjs: wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa and
+#          best-practice);
+#        320 px wide, light: reflow, no sideways scroll (WCAG 1.4.10);
+#        1280 px wide, light, forced colours (forcedColors: 'active'): each
+#          element a Tab reaches shows a visible focus indicator when focused,
+#          in the engines that force the colours (Chromium and Firefox; WebKit's
+#          Playwright emulates the media query alone);
+#      then, once all three are done, it requests each same-origin link the
+#      pages hold, once, with no browser (off-site links aren't: the step runs
+#      offline). It runs on its own too, against any server and with a cookie
+#      (a design direction's on `next dev`): its header has the call.
 # The app's environment for 1 and 2 is tools/verify/smoke-env's NAME=value
 # lines (its header says how; none by default, and the app runs as its own
 # config says): when a value names {fixtures}, the Scenario driver's fixture
@@ -36,18 +46,23 @@
 # INT, TERM or HUP.
 #
 # FACTORY_SMOKE_TIMEOUT (local.env; seconds, default 60) bounds each wait: the
-# server's start, each page's load (each route in each scheme, in each engine),
-# each axe run and each link's request, and the stop of the server and the browser after TERM,
-# when each is killed. FACTORY_BUILD_WAIT (local.env; seconds,
-# default 900) bounds the wait for the build lock.
+# server's start, each page's load (each route in each view, in each engine),
+# each page check and each link's request, and the stop of the server and the
+# browser after TERM, when each is killed. FACTORY_BUILD_WAIT (local.env;
+# seconds, default 900) bounds the wait for the build lock.
 #
 # Findings, on stdout (next's output goes to stderr). A page finding (console,
-# page-error, response, request-failed, load, a11y) that all three engines
-# report reads as below, naming none; one only some report names them, as one
-# token after the <route>: chromium, firefox and webkit, in that order, those
-# that report it, joined by commas (`smoke-a11y /contact firefox,webkit dark
-# color-contrast ...`, `smoke-console / webkit: console error: ...`), so a
-# finding the Baseline holds keeps matching while all three reproduce it:
+# page-error, response, request-failed, load, a11y, reflow, forced-colors)
+# found everywhere its check ran reads as below, naming no engine or width; one
+# found only in some engines names them, as a token after the <route>:
+# chromium, firefox and webkit, in that order, those that report it, joined by
+# commas (`smoke-a11y /contact firefox,webkit dark color-contrast ...`,
+# `smoke-console / webkit: console error: ...`); one found only at some widths
+# names them, as the token after that (or after the route): each width with px,
+# smallest first, joined by commas (`smoke-a11y / 390px dark color-contrast
+# ...`, `smoke-a11y /contact webkit 390px light ...`). So a finding the
+# Baseline holds keeps matching while all three engines reproduce it at both of
+# axe's widths:
 #   package.json:1 smoke-build <message>       next build failed
 #   package.json:1 smoke-build-lock <message>  another build held the build
 #                                              lock past FACTORY_BUILD_WAIT
@@ -70,7 +85,8 @@
 #                                              a request got no answer
 #   package.json:1 smoke-load <route>: <message>
 #                                              the page never loaded, or a
-#                                              page check (axe, the link
+#                                              page check (axe, reflow,
+#                                              forced colours, the link
 #                                              reading) never finished on it
 #   package.json:1 smoke-a11y <route> <scheme> <axe rule id> <target selector>: <help>
 #                                              an axe violation on the page in
@@ -78,6 +94,20 @@
 #                                              per selector, which names no
 #                                              position, so a list's items are
 #                                              one finding however many
+#   package.json:1 smoke-reflow <route>: scrolls horizontally at 320px (<n>px wide[, widest <target selector>])
+#                                              the page scrolls sideways 320 px
+#                                              wide, naming the element reaching
+#                                              furthest right that no ancestor
+#                                              clips
+#   package.json:1 smoke-forced-colors <route> <target selector>: no visible focus indicator in forced colours
+#                                              an element a Tab reaches shows
+#                                              no outline when focused, and
+#                                              nothing near it changes (an
+#                                              outline, border, box-shadow,
+#                                              text-decoration, clip or size;
+#                                              a colour where forced colours
+#                                              are opted out of), in forced
+#                                              colours
 #   package.json:1 smoke-link <from route> <href> <status>
 #                                              a same-origin link that answered
 #                                              4xx or 5xx (or `failed: <reason>`)

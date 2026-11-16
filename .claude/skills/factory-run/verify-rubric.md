@@ -63,7 +63,7 @@ Read these yourself (Read shows an image):
 
 - `docs/design.md`: the direction the human chose, with its tokens, type and spacing.
 - The Board, `docs/design/board/`: its images of the pages, each `<route-slug>-<width>-<scheme>.png`.
-- The contact sheet, `<git-dir>/factory/contact-sheet/`, which the Editor names at hand-back: the same names, at 390, 768 and 1280 px, light and dark. Its `index.md` names the commit it was taken from. If it is missing, or was taken from another commit or a changed tree, take it yourself with `bash tools/verify/contact-sheet` → 0. It prints the folder and writes only there and in the build output.
+- The contact sheet, `<git-dir>/factory/contact-sheet/`, which the Editor names at hand-back: the same names, at 390, 768 and 1280 px, light and dark. Its `index.md` names the commit it was taken from, and lists under `## Axe couldn't decide` what axe checked and couldn't decide (its incomplete results, such as the contrast of text over an image or a gradient), each naming the screenshots it showed in. If it is missing, or was taken from another commit or a changed tree, take it yourself with `bash tools/verify/contact-sheet` → 0. It prints the folder and writes only there and in the build output.
 
 Answer each item yes or no, naming the screenshot you judged it from, and the `file:line` behind a no:
 
@@ -73,6 +73,7 @@ Answer each item yes or no, naming the screenshot you judged it from, and the `f
 4. **Focus:** every link and control has a visible focus ring, in both schemes. Read its `:focus-visible` style beside the screenshot.
 5. **Tells:** nothing from frontend-design's list of generic AI-design tells (`factory/third-party/frontend-design/SKILL.md`) appears. This is not applicable to a tell that `docs/design.md` says the human chose for this direction: quote that line.
 6. **Board:** each page's layout matches its Board image at the same width and scheme. Not applicable when `docs/design/board/` is absent or holds no image.
+7. **Undecided:** each line under the index's `## Axe couldn't decide` passes by eye in the screenshots it names: text over an image or a gradient reads clearly in every part of it (WCAG AA: 4.5:1, or 3:1 for large text), and anything else it names meets the rule it names. Judge each line; name the line behind a no. Smoke gates on axe's decided results; these it leaves to you. Not applicable when the list says none.
 
 Each no is FAIL, as any rubric miss is. An item that is not applicable is PASS, saying why.
 

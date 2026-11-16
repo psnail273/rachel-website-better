@@ -9,7 +9,9 @@
 # (FACTORY_PNPM_STORE) and the three browsers, Chromium, Firefox and WebKit
 # (FACTORY_PLAYWRIGHT_BROWSERS), and skip without them; the rest need Node alone.
 # A page finding all three engines report names none; one only some report
-# names them after the route (test_a_finding_some_engines_report_names_them).
+# names them after the route (test_a_finding_some_engines_report_names_them);
+# one found at only one of axe's widths names it after that
+# (test_an_accessibility_fault_at_one_width_names_it).
 
 # shellcheck disable=SC2154 # out and status: set by run_cmd, in factory/core/tests/lib.sh
 NEXTJS_ADAPTER="$FACTORY_CORE/../adapters/nextjs"
@@ -28,11 +30,13 @@ site_project() {
 	export STAND_IN_SITE="$TEST_TMP/site" STAND_IN_PID="$TEST_TMP/server.pid"
 }
 
-# page <html> [route]: the site's page at <route> (default `/`), a page axe
-# finds nothing on but what <html> brings.
+# page <html> [route]: the site's page at <route> (default `/`), a page smoke
+# finds nothing on but what <html> brings, which goes in its <main>, after a
+# heading and a paragraph (axe's best-practice rules want a main landmark
+# holding the content, and a heading one).
 page() {
 	mkdir -p "$TEST_TMP/site${2:-/}"
-	printf '<!doctype html><html lang="en"><head><title>t</title></head><body><p>hi</p>%s</body></html>\n' "$1" > "$TEST_TMP/site${2:-/}/index.html"
+	printf '<!doctype html><html lang="en"><head><title>t</title></head><body><main><h1>t</h1><p>hi</p>%s</main></body></html>\n' "$1" > "$TEST_TMP/site${2:-/}/index.html"
 }
 
 # routes <line...>: ARCHITECTURE.md's Routes table holds these lines alone.
@@ -158,13 +162,13 @@ test_an_accessibility_fault_is_a_finding_in_its_scheme_with_node() {
 	page '<input type="text">'
 	smoke_and_server_gone "an unlabelled input"
 	assert_status 1
-	assert_eq "package.json:1 smoke-a11y / dark label input: Form elements must have labels
-package.json:1 smoke-a11y / light label input: Form elements must have labels" "$out" "an unlabelled input"
+	assert_eq "package.json:1 smoke-a11y / dark label main > input: Form elements must have labels
+package.json:1 smoke-a11y / light label main > input: Form elements must have labels" "$out" "an unlabelled input"
 
 	page '<style>@media (prefers-color-scheme: dark) { p { color: #777; background: #888 } }</style>'
 	smoke_and_server_gone "a contrast fault in the dark"
 	assert_status 1
-	assert_eq "package.json:1 smoke-a11y / dark color-contrast p: Elements must meet minimum color contrast ratio thresholds" "$out" "a fault in the dark scheme alone"
+	assert_eq "package.json:1 smoke-a11y / dark color-contrast main > p: Elements must meet minimum color contrast ratio thresholds" "$out" "a fault in the dark scheme alone"
 
 	# A list's items are one finding, however many the page's data makes: the
 	# selector names no position.
@@ -188,13 +192,127 @@ package.json:1 smoke-a11y / light label li.card > input.field: Form elements mus
 test_a_finding_some_engines_report_names_them_with_node() {
 	needs_browser
 	site_project
-	page '<script>console.error("everywhere")</script><script>if (!/Chrome\//.test(navigator.userAgent)) console.error("not in chromium")</script><script>if (/Firefox\//.test(navigator.userAgent)) document.body.insertAdjacentHTML("beforeend", "<input type=text>")</script>'
+	page '<script>console.error("everywhere")</script><script>if (!/Chrome\//.test(navigator.userAgent)) console.error("not in chromium")</script><script>if (/Firefox\//.test(navigator.userAgent)) document.querySelector("main").insertAdjacentHTML("beforeend", "<input type=text>")</script>'
 	smoke_and_server_gone "faults in some engines"
 	assert_status 1
-	assert_eq "package.json:1 smoke-a11y / firefox dark label input: Form elements must have labels
-package.json:1 smoke-a11y / firefox light label input: Form elements must have labels
+	assert_eq "package.json:1 smoke-a11y / firefox dark label main > input: Form elements must have labels
+package.json:1 smoke-a11y / firefox light label main > input: Form elements must have labels
 package.json:1 smoke-console / firefox,webkit: console error: not in chromium
 package.json:1 smoke-console /: console error: everywhere" "$out" "the findings of some engines and of all"
+}
+
+# axe runs at 390 and 1280 px: a fault at both names no width, as before; one
+# at 390 alone (a contrast fault under a phone-width media query) names it,
+# after the route.
+test_an_accessibility_fault_at_one_width_names_it_with_node() {
+	needs_browser
+	site_project
+	page '<style>@media (max-width: 500px) { p { color: #777; background: #888 } }</style><input type="text">'
+	smoke_and_server_gone "a fault at 390 px and one at both widths"
+	assert_status 1
+	assert_eq "package.json:1 smoke-a11y / 390px dark color-contrast main > p: Elements must meet minimum color contrast ratio thresholds
+package.json:1 smoke-a11y / 390px light color-contrast main > p: Elements must meet minimum color contrast ratio thresholds
+package.json:1 smoke-a11y / dark label main > input: Form elements must have labels
+package.json:1 smoke-a11y / light label main > input: Form elements must have labels" "$out" "the faults at one width and at both"
+}
+
+# axe's WCAG 2.1 rules and its best practices run too: an autocomplete token
+# that doesn't exist (autocomplete-valid, wcag21aa) and a heading that skips a
+# level (heading-order, best-practice).
+test_wcag_2_1_and_best_practice_rules_run_with_node() {
+	needs_browser
+	site_project
+	page '<input aria-label="name" autocomplete="nonsense"><h3>skipped</h3>'
+	smoke_and_server_gone "a WCAG 2.1 fault and a best-practice one"
+	assert_status 1
+	assert_eq "package.json:1 smoke-a11y / dark autocomplete-valid main > input: autocomplete attribute must be used correctly
+package.json:1 smoke-a11y / dark heading-order main > h3: Heading levels should only increase by one
+package.json:1 smoke-a11y / light autocomplete-valid main > input: autocomplete attribute must be used correctly
+package.json:1 smoke-a11y / light heading-order main > h3: Heading levels should only increase by one" "$out" "the WCAG 2.1 and best-practice faults"
+}
+
+# In forced colours, a link whose focus style is outline: none and nothing
+# else shows no indicator: a finding, naming no engine (Chromium and Firefox
+# force the colours; WebKit's Playwright doesn't, so the check doesn't run
+# there). The browser's own ring, a transparent outline (which forced colours
+# paint), a ring on the label beside a hidden checkbox or on the box in it
+# (after a select of 250 options), an underline that doubles or thickens, a
+# button that opts out of forced colours and flips its colours, and a ring on a
+# card's child pass, the last on each of 60 cards.
+test_a_focus_indicator_forced_colours_hide_is_a_finding_with_node() {
+	needs_browser
+	site_project
+	local cards="" options="" i
+	for i in $(seq 250); do
+		options+="<option>c$i</option>"
+	done
+	for i in $(seq 60); do
+		cards+="<a class=\"card\" href=\"#c$i\"><span class=\"x\">x</span><span class=\"y\">y</span><span class=\"t\">Card $i</span></a>"
+	done
+	page '<style>a { display: inline-block; min-width: 24px; min-height: 24px } .bare:focus { outline: none; box-shadow: 0 0 0 3px blue } .clear:focus-visible { outline: 2px solid transparent } .box { position: absolute; opacity: 0 } .box:focus { outline: none } .box:focus-visible + span { outline: 2px solid } .deco, .thick { outline: none; text-decoration: underline } .deco:focus { text-decoration-style: double } .thick:focus { text-decoration-thickness: 5px } .flip { outline: none; forced-color-adjust: none; background: white; color: black } .flip:focus { background: black; color: white } .card { outline: none } .card:focus .t { outline: 3px solid } .vh { position: absolute; opacity: 0 } .vh:focus { outline: none } .vh:focus-visible + label .tick { outline: 2px solid } .tick { display: inline-block; width: 16px; height: 16px; border: 1px solid }</style><a class="bare" href="#a">bare</a> <a href="#b">plain</a> <a class="clear" href="#c">clear</a> <label class="check"><input class="box" type="checkbox"><span>agree</span></label> <a class="deco" href="#d">deco</a> <a class="thick" href="#e">thick</a> <button class="flip">flip</button><div class="field"><label for="s">Country</label><select id="s">'"$options"'</select><input id="v" class="vh" type="checkbox"><label for="v"><span class="tick"></span> Agree</label></div><div class="grid">'"$cards"'</div>'
+	smoke_and_server_gone "a focus style forced colours hide"
+	assert_status 1
+	assert_eq "package.json:1 smoke-forced-colors / main > a.bare: no visible focus indicator in forced colours" "$out" "the focus style forced colours hide"
+}
+
+# At 320 px wide a page that scrolls sideways is a finding naming its width and
+# the element reaching furthest right; content that scrolls inside a box of its
+# own, or that the page clips (overflow-x: hidden on the body), is none.
+test_a_page_wider_than_320px_is_a_finding_with_node() {
+	needs_browser
+	site_project
+	page '<div class="hero"><img alt="" class="art" style="display: block; width: 500px; height: 10px"></div>'
+	smoke_and_server_gone "a page wider than 320 px"
+	assert_status 1
+	assert_eq "package.json:1 smoke-reflow /: scrolls horizontally at 320px (508px wide, widest div.hero > img.art)" "$out" "the page wider than 320 px"
+
+	page '<style>ul:focus-visible { outline: 2px solid }</style><ul tabindex="0" aria-label="strip" style="display: flex; overflow-x: auto; padding: 0"><li style="flex: 0 0 240px">a</li><li style="flex: 0 0 240px">b</li></ul>'
+	smoke_and_server_gone "a strip that scrolls in its own box"
+	assert_status 0
+	assert_eq "" "$out" "a strip that scrolls in its own box"
+
+	page '<style>body { overflow-x: hidden }</style><div style="width: 500px">clipped</div>'
+	smoke_and_server_gone "a page that clips its overflow"
+	assert_status 0
+	assert_eq "" "$out" "a page that clips its overflow"
+}
+
+# server_started: the stand-in server printed its URL; its port in $port.
+server_started() {
+	[[ "$(cat "$TEST_TMP/server.out" 2> /dev/null)" =~ http://127\.0\.0\.1:([0-9]+) ]] && port="${BASH_REMATCH[1]}"
+}
+
+# The browser script runs on its own against any server, with a cookie set in
+# every browser context (here the page shows an unlabelled input only when the
+# cookie is set); arguments it can't read are its usage and exit 2.
+test_the_page_checks_run_on_their_own_with_a_cookie_with_node() {
+	needs_browser
+	site_project
+	page '<script>if (document.cookie.split("; ").includes("direction=b")) document.querySelector("main").insertAdjacentHTML("beforeend", "<input type=text>")</script>'
+	port=""
+	# server: no local, so the EXIT trap, which runs after the function returns,
+	# still sees it.
+	node node_modules/.bin/next start --hostname 127.0.0.1 --port 0 > "$TEST_TMP/server.out" 2>&1 &
+	server=$!
+	trap 'kill "$server" 2> /dev/null; wait "$server"' EXIT
+	wait_until "the stand-in server to listen" server_started
+	run_cmd node tools/verify/_smoke_page.mjs "http://127.0.0.1:$port" 60 --cookie direction=b /
+	assert_status 0
+	assert_eq "package.json:1 smoke-a11y / dark label main > input: Form elements must have labels
+package.json:1 smoke-a11y / light label main > input: Form elements must have labels" "$out" "the findings with the cookie"
+	run_cmd node tools/verify/_smoke_page.mjs "http://127.0.0.1:$port/" 60 /
+	assert_status 0
+	assert_eq "" "$out" "the findings without it"
+
+	run_cmd node tools/verify/_smoke_page.mjs "http://127.0.0.1:$port" 60 --cookie novalue /
+	assert_status 2
+	assert_eq "" "$out" "stdout on a cookie with no value"
+	stderr_has "--cookie takes <name>=<value>, not 'novalue'"
+	run_cmd node tools/verify/_smoke_page.mjs "http://127.0.0.1:$port" 60
+	assert_status 2
+	stderr_has "usage: node tools/verify/_smoke_page.mjs <origin> <seconds> [--cookie <name>=<value>] <route>..."
+	kill "$server"
+	wait_until "the stand-in server to stop" server_gone
 }
 
 # Each same-origin link is requested once, without its hash: one that answers

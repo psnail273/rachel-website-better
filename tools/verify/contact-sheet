@@ -13,7 +13,10 @@
 # smoke has them (_server.sh's nx_step_env). Then
 # _contact_sheet.mjs, one Chromium, opens each route at 390, 768 and 1280 px
 # wide (the window 900 tall), light and dark, with reduced motion, waits for its
-# network to go quiet, and takes the whole page with animations stopped.
+# network to go quiet, and takes the whole page with animations stopped; at 390
+# and 1280 px it runs axe with smoke's rules (_axe.mjs) and keeps what axe
+# couldn't decide (its incomplete results, such as text over an image) for the
+# index.
 # Run bare, it reads tools/verify/local.env itself, as verify.sh does for the
 # gate's steps. The server is always stopped, its whole process group, before
 # it exits, and the fixture server: on a pass, a finding, an error, and on INT,
@@ -23,7 +26,10 @@
 # committed), emptied first, holding <route-slug>-<width>-<scheme>.png for each
 # screenshot, named as the Board names its files (`home` for `/`,
 # `therapy-about` for `/therapy/about`), and index.md, which names the commit
-# the sheet was taken from and lists each route's files.
+# the sheet was taken from and lists each route's files, then, under `## Axe
+# couldn't decide`, axe's incomplete results, one line per route, rule and
+# selector, naming the screenshots they showed in, for the Verifier to judge by
+# eye (_contact_sheet.mjs has the format). They gate nothing: no finding.
 # stdout, on success, and nothing else: the folder's absolute path.
 #
 # FACTORY_SMOKE_TIMEOUT (local.env; seconds, default 60) bounds each wait: the
