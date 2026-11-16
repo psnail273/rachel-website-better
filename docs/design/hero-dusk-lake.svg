@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1280" viewBox="0 0 1920 1280" preserveAspectRatio="xMidYMid slice">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#221f4a"/>
+      <stop offset="0.3" stop-color="#4a3a74"/>
+      <stop offset="0.58" stop-color="#96607f"/>
+      <stop offset="0.82" stop-color="#e08e86"/>
+      <stop offset="1" stop-color="#f3b790"/>
+    </linearGradient>
+    <linearGradient id="peak" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f4b7a2"/>
+      <stop offset="0.22" stop-color="#dd8c8b"/>
+      <stop offset="0.5" stop-color="#8b5a85"/>
+      <stop offset="1" stop-color="#3e3263"/>
+    </linearGradient>
+    <linearGradient id="far" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#8a6592"/>
+      <stop offset="1" stop-color="#5a4a80"/>
+    </linearGradient>
+    <linearGradient id="near" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a2c5a"/>
+      <stop offset="1" stop-color="#1c1838"/>
+    </linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#c98893"/>
+      <stop offset="0.18" stop-color="#7d5788"/>
+      <stop offset="0.6" stop-color="#352a5e"/>
+      <stop offset="1" stop-color="#15122e"/>
+    </linearGradient>
+    <linearGradient id="cloudfade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity="0.9"/>
+      <stop offset="0.75" stop-color="#fff" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="vig" cx="0.5" cy="0.45" r="0.75">
+      <stop offset="0.55" stop-color="#0d0a20" stop-opacity="0"/>
+      <stop offset="1" stop-color="#0d0a20" stop-opacity="0.55"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="0.62" cy="0.62" r="0.45">
+      <stop offset="0" stop-color="#ffd0a8" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#ffd0a8" stop-opacity="0"/>
+    </radialGradient>
+    <mask id="cloudmask"><rect width="1920" height="700" fill="url(#cloudfade)"/></mask>
+    <!-- long, streaked dusk clouds -->
+    <filter id="clouds" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.0022 0.011" numOctaves="5" seed="11"/>
+      <feColorMatrix values="0 0 0 0 0.93  0 0 0 0 0.6  0 0 0 0 0.66  2.6 0 0 0 -1.15"/>
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+    <filter id="clouds2" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.0016 0.009" numOctaves="4" seed="4"/>
+      <feColorMatrix values="0 0 0 0 0.2  0 0 0 0 0.16  0 0 0 0 0.36  0 2.8 0 0 -1.3"/>
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+    <!-- broken rock edges and faces -->
+    <filter id="rock" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.012 0.02" numOctaves="5" seed="7" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="46" xChannelSelector="R" yChannelSelector="G" result="d"/>
+      <feTurbulence type="fractalNoise" baseFrequency="0.02 0.006" numOctaves="4" seed="23" result="t"/>
+      <feColorMatrix in="t" values="0 0 0 0 0.1  0 0 0 0 0.07  0 0 0 0 0.2  0 0 2.2 0 -0.85" result="shade"/>
+      <feComposite in="shade" in2="d" operator="in" result="s"/>
+      <feMerge><feMergeNode in="d"/><feMergeNode in="s"/></feMerge>
+      <feGaussianBlur stdDeviation="0.8"/>
+    </filter>
+    <filter id="ridge" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.02 0.04" numOctaves="4" seed="3" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="26" xChannelSelector="R" yChannelSelector="G"/>
+      <feGaussianBlur stdDeviation="0.6"/>
+    </filter>
+    <filter id="haze" x="-5%" y="-20%" width="110%" height="140%"><feGaussianBlur stdDeviation="14"/></filter>
+    <!-- reflections smeared by small waves -->
+    <filter id="ripple" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.0015 0.11" numOctaves="3" seed="9" result="n"/>
+      <feDisplacementMap in="SourceGraphic" in2="n" scale="60" xChannelSelector="R" yChannelSelector="G"/>
+      <feGaussianBlur stdDeviation="2.5 1"/>
+    </filter>
+    <filter id="glints" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.003 0.16" numOctaves="3" seed="31"/>
+      <feColorMatrix values="0 0 0 0 1  0 0 0 0 0.8  0 0 0 0 0.76  3.4 0 0 0 -1.9"/>
+    </filter>
+    <filter id="grain" x="0" y="0" width="100%" height="100%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="5"/>
+      <feColorMatrix values="0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0 0.5  0 0 0 0.9 -0.25"/>
+    </filter>
+    <g id="range">
+      <path d="M-60 700 L120 575 L250 500 L360 418 L430 452 L545 345 L632 268 L700 312 L788 228 L852 182 L935 256 L1012 318 L1090 276 L1178 205 L1252 150 L1335 236 L1420 326 L1502 296 L1590 378 L1700 438 L1812 528 L1980 640 V830 H-60 Z" fill="url(#peak)"/>
+    </g>
+  </defs>
+  <rect width="1920" height="800" fill="url(#sky)"/>
+  <rect width="1920" height="800" fill="url(#glow)"/>
+  <g mask="url(#cloudmask)">
+    <rect width="1920" height="700" filter="url(#clouds2)" opacity="0.8"/>
+    <rect width="1920" height="700" filter="url(#clouds)" opacity="0.85"/>
+  </g>
+  <path d="M-60 690 L90 610 L210 640 L330 560 L470 600 L640 520 L760 590 L980 540 L1150 600 L1330 520 L1480 580 L1640 500 L1790 560 L1980 520 V820 H-60 Z" fill="url(#far)" filter="url(#ridge)" opacity="0.75"/>
+  <use href="#range" filter="url(#rock)"/>
+  <rect y="600" width="1920" height="230" fill="#b98aa6" opacity="0.28" filter="url(#haze)"/>
+  <path d="M-60 742 L160 664 L320 700 L520 628 L700 690 L900 648 L1080 702 L1270 640 L1460 694 L1650 650 L1980 730 V830 H-60 Z" fill="url(#near)" filter="url(#ridge)"/>
+  <path d="M-60 792 L140 748 L270 770 L420 736 L560 778 L660 800 L-60 812 Z M1980 780 L1790 742 L1650 770 L1500 744 L1380 786 L1290 804 L1980 812 Z" fill="#141230" filter="url(#ridge)"/>
+  <rect y="800" width="1920" height="480" fill="url(#water)"/>
+  <g filter="url(#ripple)" opacity="0.62">
+    <g transform="translate(0 1606) scale(1 -1)">
+      <use href="#range"/>
+      <path d="M-60 742 L160 664 L320 700 L520 628 L700 690 L900 648 L1080 702 L1270 640 L1460 694 L1650 650 L1980 730 V830 H-60 Z" fill="url(#near)"/>
+    </g>
+  </g>
+  <rect y="800" width="1920" height="480" fill="url(#water)" opacity="0.35"/>
+  <rect y="808" width="1920" height="472" filter="url(#glints)" opacity="0.2"/>
+  <rect y="796" width="1920" height="14" fill="#1a1636" opacity="0.55" filter="url(#haze)"/>
+  <rect width="1920" height="1280" fill="url(#vig)"/>
+  <rect width="1920" height="1280" filter="url(#grain)" opacity="0.5" style="mix-blend-mode:overlay"/>
+</svg>

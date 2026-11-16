@@ -225,7 +225,7 @@ There is very little, and none of it is triggered by scrolling into view.
 - The Send button is a page button, `justify-self: center`.
 - **Sending is not designed here.** The prototype sends nothing. Where the message goes, spam protection, the pending and failure states and the server's own validation belong to a separate slice.
 
-**Placeholders.** The headshot placeholders are the existing generated SVGs at the image list's keys. The hero placeholder is the dusk-lake illustration drawn in the design round (`public/images/design/hero-dusk-lake.svg`, 1920 × 1280): a sky from `#221f4a` through `#96607f` to `#f3b790`, alpenglow peaks, a lake mirroring them; it replaces the art at the key `hero-mountain-lake`. Real photos are not in yet: nothing committed contains the stand-in photos.
+**Placeholders.** The headshot placeholders are the existing generated SVGs at the image list's keys. The hero placeholder is the dusk-lake illustration drawn in the design round (`docs/design/hero-dusk-lake.svg`, 1920 × 1280; the slice copies it into `public/`): a sky from `#221f4a` through `#96607f` to `#f3b790`, alpenglow peaks, a lake mirroring them; it replaces the art at the key `hero-mountain-lake`. Real photos are not in yet: nothing committed contains the stand-in photos.
 
 ## 6. Shell
 
