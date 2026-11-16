@@ -241,8 +241,8 @@ file 28ba6a10933b580d81a4bc2c6724fa5829ff14a2 factory/core/baseline.sh
 file 54ebd9a666486c6d2eed190c1c4ae9139bd89fc3 factory/core/brief.sh
 file 6bd7d99d508b5f300677617d6907008f243e9be1 factory/core/deviation.sh
 file bb02a13ae5492c59e572862f529fe7c2f6e95621 factory/core/hooks.sh
-file abb36104b115c995cbb99beae3deb4f13031c10b factory/core/hooks/claude-deny.sh
-file 477489a4c7cb8e5801c118aab10799bd20329b5b factory/core/hooks/claude-hooks.json
+file b117e9cbbf1fb3c766c95c41d23bfd83162d013d factory/core/hooks/claude-deny.sh
+file 058cdb729ad2ca9060fd933ee9889a5e8897ea43 factory/core/hooks/claude-hooks.json
 file 726628b0371b2175bb17fb50ccea5bc38eabf253 factory/core/hooks/claude-subagent-start.sh
 file 27170fea217d3fdd4ae34327136af77bf5330b52 factory/core/hooks/claude-subagent-stop.sh
 file f41a24c0662afb45d673bf663aee2fdd19ae5641 factory/core/hooks/claude-update-check.sh
@@ -296,14 +296,14 @@ file d195377215793c65d19236f8e261a4edd90c99f3 factory/core/templates/verify.ps1
 file f2706b656ab1c04131d2a8c1313f321127c22e6f factory/core/templates/verify.sh
 file e7125f4953ffa61cce6ca0edc4b6ede54ba89ee9 factory/core/test.sh
 file 1a1f6d7eac6da2df66a3d47de7f3db63b47c8709 factory/core/tests/adopt_test.sh
-file dcf85bdeb0f7a5d5e1d94c9934b21e67722a7434 factory/core/tests/agents_test.sh
-file 8d62a89378e7ab1f9c29c9fbd9c0af7b38f39f14 factory/core/tests/amend_test.sh
+file a399002ace6ca1bbe0b67874db92d2ced7cf7a97 factory/core/tests/agents_test.sh
+file 1b47e93f3c4d29f1de7985ce548bc66760bd6087 factory/core/tests/amend_test.sh
 file 0217883c6ec27089797ba7d2cf7650cdd38a5b13 factory/core/tests/architecture_test.sh
 file 1c3f96c252653cbcaef9c3175ea6763b2ba66e2b factory/core/tests/arm_test.sh
 file fba23038eedbe6fe726e40f3707ea008478f2d17 factory/core/tests/baseline_test.sh
 file 6d7484e16e5b83ae7c734d5efa767bda830c9d20 factory/core/tests/bounded_test.sh
 file 315f7761b74707573b60b83fd3ca3031fdf71b6b factory/core/tests/brief_test.sh
-file 1b46bb4dad271ee0f5dcad5a4cc629a0350419be factory/core/tests/claude_deny_test.sh
+file e38c357be05b8b01c7d95115227de3edc3a60be4 factory/core/tests/claude_deny_test.sh
 file c6304de9c93785a881f0e6168338ac654b950343 factory/core/tests/claude_usage_test.sh
 file 8777c176f24fb84f10f09125e7da369fc50c34e9 factory/core/tests/claude_wait_guard_test.sh
 file 3fafb4464e3ea0ebf7c40b9669dfa9bb08e1d67c factory/core/tests/deviation_test.sh
@@ -354,7 +354,7 @@ file 0e830d4ace5542ac7076d4bde061fc784ce8cc1d factory/core/tests/stamp_test.sh
 file 6c661823e1d4c61c079cba83b45277c2285d8bd1 factory/core/tests/start_test.sh
 file 113935331537331c9df5de5de3b8668add996e80 factory/core/tests/state_test.sh
 file b5eca5828f99dcf8d12501fd518103b2287b1451 factory/core/tests/stress_test.sh
-file 5aecd12e44000b4dfd6a102f2931eb78838aabef factory/core/tests/sync_test.sh
+file c8cc948d993e66ec367b5d1b54047c57e0cf4a14 factory/core/tests/sync_test.sh
 file cf641d07c49e675a7ef195cc081509fbcd2c8c3e factory/core/tests/test_sh_test.sh
 file f39aa1df0997c86b09e862d26d82c534a02f32c1 factory/core/tests/tools_test.sh
 file 0d00646f74ca7529413a99ca7f80c8da2d7cc706 factory/core/tests/twice_test.sh
@@ -391,7 +391,7 @@ file 572df019aa4aea8d46747dbcd9d3214b75014276 factory/skills/factory-spec/SKILL.
 file 35cb10ee8c9279cde71718032765fc8fef499e3c factory/skills/factory-spec/design-direction.md
 file 9ae39a66cfe2801c3de085ea1c61b184fa923b60 factory/skills/factory-spec/slicing.md
 file d067b36f4dc1fa24233a35a8fa3b0bd3dc3870e3 factory/skills/repro-first/SKILL.md
-file 4b37159aaf3f005ecb486b2072c0c94647d03d98 factory/third-party/README.md
+file fbb8a8f22ac9087da21b527e88371c6bf21c801c factory/third-party/README.md
 file f433b1a53f5b830a205fd2df78e2b34974656c7b factory/third-party/frontend-design/LICENSE.txt
 file a5333457c414d20d625f307df945842c0952ecc3 factory/third-party/frontend-design/SKILL.md
 file 9c85f686fbd73bc25f2b30eae12e2c47d7197f28 factory/tools/claude-usage

@@ -7,7 +7,7 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "^(Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Read|Grep|Glob|NotebookRead|LS)$",
+        "matcher": "^(Write|Edit|MultiEdit|NotebookEdit|Bash|PowerShell|Read|Grep|Glob|NotebookRead|LS|Skill)$",
         "hooks": [
           {
             "type": "command",

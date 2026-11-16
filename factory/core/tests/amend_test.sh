@@ -188,7 +188,7 @@ test_record_says_which_template_changes_to_port() {
 test_record_regenerates_the_agents_section_and_the_hook_config() {
 	adopted
 	echo "- **Amended:** a new line." >> factory/core/templates/agents-section.md
-	sed -i 's/NotebookRead|LS)/NotebookRead|LS|Task)/' factory/core/hooks/claude-hooks.json
+	sed -i 's/NotebookRead|LS|Skill)/NotebookRead|LS|Skill|Task)/' factory/core/hooks/claude-hooks.json
 	amend check
 	assert_status 1
 	assert_line "AGENTS.md:1 agents-section the factory section differs from factory/core/templates/agents-section.md; run bash factory/core/agents.sh generate"
@@ -197,7 +197,7 @@ test_record_regenerates_the_agents_section_and_the_hook_config() {
 	assert_line "regenerated AGENTS.md"
 	assert_line "regenerated .claude/settings.json"
 	grep -qxF -- "- **Amended:** a new line." AGENTS.md || fail "the AGENTS.md section wasn't regenerated"
-	grep -qF 'NotebookRead|LS|Task)' .claude/settings.json || fail "the Claude hook config wasn't regenerated"
+	grep -qF 'NotebookRead|LS|Skill|Task)' .claude/settings.json || fail "the Claude hook config wasn't regenerated"
 	assert_clean_check
 }
 

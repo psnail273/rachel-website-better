@@ -5,9 +5,12 @@
 # (lib/protect.sh), the Core's writing subcommands (baseline.sh shrink, record and
 # add, brief.sh seal, hooks.sh generate, lock.sh record and lift, state.sh set,
 # unset and incr, and land.sh) among them, and any read of the Scenario folder
-# (factory_protect_reads: Read, Grep, Glob and the shell).
+# (factory_protect_reads: Read, Grep, Glob and the shell). It also refuses the
+# Editor alone a Skill call that invokes frontend-design (a plugin-qualified or
+# slash-prefixed name counts too): that skill is the design and Verifier roles'
+# only (the #42 ruling); every other Skill call passes.
 # Claude Code runs it before each tool call its matcher names, the read tools
-# among them, with the call as JSON on stdin:
+# and Skill among them, with the call as JSON on stdin:
 #   {"agent_type": "editor-sonnet", "cwd": "...", "tool_name": "Write",
 #    "tool_input": {"file_path": "..."}, ...}
 # By hand: bash factory/core/hooks/claude-deny.sh < call.json
@@ -16,7 +19,7 @@
 # subagent's name in agent_type when a hook fires inside a subagent, and leaves
 # agent_type out in the main session, so the Driver is never refused; a call that
 # names neither subagent anywhere exits before the libs load, since the matcher
-# sends every subagent's reads too.
+# sends every subagent's reads and Skill calls too.
 #
 # The call is checked by factory_protect_call, with relative paths
 # taken from its cwd. The subagent works in an issue's worktree while Claude Code
@@ -49,10 +52,25 @@ for lib in steps findings brief diff run lock json scenarios protect; do
 done
 trap - EXIT
 
-case "$(printf '%s' "$input" | factory_json_get agent_type)" in
+agent="$(printf '%s' "$input" | factory_json_get agent_type)"
+case "$agent" in
 	editor-sonnet | asset-fetcher) ;;
 	*) exit 0 ;;
 esac
+# A Skill call reads and writes no path: it is checked for frontend-design alone,
+# its name taken bare of a leading slash, a plugin or folder prefix ("x:") and
+# any arguments after it.
+if [ "$(printf '%s' "$input" | factory_json_get tool_name)" = Skill ]; then
+	[ "$agent" = editor-sonnet ] || exit 0
+	skill="$(printf '%s' "$input" | factory_json_get tool_input.skill)" || exit 0
+	skill="${skill#"${skill%%[![:space:]]*}"}"
+	skill="${skill%%[[:space:]]*}"
+	skill="${skill#/}"
+	skill="${skill##*:}"
+	[ "${skill,,}" = frontend-design ] || exit 0
+	echo "Refused: the frontend-design skill belongs to the design and Verifier roles, never the Editor's. Build to the brief and docs/design.md." >&2
+	exit 2
+fi
 # shellcheck disable=SC2164 # best effort: a cwd that is gone leaves the hook where it started
 cwd="$(printf '%s' "$input" | factory_json_get cwd)" && [ -n "$cwd" ] && cd "${cwd//\\//}" 2> /dev/null
 factory_protect_call "$input"

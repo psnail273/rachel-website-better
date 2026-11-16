@@ -112,6 +112,46 @@ test_another_subagent_is_not_refused() {
 	assert_passed
 }
 
+assert_refused_skill() {
+	assert_status 2
+	assert_eq "" "$out" "stdout isn't empty"
+	stderr_has "the frontend-design skill belongs to the design and Verifier roles, never the Editor's. Build to the brief and docs/design.md."
+}
+
+# frontend-design is the design and Verifier roles' skill (the #42 ruling): the
+# Editor alone is refused it, under any spelling Claude Code takes for its name.
+test_sonnet_is_refused_the_frontend_design_skill() {
+	adopted_project
+	local skill
+	for skill in frontend-design /frontend-design frontend-design:frontend-design /frontend-design:frontend-design \
+		claude-plugins-official:frontend-design .claude/worktrees/issue-1:frontend-design Frontend-Design ' frontend-design' 'frontend-design some args' \
+		'/frontend-design\nmore' 'front\u0065nd-design'; do
+		claude_call editor-sonnet Skill "{\"skill\": \"$skill\"}"
+		assert_refused_skill
+	done
+	claude_call editor-sonnet Skill '{"skill": "frontend-design", "args": "the hero"}'
+	assert_refused_skill
+}
+
+test_only_the_editor_is_refused_frontend_design_and_only_that_skill() {
+	adopted_project
+	local agent skill
+	for agent in verifier designer "" asset-fetcher Explore; do
+		claude_call "$agent" Skill '{"skill": "frontend-design"}'
+		assert_passed
+	done
+	for skill in write-tests-nextjs repro-first frontend-design-extra not-frontend-design frontend-design:other \
+		frontend frontend-designs ''; do
+		claude_call editor-sonnet Skill "{\"skill\": \"$skill\"}"
+		assert_passed
+	done
+	claude_call editor-sonnet Skill '{}'
+	assert_passed
+	# A Skill call names no path: the deny's path checks pass it, whatever its args.
+	claude_call editor-sonnet Skill "{\"skill\": \"repro-first\", \"args\": \"$PWD/tools/verify/pins\"}"
+	assert_passed
+}
+
 test_sonnet_may_write_a_product_file_and_read_anything() {
 	adopted_project
 	brief "scope src/**"
@@ -253,10 +293,11 @@ test_generated_settings_run_the_deny_before_the_editor_tools() {
 	local matcher tool
 	matcher="$(factory_json_get hooks.PreToolUse.0.matcher < .claude/settings.json)" || fail "no matcher"
 	# The writing tools, and the reading ones for the Scenario folder.
-	for tool in Write Edit MultiEdit NotebookEdit Bash PowerShell Read Grep Glob NotebookRead LS; do
+	# And Skill, for the Editor's frontend-design.
+	for tool in Write Edit MultiEdit NotebookEdit Bash PowerShell Read Grep Glob NotebookRead LS Skill; do
 		[[ $tool =~ $matcher ]] || fail "the matcher '$matcher' misses $tool"
 	done
-	for tool in Agent WebFetch TodoWrite ReadMcpResource; do
+	for tool in Agent WebFetch TodoWrite ReadMcpResource SkillX; do
 		[[ $tool =~ $matcher ]] && fail "the matcher '$matcher' takes in $tool"
 	done
 	return 0

@@ -92,7 +92,8 @@ skills_of() {
 	' "$1"
 }
 
-# frontend-design is for the design and Verifier roles only: never the Editor's.
+# frontend-design is for the design and Verifier roles only: never the Editor's
+# (claude_deny_test holds the deny refusing the Editor's Skill call of it).
 test_frontend_design_is_preloaded_by_the_designer_and_verifier_only() {
 	local f agent
 	for agent in designer verifier; do

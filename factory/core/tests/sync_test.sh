@@ -5,7 +5,7 @@
 v2_release() {
 	echo 9.9.9 > VERSION
 	echo "- **New:** from v2." >> core/templates/agents-section.md
-	sed -i 's/NotebookRead|LS)/NotebookRead|LS|Task)/' core/hooks/claude-hooks.json
+	sed -i 's/NotebookRead|LS|Skill)/NotebookRead|LS|Skill|Task)/' core/hooks/claude-hooks.json
 	echo "# v2 lint" >> adapters/fake/tools/verify/lint
 	echo "v2 line" >> skills/factory-run/SKILL.md
 	echo "v2 line" >> skills/factory-run/editor.md
@@ -91,7 +91,7 @@ test_sync_rewrites_the_hook_config_and_the_agents_section() {
 	make_upstream
 	sync v2
 	assert_status 0
-	grep -qF 'NotebookRead|LS|Task)' .claude/settings.json || fail "the hook config wasn't rewritten"
+	grep -qF 'NotebookRead|LS|Skill|Task)' .claude/settings.json || fail "the hook config wasn't rewritten"
 	grep -qF '"model": "claude-opus-5-5"' .claude/settings.json || fail "the settings lack the main model"
 	grep -qxF -- "- **New:** from v2." AGENTS.md || fail "the AGENTS.md section wasn't rewritten"
 	grep -qF "The project's own words." AGENTS.md || fail "the project's AGENTS.md text is gone"
