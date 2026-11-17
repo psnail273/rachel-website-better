@@ -8,6 +8,8 @@
 #   bash factory/core/test.sh --jobs 4 ... at most 4 tests at once (default 8)
 #   bash factory/core/test.sh --skip-real <a> ...  every test but adapter <a>'s
 #                                          real-tool tests (repeat it for more adapters)
+#   bash factory/core/test.sh --skip-adapter <a> ...  every test but adapter <a>'s
+#                                          (repeat it for more adapters)
 #
 # A partial run (suite names) runs at low priority: test.sh starts itself again
 # under nice -n 10, so its tests do too, and a full run (a land's, say) gets the
@@ -20,9 +22,13 @@
 # adapter's node). --skip-real <a> leaves out those of
 # factory/adapters/<a>/tests/, and the run says how many, after its tests:
 # `test.sh: skipped <n> real-tool tests of the <a> adapter (--skip-real <a>)`.
-# A run with no suite names and --skip-real is still a full run (the lock, the
-# shared times file). amend.sh land passes it for an adapter its diff can't
-# affect; no other caller does, so a run by hand and stress.sh run every test of their suites.
+# --skip-adapter <a> leaves out every suite of factory/adapters/<a>/tests/ (its
+# lib.sh unchecked too), named or not, and the run says how many, after its
+# tests: `test.sh: skipped the <a> adapter's <n> suites (--skip-adapter <a>)`.
+# A run with no suite names and --skip-real or --skip-adapter is still a full
+# run (the lock, the shared times file). amend.sh land passes them for an
+# adapter its diff can't affect; no other caller does, so a run by hand and
+# stress.sh run every test of their suites.
 #
 # After the tests come two checks of the tree: the skill size budget
 # (skill-budget.sh), and raw-waits.sh: no test file sleeps for a fixed time or
@@ -85,15 +91,16 @@ began="$EPOCHREALTIME"
 args=("$@")
 jobs=8
 names=()
-skip_real=() # --skip-real's adapters
+skip_real=()    # --skip-real's adapters
+skip_adapter=() # --skip-adapter's
 while [ "$#" -gt 0 ]; do
 	case "$1" in
-		--skip-real)
+		--skip-real | --skip-adapter)
 			[ "$#" -ge 2 ] && [ -n "$2" ] && [ -d "$core/../adapters/$2/tests" ] && [[ $2 != */* ]] || {
-				echo "test.sh: --skip-real needs an adapter with tests (factory/adapters/<a>/tests), not '${2:-}'" >&2
+				echo "test.sh: $1 needs an adapter with tests (factory/adapters/<a>/tests), not '${2:-}'" >&2
 				exit 2
 			}
-			skip_real+=("$2")
+			if [ "$1" = --skip-real ]; then skip_real+=("$2"); else skip_adapter+=("$2"); fi
 			shift 2
 			;;
 		-j | --jobs)
@@ -152,6 +159,24 @@ else
 		find "$core/tests" -maxdepth 1 -name '*_test.sh' | LC_ALL=C sort
 		find "$core/../adapters" -mindepth 3 -maxdepth 3 -path '*/tests/*_test.sh' 2> /dev/null | LC_ALL=C sort
 	)
+fi
+
+# --skip-adapter: leave out its adapters' test files, counted by adapter.
+declare -A skipped_suites=()
+if [ "${#skip_adapter[@]}" -gt 0 ]; then
+	kept=()
+	for f in "${files[@]}"; do
+		case "$f" in */adapters/*/tests/*)
+			adapter="$(basename "$(dirname "$(dirname "$f")")")"
+			if [[ " ${skip_adapter[*]} " == *" $adapter "* ]]; then
+				skipped_suites[$adapter]=$((${skipped_suites[$adapter]:-0} + 1))
+				continue
+			fi
+			;;
+		esac
+		kept+=("$f")
+	done
+	files=(${kept[@]+"${kept[@]}"})
 fi
 
 # The lock: a folder (mkdir is atomic; there's no flock under Git Bash) holding the
@@ -450,6 +475,9 @@ done
 
 [ "${#skip_real[@]}" -eq 0 ] || for adapter in $(printf '%s\n' "${skip_real[@]}" | LC_ALL=C sort -u); do
 	echo "test.sh: skipped ${skipped_real[$adapter]:-0} real-tool tests of the $adapter adapter (--skip-real $adapter)"
+done
+[ "${#skip_adapter[@]}" -eq 0 ] || for adapter in $(printf '%s\n' "${skip_adapter[@]}" | LC_ALL=C sort -u); do
+	echo "test.sh: skipped the $adapter adapter's ${skipped_suites[$adapter]:-0} suites (--skip-adapter $adapter)"
 done
 echo "test.sh: $passed passed, $failed failed, $skipped skipped"
 echo "test.sh: seconds per test, slowest first, in $times"

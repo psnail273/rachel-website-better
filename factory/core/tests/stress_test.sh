@@ -6,12 +6,12 @@
 # shellcheck disable=SC2154 # out, status: set by run_cmd, in factory/core/tests/lib.sh
 
 # stress_factory <stand-in body>: $TEST_TMP/mini/core holding stress.sh (with
-# the lib it sources) and a stand-in test.sh with that body; its runs use $TEST_TMP/tmp as TMPDIR. The
+# the libs it sources) and a stand-in test.sh with that body; its runs use $TEST_TMP/tmp as TMPDIR. The
 # stand-in can read $STRESS_PROBE, a folder for what it records; it first adds its
 # pid to $STRESS_PROBE/test.sh.pids, for start_stress's cleanup.
 stress_factory() {
 	mkdir -p "$TEST_TMP/mini/core/lib" "$TEST_TMP/tmp" "$TEST_TMP/probe" || fail "no mini factory"
-	cp "$FACTORY_CORE/stress.sh" "$TEST_TMP/mini/core/" && cp "$FACTORY_CORE/lib/localenv.sh" "$TEST_TMP/mini/core/lib/" ||
+	cp "$FACTORY_CORE/stress.sh" "$TEST_TMP/mini/core/" && cp "$FACTORY_CORE/lib/localenv.sh" "$FACTORY_CORE/lib/suites.sh" "$TEST_TMP/mini/core/lib/" ||
 		fail "could not copy stress.sh"
 	printf '%s\n' 'echo "$$" >> "$STRESS_PROBE/test.sh.pids"' "$1" > "$TEST_TMP/mini/core/test.sh"
 	export TMPDIR="$TEST_TMP/tmp" STRESS_PROBE="$TEST_TMP/probe" FACTORY_STRESS_LOOPS=0
@@ -243,7 +243,7 @@ stress_project() {
 	isolate_git
 	mkdir -p "$p/factory/core/lib" "$p/factory/core/tests" "$p/factory/skills/s" "$p/tools/verify" "$p/docs" "$TEST_TMP/tmp" "$TEST_TMP/probe" ||
 		fail "no project"
-	cp "$FACTORY_CORE/stress.sh" "$p/factory/core/" && cp "$FACTORY_CORE/lib/localenv.sh" "$p/factory/core/lib/" || fail "could not copy stress.sh"
+	cp "$FACTORY_CORE/stress.sh" "$p/factory/core/" && cp "$FACTORY_CORE/lib/localenv.sh" "$FACTORY_CORE/lib/suites.sh" "$p/factory/core/lib/" || fail "could not copy stress.sh"
 	printf '%s\n' 'echo "$*" >> "$STRESS_PROBE/args"' > "$p/factory/core/test.sh"
 	echo 'test_a() { grep -r gpt "$FACTORY_CORE/../skills"; }' > "$p/factory/core/tests/alpha_test.sh"
 	echo 'test_b() { ls "$FACTORY_CORE"/../adapters/*/skills; }' > "$p/factory/core/tests/beta_test.sh"
@@ -379,6 +379,21 @@ test_since_counts_the_uncommitted_changes() {
 	run_cmd bash "$TEST_TMP/proj/factory/core/stress.sh" 1 --since base
 	assert_status 0
 	ran_with "beta gamma"
+}
+
+# A folder outside the factory an adapter's tests read (the Godot adapter's
+# gdUnit4 fallback, addons/gdUnit4/) chooses that adapter's suites.
+test_since_a_folder_an_adapters_tests_read_chooses_its_suites() {
+	stress_project
+	local p="$TEST_TMP/proj"
+	mkdir -p "$p/factory/adapters/godot/tests" "$p/addons/gdUnit4" || fail "no godot adapter"
+	echo 'test_one() { :; }' > "$p/factory/adapters/godot/tests/one_test.sh"
+	echo 'version="6.0.0"' > "$p/addons/gdUnit4/plugin.cfg"
+	printf 'version 0.1.0\nadapter godot\n' > "$p/tools/verify/factory-version"
+	git -C "$p" add -A && git -C "$p" commit -qm godot && git -C "$p" tag -f base > /dev/null 2>&1 || fail "could not commit the godot adapter"
+	stress_since addons/gdUnit4/plugin.cfg
+	assert_status 0
+	ran_with "godot/one"
 }
 
 test_since_a_docs_only_change_runs_nothing() {

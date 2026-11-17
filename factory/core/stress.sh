@@ -12,25 +12,15 @@
 # Suites are spelled as test.sh spells them: <name> for factory/core/tests/
 # <name>_test.sh, <a>/<name> for factory/adapters/<a>/tests/<name>_test.sh. With
 # --since <rev>, the suites are chosen from the paths `git diff --name-only
-# <rev>...HEAD` lists, with the worktree's uncommitted and untracked files (paths
-# below are relative to the factory folder):
-#   - core/tests/<name>_test.sh: that suite; adapters/<a>/tests/<name>_test.sh: <a>/<name>.
-#   - core/tests/lib.sh (every test loads it) and core/test.sh (the runner): every suite.
-#   - Any other file in core/tests/ (a fixture, a test file in one): every core
-#     suite; in adapters/<a>/tests/ (its lib.sh, a fixture): every suite of <a>.
-#   - adapters/<a>/<entry> outside tests/: every suite of adapter <a>, and each
-#     core suite whose test file names adapters/*/<entry> or adapters/<a>/<entry>
-#     (skill_budget checks every adapter's skills/); so does the
-#     project's ported tools/verify/ (but its factory-version record and
-#     local.env) for the adapter factory-version's `adapter` line names.
-#   - Any other file in core/: every core suite and every adapter's suites, as
-#     adapters' scripts and tests run core's scripts and libs, directly or through
-#     one another.
-#   - Any other factory file: each suite whose test file (or all of a folder's
-#     suites, whose tests/lib.sh) names its folder (skills, agents, third-party;
-#     tools/<entry> for tools/) or, at the top, its name. VERSION
-#     is left out, as land leaves it out: tests read it only as a version string.
-#   - Files outside the factory (a project's code and docs): no suite.
+# <rev>...HEAD` lists, with the worktree's uncommitted and untracked files, by the
+# rules of lib/suites.sh (factory_suites_affected), which amend.sh land skips an
+# adapter's suites by too: a test file chooses its suite; core/tests/lib.sh,
+# core/test.sh or any other file in core/ outside core/tests/, every suite; a
+# file in an adapter's folder, that adapter's suites (and the core suites naming
+# it); another factory file, the suites naming its folder; the project's ported
+# tools/verify/, the adapter in use's; a folder outside the factory an adapter's
+# tests read (the Godot adapter's addons/gdUnit4/), that adapter's; any other
+# file outside the factory, none.
 # In a project (tools/verify/factory-version, and no .factory-repo at the top),
 # only the adapter in use runs: --since chooses no other adapter's suites, and
 # says which adapters it left out (land's one full run covers them). Named suites
@@ -71,6 +61,7 @@ set -u
 
 core="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$core/lib/localenv.sh"
+. "$core/lib/suites.sh"
 
 usage() {
 	echo "stress.sh: $1" >&2
@@ -130,93 +121,6 @@ else
 fi
 
 top="$(git -C "$core" rev-parse --show-toplevel 2> /dev/null)" || top=""
-adapters_dir="$core/../adapters"
-
-# suite_of <test file>: its suite name, as test.sh spells it.
-suite_of() {
-	case "$1" in
-		"$core/tests/"*) basename "$1" _test.sh ;;
-		*) echo "$(basename "$(dirname "$(dirname "$1")")")/$(basename "$1" _test.sh)" ;;
-	esac
-}
-
-# suites_in <tests folder>: every suite there, one per line.
-suites_in() {
-	local f
-	for f in "$1"/*_test.sh; do
-		[ -f "$f" ] && suite_of "$f"
-	done
-	return 0
-}
-
-# naming <tests folder> <needle>: the suites of that folder whose test file
-# names <needle> (a fixed string); all of them when its lib.sh does.
-naming() {
-	local folder="$1" needle="$2" f
-	if [ -f "$folder/lib.sh" ] && grep -qF -e "$needle" "$folder/lib.sh"; then
-		suites_in "$folder"
-		return 0
-	fi
-	for f in "$folder"/*_test.sh; do
-		[ -f "$f" ] && grep -qF -e "$needle" "$f" && suite_of "$f"
-	done
-	return 0
-}
-
-# every_folder: core/tests, then each adapter's tests folder.
-every_folder() {
-	local d
-	echo "$core/tests"
-	for d in "$adapters_dir"/*/tests; do
-		[ -d "$d" ] && echo "$d"
-	done
-	return 0
-}
-
-# choose <path below the factory folder>: the suites a change to it can affect.
-choose() {
-	local rel="$1" a d first rest needle
-	case "$rel" in
-		core/tests/lib.sh | core/test.sh)
-			while IFS= read -r d; do suites_in "$d"; done < <(every_folder)
-			;;
-		core/tests/*)
-			rest="${rel#core/tests/}"
-			if [[ $rest == *_test.sh && $rest != */* ]]; then
-				echo "${rest%_test.sh}"
-			else
-				suites_in "$core/tests"
-			fi
-			;;
-		core/*)
-			while IFS= read -r d; do suites_in "$d"; done < <(every_folder)
-			;;
-		adapters/*/*)
-			a="${rel#adapters/}" a="${a%%/*}" rest="${rel#adapters/*/}"
-			if [[ $rest == tests/*_test.sh && ${rest#tests/} != */* ]]; then
-				rest="${rest#tests/}"
-				echo "$a/${rest%_test.sh}"
-			else
-				suites_in "$adapters_dir/$a/tests"
-				# A core suite may check every adapter's folder (skill_budget, its skills/).
-				if [[ $rest != tests/* ]]; then
-					naming "$core/tests" "adapters/*/${rest%%/*}"
-					naming "$core/tests" "adapters/$a/${rest%%/*}"
-				fi
-			fi
-			;;
-		VERSION) ;;
-		*/*)
-			first="${rel%%/*}" rest="${rel#*/}"
-			if [ "$first" = tools ]; then needle="tools/${rest%%/*}"; else needle="$first"; fi
-			while IFS= read -r d; do naming "$d" "$needle"; done < <(every_folder)
-			;;
-		*)
-			while IFS= read -r d; do naming "$d" "$rel"; done < <(every_folder)
-			;;
-	esac
-	return 0
-}
 
 scope=""
 left_out=()
@@ -236,16 +140,7 @@ if [ -n "$since" ]; then
 			git -C "$top" diff --name-only --no-renames HEAD -- &&
 			git -C "$top" ls-files --others --exclude-standard
 	)" || usage "--since: git can't list the diff since '$since'"
-	picked="$(
-		while IFS= read -r p; do
-			[ -n "$p" ] || continue
-			case "$p" in
-				"$vend"*) choose "${p#"$vend"}" ;;
-				tools/verify/factory-version | tools/verify/local.env*) ;;
-				tools/verify/*) [ -n "$project" ] && [ -n "$in_use" ] && [ -d "$adapters_dir/$in_use/tests" ] && suites_in "$adapters_dir/$in_use/tests" ;;
-			esac
-		done <<< "$diff_out"
-	)"
+	picked="$(factory_suites_affected "$vend" "$in_use" <<< "$diff_out")"
 	while IFS= read -r s; do
 		[ -n "$s" ] || continue
 		f="$(suite_file "$s")"

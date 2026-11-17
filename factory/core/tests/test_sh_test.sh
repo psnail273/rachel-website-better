@@ -189,6 +189,58 @@ PASS raw waits" "$(results)" "the results"
 	assert_status 2
 }
 
+# --skip-adapter <a> leaves out every suite of adapter <a>, named or not, its
+# lib.sh unchecked (one that doesn't parse fails no run), says how many, and the
+# run stays a full run: the lock, the shared times file.
+test_skip_adapter_leaves_out_an_adapters_suites() {
+	mini_factory
+	local a
+	for a in one two; do
+		mkdir -p "$TEST_TMP/mini/adapters/$a/tests"
+		printf '. "$FACTORY_CORE/../adapters/%s/tests/lib.sh"\ntest_plain() {\n\ttrue\n}\ntest_build_with_tool() {\n\ttrue\n}\n' "$a" > "$TEST_TMP/mini/adapters/$a/tests/steps_test.sh"
+		printf 'test_other() {\n\ttrue\n}\n' > "$TEST_TMP/mini/adapters/$a/tests/more_test.sh"
+		echo '# helpers' > "$TEST_TMP/mini/adapters/$a/tests/lib.sh"
+	done
+	echo 'if then' > "$TEST_TMP/mini/adapters/one/tests/lib.sh"
+	mkdir "$FACTORY_TEST_LOCK" && echo "$BASHPID" > "$FACTORY_TEST_LOCK/pid"
+	run_cmd bash "$TEST_TMP/mini/core/test.sh" --skip-adapter one
+	assert_status 2
+	stderr_has "refused: another full run is in progress"
+	rm -rf "$FACTORY_TEST_LOCK"
+	run_cmd bash "$TEST_TMP/mini/core/test.sh" --skip-adapter one
+	assert_status 0
+	assert_eq "PASS mini test_quick
+PASS two/more test_other
+PASS two/steps test_build_with_tool
+PASS two/steps test_plain
+PASS skill budget
+PASS raw waits" "$(results)" "the results"
+	assert_line "test.sh: skipped the one adapter's 2 suites (--skip-adapter one)"
+	assert_line "test.sh: seconds per test, slowest first, in $TMPDIR/factory-test-times.txt"
+	run_cmd bash "$TEST_TMP/mini/core/test.sh" --skip-adapter two --skip-adapter one --skip-real two
+	assert_status 0
+	assert_eq "PASS mini test_quick
+PASS skill budget
+PASS raw waits" "$(results)" "the results with both adapters skipped"
+	assert_line "test.sh: skipped the one adapter's 2 suites (--skip-adapter one)"
+	assert_line "test.sh: skipped the two adapter's 2 suites (--skip-adapter two)"
+	# Named, a skipped adapter's suite is left out too: a partial run.
+	run_cmd bash "$TEST_TMP/mini/core/test.sh" --skip-adapter one one/more two/more
+	assert_status 0
+	assert_eq "PASS two/more test_other" "$(results | grep -v -e 'skill budget' -e 'raw waits')" "the named suites' results"
+	assert_line "test.sh: skipped the one adapter's 1 suites (--skip-adapter one)"
+	# Without it, the adapter's lib.sh that doesn't parse fails the run.
+	run_cmd bash "$TEST_TMP/mini/core/test.sh"
+	assert_status 1
+	assert_line "FAIL one/lib (load)"
+	assert_no_line "test.sh: skipped the one adapter's 2 suites (--skip-adapter one)"
+	run_cmd bash "$TEST_TMP/mini/core/test.sh" --skip-adapter three
+	assert_status 2
+	stderr_has "--skip-adapter needs an adapter with tests (factory/adapters/<a>/tests), not 'three'"
+	run_cmd bash "$TEST_TMP/mini/core/test.sh" --skip-adapter
+	assert_status 2
+}
+
 # TERM to test.sh stops its running tests, the processes they started included,
 # before their folders go. The slow test's child is a stand-in blocked until
 # killed, so a run that waited for it instead would outlast the hang guard. A

@@ -5,7 +5,7 @@
 #   bash factory/core/amend.sh check    a finding for each thing record would change
 #   bash factory/core/amend.sh land     check, test and verify HEAD, publish its
 #                                       factory/ to the factory's repo, then push it to dev
-#   bash factory/core/amend.sh land --all-tests   the same, with no real-tool test skipped
+#   bash factory/core/amend.sh land --all-tests   the same, with no adapter's suite or real-tool test skipped
 #   bash factory/core/amend.sh release [patch|minor|<version>]   bump factory/VERSION for land
 #
 # An amend is a change to the factory the human approved (or the Driver, for the
@@ -64,7 +64,7 @@
 #   printing each stage on stdout: check; the full factory/core/test.sh, with
 #   every variable tools/verify/local.env sets, the environment winning (only
 #   the suite's summary and the lines that aren't a PASS print), less the
-#   real-tool tests its diff can't affect, refused when one it ran skipped for
+#   adapters' suites and the real-tool tests its diff can't affect, refused when one it ran skipped for
 #   a missing tool, and with its time against the budget (all below, "The full
 #   suite at land"); FACTORY_BASE=HEAD
 #   bash tools/verify.sh, since an amend has no Build Brief and dev will have
@@ -119,7 +119,8 @@
 #     Then, printing each stage on stdout: check, and the
 #     full factory/core/test.sh, with every variable the root's local.env sets,
 #     the environment winning (only the summary and the lines that aren't a
-#     PASS print), as below. There is no project verify. Green, with HEAD and every tracked
+#     PASS print), less the adapters' suites and real-tool tests its diff can't
+#     affect, as below. There is no project verify. Green, with HEAD and every tracked
 #     file as they were, it pushes HEAD to origin/main (a fast-forward or
 #     nothing), and when factory/VERSION changed, the annotated tag v<VERSION>
 #     ("factory <VERSION>") on it, in one atomic push: both land or neither
@@ -128,6 +129,21 @@
 #     as above.
 #
 # The full suite at land, in both:
+#   - Every core suite runs. An adapter's suites run only when the land's diff
+#     (origin/dev..HEAD in a project, origin/main..HEAD in the factory's repo;
+#     renames as a deletion and an addition) touches a path that can affect
+#     them, by the rules stress.sh --since chooses its suites by (lib/suites.sh,
+#     factory_suites_affected): a file in the adapter's folder; one in
+#     factory/core/ outside core/tests/, or core/tests/lib.sh; another
+#     factory/ file their tests name (a skill, an agent); in a project, its
+#     ported tools/verify/ for its own adapter; a folder outside factory/ they
+#     read (the Godot adapter's addons/gdUnit4/). So a batch that touches one
+#     adapter alone runs that adapter's suites, and one that touches a core
+#     script runs every adapter's. land says in one stage line which adapters'
+#     suites it skips and why, before the suite, and passes test.sh
+#     --skip-adapter <adapter> for each; the run is still a full run. A skipped
+#     adapter's real-tool tests don't run, so they can't fail the land for a
+#     missing tool. land --all-tests skips none.
 #   - An adapter's real-tool tests (*_with_<tool>, test.sh's header) run only
 #     when the land's diff (origin/dev..HEAD in a project, origin/main..HEAD in
 #     the factory's repo; renames as a deletion and an addition) touches a path
@@ -217,6 +233,7 @@ core="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$core/lib/hooks.sh"
 . "$core/lib/agents.sh"
 . "$core/lib/localenv.sh"
+. "$core/lib/suites.sh"
 
 say() { echo "amend: $*" >&2; }
 die() {
@@ -796,15 +813,6 @@ fast_forward() {
 	fi
 }
 
-# real_tool_outside <adapter>: the folders outside factory/ that the adapter's
-# real-tool tests read, one per line.
-real_tool_outside() {
-	case "$1" in
-		# tests/lib.sh's gdunit4_source falls back on the project's own gdUnit4.
-		godot) echo addons/gdUnit4/ ;;
-	esac
-}
-
 # real_tool_reads <adapter> <path>: true when that adapter's real-tool tests
 # read <path> (the header's "The full suite at land").
 real_tool_reads() {
@@ -816,13 +824,46 @@ real_tool_reads() {
 	esac
 	while IFS= read -r folder; do
 		[ -z "$folder" ] || [ "${2#"$folder"}" = "$2" ] || return 0
-	done < <(real_tool_outside "$1")
+	done < <(factory_suites_outside "$1")
 	return 1
+}
+
+# suite_skips <base> <head>: set $skip_adapters to the adapters whose suites no
+# path the diff <base>..<head> touches can affect, by lib/suites.sh's rules
+# (factory_suites_affected, as stress.sh --since chooses), saying so in one
+# stage line; none with --all-tests, or when git can't list the diff.
+suite_skips() {
+	local dir a in_use="" chosen list
+	skip_adapters=()
+	[ -z "$all_tests" ] || return 0
+	if ! git diff --name-only --no-renames -z "$1" "$2" -- > "$tmp/scope" 2> "$tmp/scope.err"; then
+		sed 's/^/  /' "$tmp/scope.err" >&2
+		say "could not list the diff since $FACTORY_REMOTE/$FACTORY_BASE_BRANCH, so every adapter's suites run"
+		return 0
+	fi
+	# A project's ported tools/verify/ is its adapter's.
+	[ -n "$in_repo" ] || in_use="$adapter"
+	chosen="$(tr '\0' '\n' < "$tmp/scope" | factory_suites_affected "$FACTORY_VENDOR_DIR/" "$in_use")"
+	for dir in "$FACTORY_VENDOR_DIR"/adapters/*/; do
+		a="$(basename "$dir")"
+		[ -d "$dir/tests" ] || continue
+		grep -q "^$a/" <<< "$chosen" || skip_adapters+=("$a")
+	done
+	case "${#skip_adapters[@]}" in
+		0) return 0 ;;
+		1) list="the ${skip_adapters[0]} adapter" ;;
+		*)
+			list="$(printf '%s, ' "${skip_adapters[@]:0:${#skip_adapters[@]}-1}")"
+			list="the ${list%, } and ${skip_adapters[-1]} adapters"
+			;;
+	esac
+	stage "skip the suites of $list: the diff since $FACTORY_REMOTE/$FACTORY_BASE_BRANCH touches no path that can affect them (lib/suites.sh, as stress.sh --since chooses: the adapter's folder, $FACTORY_VENDOR_DIR/core/ outside core/tests/ or core/tests/lib.sh, a $FACTORY_VENDOR_DIR/ file its tests name, a folder outside $FACTORY_VENDOR_DIR/ they read); every core suite runs; land --all-tests runs them"
 }
 
 # real_tool_skips <base> <head>: set $skip_real to test.sh's --skip-real
 # arguments for each adapter whose real-tool tests read no path the diff
-# <base>..<head> touches, saying so in a stage line each; none with --all-tests.
+# <base>..<head> touches, saying so in a stage line each; none with --all-tests,
+# nor for an adapter in $skip_adapters, whose suites don't run at all.
 real_tool_skips() {
 	local dir adapter path reads outside
 	local -a changed=()
@@ -839,13 +880,14 @@ real_tool_skips() {
 	for dir in "$FACTORY_VENDOR_DIR"/adapters/*/; do
 		adapter="$(basename "$dir")"
 		[ -d "$dir/tests" ] || continue
+		[[ " ${skip_adapters[*]-} " != *" $adapter "* ]] || continue
 		reads=""
 		for path in ${changed[@]+"${changed[@]}"}; do
 			real_tool_reads "$adapter" "$path" && reads=1 && break
 		done
 		[ -z "$reads" ] || continue
 		skip_real+=(--skip-real "$adapter")
-		outside="$(real_tool_outside "$adapter" | tr '\n' ' ')"
+		outside="$(factory_suites_outside "$adapter" | tr '\n' ' ')"
 		stage "skip the $adapter adapter's real-tool tests (*_with_<tool>): the diff since $FACTORY_REMOTE/$FACTORY_BASE_BRANCH touches no path they read ($FACTORY_VENDOR_DIR/ but the other adapters' folders and $FACTORY_VENDOR_DIR/VERSION${outside:+; ${outside% }}); land --all-tests runs them"
 	done
 }
@@ -892,15 +934,21 @@ budget() {
 
 # full_suite <env file>: the stage that runs the full factory/core/test.sh with
 # every variable <env file> sets (the environment winning: factory_load_env,
-# lib/localenv.sh), with $skip_real; prints the summary and every line that
-# isn't a PASS, dies when the suite fails, warns when it is over the budget, and
-# dies when a real-tool test it ran skipped for a missing tool (real_tool_missing).
+# lib/localenv.sh), with --skip-adapter for each of $skip_adapters and
+# $skip_real; prints the summary and every line that isn't a PASS, dies when the
+# suite fails, warns when it is over the budget, and dies when a real-tool test
+# it ran skipped for a missing tool (real_tool_missing).
 full_suite() {
-	local file="$1" status
-	stage "the full suite (bash factory/core/test.sh${skip_real[*]:+ ${skip_real[*]}})"
+	local file="$1" status a
+	local -a args=()
+	for a in ${skip_adapters[@]+"${skip_adapters[@]}"}; do
+		args+=(--skip-adapter "$a")
+	done
+	args+=(${skip_real[@]+"${skip_real[@]}"})
+	stage "the full suite (bash factory/core/test.sh${args[*]:+ ${args[*]}})"
 	(
 		factory_load_env "$file"
-		exec bash "$FACTORY_VENDOR_DIR/core/test.sh" ${skip_real[@]+"${skip_real[@]}"}
+		exec bash "$FACTORY_VENDOR_DIR/core/test.sh" ${args[@]+"${args[@]}"}
 	) < /dev/null > "$tmp/suite" 2>&1
 	status=$?
 	grep -v '^PASS ' "$tmp/suite"
@@ -910,8 +958,8 @@ full_suite() {
 }
 
 # real_tool_missing <env file>: die when an adapter's real-tool test
-# (*_with_<tool>) that the suite in $tmp/suite ran (its adapter not in
-# $skip_real) skipped for a missing tool: a skip whose reason (the last
+# (*_with_<tool>) that the suite in $tmp/suite ran (its adapter in neither
+# $skip_real nor $skip_adapters) skipped for a missing tool: a skip whose reason (the last
 # indented line under its SKIP line, skip's message) names a variable
 # (GODOT_BIN, NODE_BIN, FACTORY_GDUNIT4, ...). It
 # says on stderr how many skipped, by adapter, tool and reason, and names the
@@ -919,7 +967,7 @@ full_suite() {
 # is no missing tool, and land goes on.
 real_tool_missing() {
 	local adapter tool reason n vars
-	awk -v skipped=" ${skip_real[*]+${skip_real[*]}} " '
+	awk -v skipped=" ${skip_real[*]+${skip_real[*]}} ${skip_adapters[*]+${skip_adapters[*]}} " '
 		function flush() {
 			if (key != "" && !((key, reason) in count)) order[++n] = key SUBSEP reason
 			if (key != "") count[key, reason]++
@@ -1034,7 +1082,7 @@ amend_class() {
 
 land() {
 	local remote_ref head status baseline upstream up_main="" up_tag="" publish_how="" up_layout=""
-	local -a skip_real=()
+	local -a skip_real=() skip_adapters=()
 	[ -z "$(git status --porcelain)" ] || die "the tree is dirty; commit or stash first"
 	remote_ref="refs/remotes/$FACTORY_REMOTE/$FACTORY_BASE_BRANCH"
 	stage "fetch $FACTORY_REMOTE/$FACTORY_BASE_BRANCH"
@@ -1062,6 +1110,7 @@ land() {
 		die "check failed; $again, commit, then land again; $FACTORY_BASE_BRANCH not moved"
 	fi
 
+	suite_skips "$remote_ref" "$head"
 	real_tool_skips "$remote_ref" "$head"
 	full_suite "$FACTORY_STEPS_DIR/local.env"
 
@@ -1204,7 +1253,7 @@ repo_tag_at() {
 
 repo_land() {
 	local remote_ref head main version main_tree head_tree main_version tag="" at
-	local -a skip_real=()
+	local -a skip_real=() skip_adapters=()
 	[ -z "$(git status --porcelain)" ] || die "the tree is dirty; commit first"
 	remote_ref="refs/remotes/$FACTORY_REMOTE/main"
 	stage "fetch $FACTORY_REMOTE/main"
@@ -1245,6 +1294,7 @@ repo_land() {
 		cat "$tmp/check"
 		die "check failed; $again, commit, then land again; main not moved"
 	fi
+	suite_skips "$remote_ref" "$head"
 	real_tool_skips "$remote_ref" "$head"
 	full_suite local.env
 

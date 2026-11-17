@@ -1312,12 +1312,13 @@ test_repo_land_checks_tests_pushes_and_tags_a_release() {
 	assert_eq "amend: fetch origin/main
 amend: the release, 0.1.1: a patch from 0.1.0, as the amends make (the one amend commit says Release: patch)
 amend: check (bash factory/core/amend.sh check)
-amend: the full suite (bash factory/core/test.sh)
+amend: skip the suites of the godot adapter: the diff since origin/main touches no path that can affect them (lib/suites.sh, as stress.sh --since chooses: the adapter's folder, factory/core/ outside core/tests/ or core/tests/lib.sh, a factory/ file its tests name, a folder outside factory/ they read); every core suite runs; land --all-tests runs them
+amend: the full suite (bash factory/core/test.sh --skip-adapter godot)
 test.sh: 1 passed, 0 failed, 0 skipped
 amend: push to origin/main, with the tag v0.1.1
 amend: landed $head on origin/main, tagged v0.1.1
 amend: fast-forwarded main in the main checkout ($WS) to $head" "$out" "the stages"
-	assert_eq "suite GODOT_BIN=/opt/local-godot FACTORY_GDUNIT4=/opt/env-gdunit4 FACTORY_PNPM_STORE=/opt/pnpm-store FACTORY_PLAYWRIGHT_BROWSERS=/opt/browsers args=" "$(cat "$TEST_TMP/suite.log")" "the suite's call"
+	assert_eq "suite GODOT_BIN=/opt/local-godot FACTORY_GDUNIT4=/opt/env-gdunit4 FACTORY_PNPM_STORE=/opt/pnpm-store FACTORY_PLAYWRIGHT_BROWSERS=/opt/browsers args=--skip-adapter godot" "$(cat "$TEST_TMP/suite.log")" "the suite's call"
 	assert_eq "$head" "$(origin_git rev-parse main)" "origin's main"
 	assert_eq "tag" "$(origin_git cat-file -t v0.1.1)" "v0.1.1 is no annotated tag"
 	assert_eq "$head" "$(origin_git rev-parse 'v0.1.1^{commit}')" "v0.1.1's commit"
@@ -1487,20 +1488,22 @@ suite_args() {
 	tail -n 1 "$TEST_TMP/suite.log" | sed 's/.* args=//'
 }
 
-# A land whose diff touches neither an adapter's folder nor a path its real-tool
-# tests read skips them, saying so; the run is test.sh's full run all the same.
-test_repo_land_skips_the_real_tool_tests_of_a_workspace_change() {
+# A land whose diff touches no path an adapter's suites can be affected by skips
+# them, saying so in one line, and prints no real-tool skip for them; the run is
+# test.sh's full run all the same.
+test_repo_land_skips_every_adapters_suites_for_a_workspace_change() {
 	factory_workspace
 	commit_in "$PWD" CLAUDE.md "# CLAUDE.md, edited"
 	amend land
 	assert_status 0
-	assert_line "amend: skip the godot adapter's real-tool tests (*_with_<tool>): the diff since origin/main touches no path they read (factory/ but the other adapters' folders and factory/VERSION; addons/gdUnit4/); land --all-tests runs them"
-	assert_line "amend: skip the nextjs adapter's real-tool tests (*_with_<tool>): the diff since origin/main touches no path they read (factory/ but the other adapters' folders and factory/VERSION); land --all-tests runs them"
-	assert_line "amend: the full suite (bash factory/core/test.sh --skip-real godot --skip-real nextjs)"
-	assert_eq "--skip-real godot --skip-real nextjs" "$(suite_args)" "the suite's arguments"
+	assert_line "amend: skip the suites of the godot and nextjs adapters: the diff since origin/main touches no path that can affect them (lib/suites.sh, as stress.sh --since chooses: the adapter's folder, factory/core/ outside core/tests/ or core/tests/lib.sh, a factory/ file its tests name, a folder outside factory/ they read); every core suite runs; land --all-tests runs them"
+	assert_no_line "amend: skip the godot adapter's real-tool tests (*_with_<tool>): the diff since origin/main touches no path they read (factory/ but the other adapters' folders and factory/VERSION; addons/gdUnit4/); land --all-tests runs them"
+	assert_line "amend: the full suite (bash factory/core/test.sh --skip-adapter godot --skip-adapter nextjs)"
+	assert_eq "--skip-adapter godot --skip-adapter nextjs" "$(suite_args)" "the suite's arguments"
 }
 
-# An adapter's change runs its real-tool tests and skips the other adapter's.
+# An adapter's change runs its suites, its real-tool tests too, and skips the
+# other adapter's suites.
 test_repo_land_runs_the_real_tool_tests_of_the_adapter_it_changes() {
 	factory_workspace
 	echo "A note." >> factory/adapters/godot/ARCHITECTURE.md
@@ -1509,12 +1512,14 @@ test_repo_land_runs_the_real_tool_tests_of_the_adapter_it_changes() {
 	git commit -q -am "Release factory 0.1.1" || fail "could not commit the release"
 	amend land
 	assert_status 0
-	assert_eq "--skip-real nextjs" "$(suite_args)" "the suite's arguments"
+	assert_eq "--skip-adapter nextjs" "$(suite_args)" "the suite's arguments"
+	assert_line "amend: skip the suites of the nextjs adapter: the diff since origin/main touches no path that can affect them (lib/suites.sh, as stress.sh --since chooses: the adapter's folder, factory/core/ outside core/tests/ or core/tests/lib.sh, a factory/ file its tests name, a folder outside factory/ they read); every core suite runs; land --all-tests runs them"
 	assert_no_line "amend: skip the godot adapter's real-tool tests (*_with_<tool>): the diff since origin/main touches no path they read (factory/ but the other adapters' folders and factory/VERSION; addons/gdUnit4/); land --all-tests runs them"
 }
 
-# The Core, or any other path of factory/ the tests read (a skill, a file moved
-# out of it), runs every adapter's; a release alone (factory/VERSION) runs none.
+# The Core, or a path of factory/ both adapters' tests name (a skill), runs every
+# adapter's suites and real-tool tests; a file moved out of it, only the suites
+# of the adapter whose tests name it; a release alone (factory/VERSION), none.
 test_repo_land_runs_every_real_tool_test_for_the_core_or_a_path_they_read() {
 	local path
 	for path in factory/core/lib/steps.sh factory/skills/factory-run/drift.md; do
@@ -1535,14 +1540,14 @@ test_repo_land_runs_every_real_tool_test_for_the_core_or_a_path_they_read() {
 	git commit -q -am "Release factory 0.1.1" || fail "could not commit the release"
 	amend land
 	assert_status 0
-	assert_eq "" "$(suite_args)" "the suite's arguments for a file moved out of factory/"
+	assert_eq "--skip-adapter godot" "$(suite_args)" "the suite's arguments for a file moved out of factory/"
 	cd "$TEST_TMP" && rm -rf "$TEST_TMP/ws" "$TEST_TMP/origin.git" "$TEST_TMP/suite.log" || fail "could not clear the workspace"
 	factory_workspace
 	amend release patch
 	git commit -q -am "Release factory 0.1.1" || fail "could not commit the release"
 	amend land
 	assert_status 0
-	assert_eq "--skip-real godot --skip-real nextjs" "$(suite_args)" "the suite's arguments for a release alone"
+	assert_eq "--skip-adapter godot --skip-adapter nextjs" "$(suite_args)" "the suite's arguments for a release alone"
 }
 
 test_repo_land_all_tests_skips_none() {
@@ -1569,8 +1574,8 @@ test_repo_land_reads_all_of_local_env() {
 }
 
 # A land that runs an adapter's real-tool tests refuses when one skipped for a
-# missing tool; main and the tag stay. The tests of an adapter it skips by the
-# diff, and a skip for a platform, don't count.
+# missing tool; main and the tag stay. The tests of an adapter whose suites it
+# skips by the diff, and a skip for a platform, don't count.
 test_repo_land_refuses_a_real_tool_test_skipped_for_a_missing_tool() {
 	factory_workspace
 	skips_for_missing_tools
@@ -1581,7 +1586,7 @@ test_repo_land_refuses_a_real_tool_test_skipped_for_a_missing_tool() {
 	before="$(origin_git rev-parse main)"
 	amend land
 	assert_status 1
-	assert_eq "--skip-real nextjs" "$(suite_args)" "the suite's arguments"
+	assert_eq "--skip-adapter nextjs" "$(suite_args)" "the suite's arguments"
 	stderr_has "amend:   the godot adapter's godot tests: 2 skipped: GODOT_BIN is not set"
 	stderr_has "amend:   the godot adapter's gdmutant tests: 1 skipped: no gdmutant 0.1.4 (set GDMUTANT_BIN, or put it on PATH)"
 	stderr_has "amend: set GODOT_BIN GDMUTANT_BIN (in the environment or local.env) so they run, then land again; main not moved"
@@ -1593,12 +1598,12 @@ test_repo_land_refuses_a_real_tool_test_skipped_for_a_missing_tool() {
 	amend land
 	assert_status 0
 	assert_line "amend: landed $(git rev-parse HEAD) on origin/main, tagged v0.1.1"
-	# A workspace change skips both adapters' real-tool tests, so none counts.
+	# A workspace change skips both adapters' suites, so none counts.
 	skips_for_missing_tools
 	commit_in "$PWD" CLAUDE.md "# CLAUDE.md, edited"
 	amend land
 	assert_status 0
-	assert_eq "--skip-real godot --skip-real nextjs" "$(suite_args)" "the suite's arguments for a workspace change"
+	assert_eq "--skip-adapter godot --skip-adapter nextjs" "$(suite_args)" "the suite's arguments for a workspace change"
 }
 
 # a_test_amend <path> <class>: a commit appending a test to <path> (a test
@@ -1705,7 +1710,7 @@ test_land_in_a_project_checks_the_tests_or_docs_class() {
 }
 
 # In a project the diff is origin/dev's: the project's own gdUnit4 is a path the
-# Godot adapter's tests read; a product file is none.
+# Godot adapter's tests read, so its suites run; a product file is none.
 test_land_in_a_project_skips_by_the_diff_since_origin_dev() {
 	landable
 	git push -q origin HEAD:dev 2> /dev/null && git fetch -q origin || fail "could not push the stand-in to dev"
@@ -1713,16 +1718,74 @@ test_land_in_a_project_skips_by_the_diff_since_origin_dev() {
 	git add -A && git commit -q -m "a gdUnit4 bump" || fail "could not commit"
 	amend land
 	assert_status 0
-	assert_eq "--skip-real nextjs" "$(suite_args)" "the suite's arguments for a gdUnit4 change"
+	assert_eq "--skip-adapter nextjs" "$(suite_args)" "the suite's arguments for a gdUnit4 change"
 	commit_in "$PWD" src/a.txt "two"
 	amend land
 	assert_status 0
-	assert_line "amend: skip the godot adapter's real-tool tests (*_with_<tool>): the diff since origin/dev touches no path they read (factory/ but the other adapters' folders and factory/VERSION; addons/gdUnit4/); land --all-tests runs them"
-	assert_eq "--skip-real godot --skip-real nextjs" "$(suite_args)" "the suite's arguments for a product change"
+	assert_line "amend: skip the suites of the godot and nextjs adapters: the diff since origin/dev touches no path that can affect them (lib/suites.sh, as stress.sh --since chooses: the adapter's folder, factory/core/ outside core/tests/ or core/tests/lib.sh, a factory/ file its tests name, a folder outside factory/ they read); every core suite runs; land --all-tests runs them"
+	assert_eq "--skip-adapter godot --skip-adapter nextjs" "$(suite_args)" "the suite's arguments for a product change"
 	commit_in "$PWD" src/a.txt "three"
 	amend land --all-tests
 	assert_status 0
 	assert_eq "" "$(suite_args)" "the suite's arguments with --all-tests"
+}
+
+# an_amend_to <path>: append a line to <path> (under factory/, or the project's
+# tools/verify/), record, and commit it as an amend.
+an_amend_to() {
+	mkdir -p "$(dirname "$1")" && echo "# an amended line" >> "$1" || fail "could not edit $1"
+	amend record
+	assert_status 0
+	git add -A && git commit -q -m "Amend the factory: $1" -m "Release: patch" || fail "could not commit the amend to $1"
+}
+
+# skip_line_before_suite: the line that skips adapters' suites prints before the
+# suite's stage line.
+skip_line_before_suite() {
+	local skip suite
+	skip="$(printf '%s\n' "$out" | grep -n '^amend: skip the suites of ' | cut -d: -f1)"
+	suite="$(printf '%s\n' "$out" | grep -n '^amend: the full suite ' | cut -d: -f1)"
+	[ -n "$skip" ] && [ -n "$suite" ] && [ "$skip" -lt "$suite" ] || fail "no skip line before the suite's:"$'\n'"$out"
+}
+
+# A project's land runs every core suite and the suites of each adapter its
+# batch can affect, by lib/suites.sh's rules: a batch touching only the Next.js
+# adapter skips the Godot adapter's suites, saying so before the suite, and one
+# touching only the Godot adapter skips the Next.js adapter's; one touching a
+# core script runs every adapter's. The project's ported tools/verify/ is its
+# own adapter's (the fake one, given a suite): its suites run, its real-tool
+# tests, which don't read tools/verify/, don't.
+test_land_in_a_project_runs_the_suites_of_the_adapters_its_batch_can_affect() {
+	landable
+	git push -q origin HEAD:dev 2> /dev/null && git fetch -q origin || fail "could not push the stand-in to dev"
+	an_amend_to factory/adapters/nextjs/ARCHITECTURE.md
+	amend land
+	assert_status 0
+	assert_line "amend: skip the suites of the godot adapter: the diff since origin/dev touches no path that can affect them (lib/suites.sh, as stress.sh --since chooses: the adapter's folder, factory/core/ outside core/tests/ or core/tests/lib.sh, a factory/ file its tests name, a folder outside factory/ they read); every core suite runs; land --all-tests runs them"
+	skip_line_before_suite
+	assert_line "amend: the full suite (bash factory/core/test.sh --skip-adapter godot)"
+	assert_eq "--skip-adapter godot" "$(suite_args)" "the suite's arguments for a Next.js change"
+	an_amend_to factory/adapters/godot/ARCHITECTURE.md
+	amend land
+	assert_status 0
+	assert_line "amend: skip the suites of the nextjs adapter: the diff since origin/dev touches no path that can affect them (lib/suites.sh, as stress.sh --since chooses: the adapter's folder, factory/core/ outside core/tests/ or core/tests/lib.sh, a factory/ file its tests name, a folder outside factory/ they read); every core suite runs; land --all-tests runs them"
+	assert_eq "--skip-adapter nextjs" "$(suite_args)" "the suite's arguments for a Godot change"
+	an_amend_to factory/core/lib/findings.sh
+	amend land
+	assert_status 0
+	! printf '%s\n' "$out" | grep -q '^amend: skip ' || fail "a core script's land skipped some:"$'\n'"$out"
+	assert_eq "" "$(suite_args)" "the suite's arguments for a core script"
+	mkdir -p factory/adapters/fake/tests && printf 'test_fake() {\n\t:\n}\n' > factory/adapters/fake/tests/fake_test.sh ||
+		fail "could not give the fake adapter a suite"
+	an_amend_to factory/adapters/fake/tests/fake_test.sh
+	amend land
+	assert_status 0
+	assert_eq "--skip-adapter godot --skip-adapter nextjs" "$(suite_args)" "the suite's arguments for the fake adapter's suite"
+	echo "# a port" >> tools/verify/_stub.sh && git commit -q -am "a port" || fail "could not commit the port"
+	amend land
+	assert_status 0
+	assert_line "amend: skip the fake adapter's real-tool tests (*_with_<tool>): the diff since origin/dev touches no path they read (factory/ but the other adapters' folders and factory/VERSION); land --all-tests runs them"
+	assert_eq "--skip-adapter godot --skip-adapter nextjs --skip-real fake" "$(suite_args)" "the suite's arguments for a port to tools/verify/"
 }
 
 # The budget: over it, land warns with the load average and still lands; the

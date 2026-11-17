@@ -5,7 +5,7 @@ upstream git@git.stuffworks.net:psnail273/factory.git
 file e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 factory/.gdignore
 file 9a50e370f33449d84f1c91fad092990f0fe6b3d9 factory/.shellcheckrc
 file 8a201e9d4c2836dac784eb88e173ca706141ef36 factory/CONTEXT.md
-file 4cc1c702187fe827f6fa4a2cc3853f574205db12 factory/README.md
+file 4e36bb9b889dabe2c90dd2a0a3cdaa3f0c7a74a8 factory/README.md
 file faef31a4357c48d6e4c55e84c8be8e3bc9055e20 factory/VERSION
 file 5b71dbc61fcfb1d5513263ab5efc6ea6700bd781 factory/adapters/godot/ARCHITECTURE.md
 file d94afe65e8f8eebc9e32fc98fc1f4f222ce418dd factory/adapters/godot/adopt.sh
@@ -245,7 +245,7 @@ file 9470fa732f1c9d84cfb86495cace579decd8c269 factory/agents/editor-sonnet.md
 file f8302e72de2ea635d1509b24a368679af4843473 factory/agents/verifier.md
 file 802083108998b7ab2cb52d5686967a4235200fc4 factory/core/adopt.sh
 file b7312b0ce1569aad79fc45effee15d143e0477b7 factory/core/agents.sh
-file 4b57661c3b951675ca01fb3be24cee75efbf9e18 factory/core/amend.sh
+file 0b7f4fe004e73e2ef5bebe9de11e3c7f7730cce0 factory/core/amend.sh
 file 2fe54c3088f55bf544c73eadf1b48bba697ac7be factory/core/arm.sh
 file 28ba6a10933b580d81a4bc2c6724fa5829ff14a2 factory/core/baseline.sh
 file 54ebd9a666486c6d2eed190c1c4ae9139bd89fc3 factory/core/brief.sh
@@ -283,6 +283,7 @@ file a78752f22408b12604c57cf56995e88fbc3faba3 factory/core/lib/run.sh
 file 5bc118f0001a8575014d9d4f8965bfd547cc8fc0 factory/core/lib/scenarios.sh
 file ca9e1a4f28590fa57e7722a9f52cb2213cbd50f1 factory/core/lib/stamp.sh
 file a340c6a0f36c71086a88bea38f4e91aca82b3769 factory/core/lib/steps.sh
+file e26dcf51753fb86d3409a84cad162f99a7c0b368 factory/core/lib/suites.sh
 file d68029928639480ae2c38dfd0f0bad2bc54aface factory/core/lib/vendor.sh
 file 078bcdaa69c06b0cda9f2c6ed738330b24102e5b factory/core/lock.sh
 file eee594b1da6c44037070d527b56f6dafcd1f16b8 factory/core/pins.sh
@@ -296,7 +297,7 @@ file 87c570e7953a8cdc905e97bef739df274ecb90a7 factory/core/skill-budget.sh
 file c5e085df9eb90f677810acebd2756e3f317779ec factory/core/skill-words
 file e0b85cd0b923edc988caa5fabe5d4f15deb8c245 factory/core/start.sh
 file 8ba79d0fd9b1b6ff25e63c932239a24e65ce3dae factory/core/state.sh
-file 311f7a32e8b797dd72ab942fef990b31cfadaf84 factory/core/stress.sh
+file 47ae7a2a41a613b1ac5d8737eca722543989b021 factory/core/stress.sh
 file ce330a2eb2b3fb8cae331097a8d87dfd1c00d9fd factory/core/sync.sh
 file e0548be8efd9ab87ea4d2475d4ab1a222c4706c1 factory/core/templates/ARCHITECTURE.md
 file 8474c8e9794f5bea9b1fefd63b2d968f30a81692 factory/core/templates/agents-section.md
@@ -304,10 +305,10 @@ file 8f22a81b00d953d6a291fc00fbe00aacb1c10931 factory/core/templates/deviations.
 file db751ed65d962c1d72d5e3ca4a701d3a25e9037c factory/core/templates/gitattributes
 file d195377215793c65d19236f8e261a4edd90c99f3 factory/core/templates/verify.ps1
 file f2706b656ab1c04131d2a8c1313f321127c22e6f factory/core/templates/verify.sh
-file 2d773becc9ee7dd2eedaef3063ad78f7a66ccfed factory/core/test.sh
+file 349c7410bfd5bd0d10ce660fb97d44b39fb06fd5 factory/core/test.sh
 file 1a1f6d7eac6da2df66a3d47de7f3db63b47c8709 factory/core/tests/adopt_test.sh
 file fec3c220e0958859d27f411c96c1f8dc46cbcfdb factory/core/tests/agents_test.sh
-file 1b47e93f3c4d29f1de7985ce548bc66760bd6087 factory/core/tests/amend_test.sh
+file 4bf573bdfdbce6fbe021ba7e8646e786a6df6fbd factory/core/tests/amend_test.sh
 file 0217883c6ec27089797ba7d2cf7650cdd38a5b13 factory/core/tests/architecture_test.sh
 file 1c3f96c252653cbcaef9c3175ea6763b2ba66e2b factory/core/tests/arm_test.sh
 file fba23038eedbe6fe726e40f3707ea008478f2d17 factory/core/tests/baseline_test.sh
@@ -363,9 +364,9 @@ file faf4026f0e2596cab2d9e4918087b0ccf88626f8 factory/core/tests/skill_budget_te
 file 0e830d4ace5542ac7076d4bde061fc784ce8cc1d factory/core/tests/stamp_test.sh
 file 6c661823e1d4c61c079cba83b45277c2285d8bd1 factory/core/tests/start_test.sh
 file 113935331537331c9df5de5de3b8668add996e80 factory/core/tests/state_test.sh
-file c04b69be383d23fe8e7ac677417876e2bb6b47b6 factory/core/tests/stress_test.sh
+file 67b450f2942913c89681e5da82b7e39a32df3f56 factory/core/tests/stress_test.sh
 file c8cc948d993e66ec367b5d1b54047c57e0cf4a14 factory/core/tests/sync_test.sh
-file cf641d07c49e675a7ef195cc081509fbcd2c8c3e factory/core/tests/test_sh_test.sh
+file d49bc1b622e7904c440ec56426746d130f5cf420 factory/core/tests/test_sh_test.sh
 file f39aa1df0997c86b09e862d26d82c534a02f32c1 factory/core/tests/tools_test.sh
 file 0d00646f74ca7529413a99ca7f80c8da2d7cc706 factory/core/tests/twice_test.sh
 file 7444a13809823dbe95e39f390d1dc7f415baf374 factory/core/tests/update_check_test.sh
@@ -377,7 +378,7 @@ file e0e0e499c9cf9b0bfc1ba167766db99d07fbac03 factory/core/verify.sh
 file 447b8d6ae549a8a25c55e3c8cc7006852fc0e098 factory/skills/factory-adopt/SKILL.md
 file 3c47fdbdb4dead05de89e48b6d8a000ab6e40802 factory/skills/factory-adopt/cleanup.md
 file 00c3644255f90b5659320a67e35c67c258a1564d factory/skills/factory-adopt/tracker.md
-file 93bfa6a1d26b8f491d0b38b989672d75674916ec factory/skills/factory-amend/SKILL.md
+file 3b3cc8ecc609a4149b7c7f01aa4ff22ab8d550e1 factory/skills/factory-amend/SKILL.md
 file 2501c9cf5c65ef610621654c03ef16e8ee7105fa factory/skills/factory-amend/brief.md
 file 87923a9d52d46291e0b1c96d85ff86ad97c5b731 factory/skills/factory-run/SKILL.md
 file 2e8f6b9a36ea002588b1dc389d69866bc8cb11d6 factory/skills/factory-run/amend-slices.md
