@@ -47,6 +47,92 @@ test_prepare_reports_a_lockfile_out_of_step_with_package_json_with_node() {
 	step prepare
 	assert_status 1
 	assert_eq "pnpm-lock.yaml:1 install-failed pnpm install --offline --frozen-lockfile exited 1 (see stderr); run bash tools/verify/bootstrap, the step allowed the network, then prepare again" "$out" "prepare's finding"
+	[ ! -e node_modules/.factory-install ] || fail "a failed install left an install record"
+	# The record is gone, so the next prepare installs (and fails) again.
+	step prepare
+	assert_status 1
+	assert_line "pnpm-lock.yaml:1 install-failed pnpm install --offline --frozen-lockfile exited 1 (see stderr); run bash tools/verify/bootstrap, the step allowed the network, then prepare again"
+}
+
+# prepare_skipped <what>: the last prepare passed and skipped the install.
+prepare_skipped() {
+	[ "$status" -eq 0 ] && [ -z "$out" ] || fail "prepare after $1: status $status: $out"$'\n'"$(tail -n 20 "$TEST_TMP/stderr")"
+	stderr_has "prepare: skipped pnpm install --offline --frozen-lockfile: node_modules/.factory-install matches"
+	[ "$(grep -c 'skipped pnpm install' "$TEST_TMP/stderr")" -eq 1 ] || fail "the skip didn't print one line"
+}
+
+# prepare_installed <what>: the last prepare passed, ran the install and recorded it.
+prepare_installed() {
+	[ "$status" -eq 0 ] && [ -z "$out" ] || fail "prepare after $1: status $status: $out"$'\n'"$(tail -n 20 "$TEST_TMP/stderr")"
+	! grep -qF 'skipped pnpm install' "$TEST_TMP/stderr" || fail "prepare skipped the install after $1"
+	[ -s node_modules/.factory-install ] || fail "no install record after $1"
+}
+
+test_prepare_skips_the_install_only_while_nothing_it_depends_on_changed_with_node() {
+	prepared_project
+	[ -s node_modules/.factory-install ] || fail "the first install wrote no record"
+	git check-ignore -q node_modules/.factory-install || fail "git doesn't ignore the install record"
+	local record
+	record="$(cat node_modules/.factory-install)"
+	step prepare
+	prepare_skipped "nothing changed"
+	assert_eq "$record" "$(cat node_modules/.factory-install)" "the record after a skip"
+	[ -f next-env.d.ts ] && [ -d .next/types ] || fail "a skipping prepare didn't run typegen"
+	# The tools' caches in node_modules are not its state.
+	mkdir -p node_modules/.vite/vitest && echo '{}' > node_modules/.vite/vitest/results.json
+	step prepare
+	prepare_skipped "a cache write"
+
+	echo '# a comment' >> pnpm-lock.yaml
+	step prepare
+	prepare_installed "a lockfile change"
+	step prepare
+	prepare_skipped "the lockfile change, installed"
+
+	printf '\n' >> package.json
+	step prepare
+	prepare_installed "a package.json change"
+
+	sed -i 's/^axe .*/axe 4.14.1/' tools/verify/pins
+	step prepare
+	prepare_installed "a pin change"
+
+	pnpm_config_child_concurrency=2 step prepare
+	prepare_installed "a pnpm setting from the environment"
+
+	rm -rf node_modules
+	step prepare
+	prepare_installed "node_modules removed"
+	[ -x node_modules/.bin/next ] || fail "the reinstall didn't install next"
+
+	rm node_modules/next
+	step prepare
+	prepare_installed "a package removed from node_modules"
+	[ -e node_modules/next ] || fail "the reinstall didn't restore next"
+
+	printf '\n' >> node_modules/.modules.yaml
+	step prepare
+	prepare_installed "node_modules' metadata altered"
+	step prepare
+	prepare_skipped "the reinstall"
+
+	# The rest of prepare still runs on a skip: the cross-check.
+	add_fixture scope/vendored.ts.txt vendor/vendored.ts
+	echo '!vendor/' >> tools/verify/scope
+	step prepare
+	assert_status 1
+	stderr_has "prepare: skipped pnpm install"
+	assert_line "tsconfig.json:$(grep -n '"include"' tsconfig.json | cut -d: -f1) scope-unchecked tsc compiles vendor/vendored.ts, which is outside tools/verify/scope (tsconfig.json's include or an import reaches it); scope it, or keep it out of both"
+}
+
+test_prepare_installs_every_time_without_a_hasher_with_node() {
+	prepared_project
+	path_without sha256sum
+	path_without shasum
+	step prepare
+	[ "$status" -eq 0 ] && [ -z "$out" ] || fail "prepare with no hasher: status $status: $out"$'\n'"$(tail -n 20 "$TEST_TMP/stderr")"
+	! grep -qF 'skipped pnpm install' "$TEST_TMP/stderr" || fail "prepare skipped with no hasher"
+	[ ! -e node_modules/.factory-install ] || fail "prepare with no hasher left an install record"
 }
 
 test_prepare_cross_checks_the_scope_against_tsc_with_node() {

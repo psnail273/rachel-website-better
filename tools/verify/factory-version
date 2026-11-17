@@ -186,7 +186,7 @@ file d0a634a656f68932e85b95149139ed322572ec75 factory/adapters/nextjs/tests/name
 file 74950168c992a51a001ba7ce6538866e57fe2b51 factory/adapters/nextjs/tests/prime-store.sh
 file 49614a6dba0bf1df583ce48cb3a6fd3ce240d31e factory/adapters/nextjs/tests/scenarios_test.sh
 file 2aed7c51b1cd249e909cc97d012458b2d0ca5d12 factory/adapters/nextjs/tests/smoke_test.sh
-file e00006b753f14659affb39fbeb6f2fbb4c6c00a0 factory/adapters/nextjs/tests/steps_test.sh
+file 17970e8deab46b417c2c0d4c0d66e90527e197a9 factory/adapters/nextjs/tests/steps_test.sh
 file 2f13b4cca0ed02a2bf3c5e4b71969a88d076006c factory/adapters/nextjs/tests/test_step_test.sh
 file 05d678310165db988ef683f8eeec4758e15c6dbb factory/adapters/nextjs/tests/verify_skill_test.sh
 file 79c84ecc2b9f0e1e8adcb586dea2fe256d6ee981 factory/adapters/nextjs/tools/verify/_arch_imports.mjs
@@ -219,7 +219,7 @@ file a7114266991f06514d19980a40af3f80392377ef factory/adapters/nextjs/tools/veri
 file b434b211183c9dbc9da7120596cfb2103b3749cd factory/adapters/nextjs/tools/verify/mutate
 file b04ea3692daf22810785f79ee5dbbadee7a0b124 factory/adapters/nextjs/tools/verify/pins
 file 76e1e77e1012a5f22dd0fbda7ea9e473e502b0c5 factory/adapters/nextjs/tools/verify/playtest
-file 53773618c9d8a3ea7db539e9ec23112c59a9b755 factory/adapters/nextjs/tools/verify/prepare
+file 6bd43cae4b273558381e0d3560ef285dddfa73bf factory/adapters/nextjs/tools/verify/prepare
 file ecca61214627af00ff525816d817b4911bf0813e factory/adapters/nextjs/tools/verify/ratchet/format_exclude.txt
 file 52b349845f199161f1144a1cf4d25358183b4ee2 factory/adapters/nextjs/tools/verify/scenario-env
 file b0ac34426cf910398a491d85caa681d9755bc204 factory/adapters/nextjs/tools/verify/scenario-folder

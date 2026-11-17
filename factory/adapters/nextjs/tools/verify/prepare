@@ -4,7 +4,12 @@
 #      pnpm-lock.yaml has them (pnpm install --offline --frozen-lockfile), so a
 #      lockfile a branch changed is installed before any step reads it, and a
 #      package the store lacks fails here, not halfway through a gate (bootstrap,
-#      the network step, fetches it);
+#      the network step, fetches it). It is skipped when the install record
+#      (node_modules/.factory-install, see install_state) matches: nothing the
+#      install's result depends on has changed since the last install succeeded;
+#      the skip says so on stderr. The record lives in node_modules, so deleting
+#      node_modules deletes it (and git ignores it, as it ignores node_modules);
+#      it is removed before each install and written only after one succeeds;
 #   2. next typegen, which writes the route types (.next/types/, next-env.d.ts)
 #      that tsc and ESLint's type-aware rules read;
 #   3. the scope cross-check: tools/verify/scope against what tsc compiles for
@@ -59,12 +64,66 @@ if [ ! -f pnpm-lock.yaml ]; then
 	echo "pnpm-lock.yaml:1 install-failed no pnpm-lock.yaml; the gates install exactly what it locks: make it with pnpm install and commit it"
 	exit 1
 fi
-pnpm install --offline --frozen-lockfile > "$tmp/install.log" 2>&1
-status=$?
-cat "$tmp/install.log" >&2
-if [ "$status" -ne 0 ]; then
-	echo "pnpm-lock.yaml:1 install-failed pnpm install --offline --frozen-lockfile exited $status (see stderr); run bash tools/verify/bootstrap, the step allowed the network, then prepare again"
-	exit 1
+
+# install_sha: sha256 of stdin, or false when this machine has no hasher (then
+# prepare always installs).
+install_sha() {
+	local sum
+	if command -v sha256sum > /dev/null 2>&1; then
+		sum="$(sha256sum)" || return 1
+	elif command -v shasum > /dev/null 2>&1; then
+		sum="$(shasum -a 256)" || return 1
+	else
+		return 1
+	fi
+	printf '%s\n' "${sum%% *}"
+}
+
+# install_state: one hash of everything the install's result depends on: its
+# flags; the Node and pnpm it runs (NODE_BIN, PNPM_BIN, node --version) and the
+# pins; pnpm's settings from the environment (npm_config_*, pnpm_config_*); package.json,
+# pnpm-lock.yaml, pnpm-workspace.yaml and .npmrc, where present; and node_modules
+# as pnpm left it: its own metadata (.modules.yaml, .pnpm/lock.yaml) and the names
+# of its packages and .bin entries. Not node_modules' caches (.vite and the
+# like), which the tools write on every run. False with no hasher.
+install_flags="--offline --frozen-lockfile"
+install_record=node_modules/.factory-install
+install_state() {
+	local f
+	{
+		printf 'flags %s\n' "$install_flags"
+		printf 'node-bin %s\npnpm-bin %s\n' "${NODE_BIN:-}" "${PNPM_BIN:-}"
+		printf 'node %s\n' "$("${NODE_BIN:-node}" --version 2>&1)"
+		env | LC_ALL=C grep -i -e '^npm_config_' -e '^pnpm_config_' | LC_ALL=C sort
+		for f in "$dir/pins" package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc node_modules/.modules.yaml node_modules/.pnpm/lock.yaml; do
+			if [ -f "$f" ]; then
+				printf 'file %s %s\n' "${f#"$dir"/}" "$(install_sha < "$f")"
+			else
+				printf 'absent %s\n' "${f#"$dir"/}"
+			fi
+		done
+		if [ -d node_modules ]; then
+			find node_modules -mindepth 1 -maxdepth 2 \( -path 'node_modules/.*' ! -path node_modules/.bin ! -path 'node_modules/.bin/*' \) -prune -o -print | LC_ALL=C sort
+		fi
+	} | install_sha
+}
+
+state="$(install_state)" || state=""
+if [ -n "$state" ] && [ -f "$install_record" ] && [ "$(cat "$install_record")" = "$state" ]; then
+	echo "prepare: skipped pnpm install $install_flags: $install_record matches package.json, the lockfile, the pins, the install's settings and node_modules, as at the last install that succeeded (delete it to force one)" >&2
+else
+	rm -f "$install_record"
+	# shellcheck disable=SC2086 # the flags split on purpose
+	pnpm install $install_flags > "$tmp/install.log" 2>&1
+	status=$?
+	cat "$tmp/install.log" >&2
+	if [ "$status" -ne 0 ]; then
+		echo "pnpm-lock.yaml:1 install-failed pnpm install $install_flags exited $status (see stderr); run bash tools/verify/bootstrap, the step allowed the network, then prepare again"
+		exit 1
+	fi
+	if state="$(install_state)" && [ -n "$state" ] && [ -d node_modules ]; then
+		printf '%s\n' "$state" > "$install_record" || rm -f "$install_record"
+	fi
 fi
 
 if tool_ready next; then
