@@ -398,7 +398,11 @@ test_the_layout_check_runs_on_its_own_with_a_cookie_with_node() {
 	layout_page reported /reported
 	layout_page pass /far '.photo { position: relative; left: 2500px }'
 	layout_page pass /parked 'body { overflow-x: hidden } .photo { position: relative; left: 2500px }'
-	page '<script>setInterval(() => fetch("/"), 100)</script>' /busy
+	# /busy never goes quiet: it holds a request open that the stand-in never
+	# answers. (A page polling every 100 ms went quiet now and then on a loaded
+	# machine, its timers held back past networkidle's 500 ms, in any engine.)
+	page '<script>fetch("/busy/held")</script>' /busy
+	: > "$TEST_TMP/site/busy/held" && : > "$TEST_TMP/site/busy/held.hang" || fail "could not hold /busy's request"
 	page '' /plain
 	port=""
 	# server: no local, so the EXIT trap, which runs after the function returns,
@@ -454,6 +458,7 @@ reported: /reported 1920px short section > p" "$(grep -v '^package' <<< "$out" |
 	assert_status 0
 	assert_eq "package.json:1 smoke-layout /far outside div > div.photo: reaches 2500px past the column's right edge (want inside the column, or in [data-bleed])
 package.json:1 smoke-load /busy: the page didn't load and go quiet within 15s: page.goto: Timeout 15000ms exceeded." "$out" "the findings past the window and on a busy page"
+	[ -e "$TEST_TMP/site/busy/held.hit" ] || fail "/busy's request never reached the stand-in"
 
 	run_cmd node tools/verify/_layout.mjs "http://127.0.0.1:$port" 60 --cookie novalue /
 	assert_status 2
