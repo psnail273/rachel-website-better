@@ -18,13 +18,11 @@
 NEXTJS_ADAPTER="$FACTORY_CORE/../adapters/nextjs"
 . "$NEXTJS_ADAPTER/tests/lib.sh"
 
-# site_project: skeleton_project with its packages installed (prepare), and
+# site_project: skeleton_project with its packages installed (primed_project), and
 # next replaced by the stand-in serving $TEST_TMP/site; cd there. The stand-in
 # writes its pid to $TEST_TMP/server.pid.
 site_project() {
-	skeleton_project
-	step prepare
-	[ "$status" -eq 0 ] || fail "prepare failed on the skeleton: $out"$'\n'"$(tail -n 20 "$TEST_TMP/stderr")"
+	primed_project
 	rm -f node_modules/.bin/next && cp "$NEXTJS_FIXTURES/smoke/next.mjs.txt" node_modules/.bin/next && chmod 755 node_modules/.bin/next ||
 		fail "could not stand in for next"
 	mkdir -p "$TEST_TMP/site/api"
@@ -359,6 +357,7 @@ test_the_page_checks_run_on_their_own_with_a_cookie_with_node() {
 	node node_modules/.bin/next start --hostname 127.0.0.1 --port 0 > "$TEST_TMP/server.out" 2>&1 &
 	server=$!
 	trap 'kill "$server" 2> /dev/null; wait "$server"' EXIT
+	tether "$server"
 	wait_until "the stand-in server to listen" server_started
 	run_cmd node tools/verify/_smoke_page.mjs "http://127.0.0.1:$port" 60 --cookie direction=b /
 	assert_status 0
@@ -407,6 +406,7 @@ test_the_layout_check_runs_on_its_own_with_a_cookie_with_node() {
 	node node_modules/.bin/next start --hostname 127.0.0.1 --port 0 > "$TEST_TMP/server.out" 2>&1 &
 	server=$!
 	trap 'kill "$server" 2> /dev/null; wait "$server"' EXIT
+	tether "$server"
 	wait_until "the stand-in server to listen" server_started
 	run_cmd node tools/verify/_layout.mjs "http://127.0.0.1:$port" 60 --cookie direction=b / /plain /reported
 	assert_status 0
@@ -683,6 +683,7 @@ test_a_signal_while_the_step_stops_its_server_waits_for_the_stop_with_node() {
 	local pid code=0
 	FACTORY_SMOKE_TIMEOUT=3 bash tools/verify/smoke > "$TEST_TMP/smoke.out" 2> "$TEST_TMP/smoke.err" &
 	pid=$!
+	tether "$pid"
 	# The finding is printed as the step goes on to stop the server.
 	wait_until "the step to give up on the server" grep -q "didn't answer" "$TEST_TMP/smoke.out"
 	kill -TERM "$pid"
@@ -705,6 +706,7 @@ smoke_apart() {
 	FACTORY_SMOKE_TIMEOUT=600 bash tools/verify/smoke > "$TEST_TMP/smoke.out" 2> "$TEST_TMP/smoke.err" &
 	smoke=$!
 	set +m
+	tether "$smoke"
 }
 
 # Stopped while it waits for the server, by TERM or INT, the step stops it too.
@@ -826,9 +828,11 @@ test_two_builds_at_once_run_one_after_the_other_with_node() {
 	trap ': > "$TEST_TMP/release-1"; : > "$TEST_TMP/release-2"; wait' EXIT
 	bash tools/verify/smoke > "$TEST_TMP/a.out" 2> "$TEST_TMP/a.err" &
 	a=$!
+	tether "$a"
 	wait_until "the first build to start" test -s "$TEST_TMP/build-1.pid"
 	bash tools/verify/smoke > "$TEST_TMP/b.out" 2> "$TEST_TMP/b.err" &
 	b=$!
+	tether "$b"
 	wait_until "the second run to wait for the build lock" grep -q "next build: waiting for the build lock $FACTORY_BUILD_LOCK, held by pid $a (up to 900s, FACTORY_BUILD_WAIT)" "$TEST_TMP/b.err"
 	[ ! -e "$TEST_TMP/build-2.pid" ] || fail "the second build started while the first ran"
 	: > "$TEST_TMP/release-1"

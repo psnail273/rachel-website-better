@@ -310,7 +310,9 @@ adopt_env() {
 # nor lands inside the one already there). The cache is in the run's own folder,
 # gone with it. With no run (FACTORY_TEST_RUN unset, or not a folder), the builder
 # runs every time. A builder must make the same project in any $TEST_TMP: a path
-# of its own baked in would be wrong in a copy.
+# of its own baked in would be wrong in a copy. Both copies are copy_tree's, or
+# those of the function CACHED_COPY names (<from> <to>, <to> an empty folder), for
+# a project too big to copy whole each time.
 cached_project() {
 	local key="$1" dir="${FACTORY_TEST_RUN:-}/fixtures" tmp
 	shift
@@ -319,14 +321,19 @@ cached_project() {
 		return
 	fi
 	if [ -d "$dir/$key" ]; then
-		mkdir -p "$TEST_TMP/project" && cp -a "$dir/$key/." "$TEST_TMP/project/" || fail "could not copy the cached $key project"
+		mkdir -p "$TEST_TMP/project" && "${CACHED_COPY:-copy_tree}" "$dir/$key" "$TEST_TMP/project" || fail "could not copy the cached $key project"
 		cd "$TEST_TMP/project" || fail "could not enter the project"
 		return
 	fi
 	"$@"
 	mkdir -p "$dir" && tmp="$(mktemp -d "$dir/.$key.XXXXXX")" &&
-		cp -a "$TEST_TMP/project/." "$tmp/" || fail "could not cache the $key project"
+		"${CACHED_COPY:-copy_tree}" "$TEST_TMP/project" "$tmp" || fail "could not cache the $key project"
 	ln -sn "${tmp##*/}" "$dir/$key" 2> /dev/null || rm -rf "$tmp"
+}
+
+# copy_tree <from> <to>: everything in the folder <from>, copied into <to> (cp -a).
+copy_tree() {
+	cp -a "$1/." "$2/"
 }
 
 # build_project: adopt_project's project, built in $TEST_TMP/project.

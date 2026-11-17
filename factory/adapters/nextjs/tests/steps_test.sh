@@ -11,17 +11,15 @@ NEXTJS_ADAPTER="$FACTORY_CORE/../adapters/nextjs"
 . "$NEXTJS_ADAPTER/tests/lib.sh"
 
 # prepared_project: skeleton_project, prepared (packages installed, route types
-# generated), or fail.
+# generated) with no finding, or fail: primed_project.
 prepared_project() {
 	needs_store
-	skeleton_project
-	step prepare
-	[ "$status" -eq 0 ] || fail "prepare failed on the skeleton: $out"$'\n'"$(tail -n 20 "$TEST_TMP/stderr")"
+	primed_project
 }
 
 test_the_skeleton_passes_every_step_with_node() {
+	# prepare's findings: primed_project fails on any.
 	prepared_project
-	assert_eq "" "$out" "prepare's findings"
 	[ -f next-env.d.ts ] && [ -d .next/types ] || fail "prepare didn't generate the route types"
 	local s
 	# smoke too runs on the skeleton, for real, in adopt_test.sh's end to end.

@@ -180,14 +180,15 @@ file 7ee586ff6683484412762ec3d20d58d96cc1bf7a factory/adapters/nextjs/tests/fixt
 file aa16b60de6b000bab2593004f8735fe00fba6b0c factory/adapters/nextjs/tests/fixture/test/teardown.test.ts.txt
 file 8dc50e448a1846cc55a3a384eae2b360bffc2325 factory/adapters/nextjs/tests/fixture/test/unhandled.test.ts.txt
 file 1a34c0c1082cfb42c251369faf27168779502793 factory/adapters/nextjs/tests/fixture/typecheck/total.ts.txt
-file cd9c335fa1dec2b68aafc84b0c582c982bf1434e factory/adapters/nextjs/tests/lib.sh
+file 21774b1c481d8336845e1c42dcd5e38d0af2bac1 factory/adapters/nextjs/tests/lib.sh
+file 1fe05a47eaebd6dae1bf95f5f4b2f328137d55c1 factory/adapters/nextjs/tests/lib_test.sh
 file 5091251eacca1872f7cf2f46c3afe41ace56f440 factory/adapters/nextjs/tests/lint_checks_test.sh
 file 985093811e2d9d1d17e43e25d72ec571171e74a8 factory/adapters/nextjs/tests/mutate_test.sh
 file d0a634a656f68932e85b95149139ed322572ec75 factory/adapters/nextjs/tests/names_test.sh
 file 74950168c992a51a001ba7ce6538866e57fe2b51 factory/adapters/nextjs/tests/prime-store.sh
-file 49614a6dba0bf1df583ce48cb3a6fd3ce240d31e factory/adapters/nextjs/tests/scenarios_test.sh
-file 2aed7c51b1cd249e909cc97d012458b2d0ca5d12 factory/adapters/nextjs/tests/smoke_test.sh
-file f0823c908f651d741344e12f0e4f645d00cd036a factory/adapters/nextjs/tests/steps_test.sh
+file 48b699251267d10eb6276b0e68673af0411e99f8 factory/adapters/nextjs/tests/scenarios_test.sh
+file 8fe774605111f524efe96ff9c603d009353d4408 factory/adapters/nextjs/tests/smoke_test.sh
+file 1e97793745ac131b4d0271bc74846afe9a347127 factory/adapters/nextjs/tests/steps_test.sh
 file 2f13b4cca0ed02a2bf3c5e4b71969a88d076006c factory/adapters/nextjs/tests/test_step_test.sh
 file 05d678310165db988ef683f8eeec4758e15c6dbb factory/adapters/nextjs/tests/verify_skill_test.sh
 file 79c84ecc2b9f0e1e8adcb586dea2fe256d6ee981 factory/adapters/nextjs/tools/verify/_arch_imports.mjs
@@ -350,7 +351,7 @@ file ee7ed90893d2d5677afc44dffe834a0e40c304fb factory/core/tests/hooks_test.sh
 file 3c323f7353738597e258927f7243a1bbc8892cb8 factory/core/tests/install_test.sh
 file ed39bc54484c83d3e63cc90c2a880660d0f14b5c factory/core/tests/keep_going_test.sh
 file a5361e5294685708c9f6b4f86ad6260d36bdc319 factory/core/tests/land_test.sh
-file 53108e053a01c954ae9f3c9cdd50cdfae8c41ed4 factory/core/tests/lib.sh
+file 269a050be187658c88a7c40ffb6cc8ec2da3304d factory/core/tests/lib.sh
 file 94c0668ca0c91056b45398457516a734fee79ce5 factory/core/tests/lock_test.sh
 file 9d50580b5cbff41a6737b52b8d3edb3c0c83f0f4 factory/core/tests/mutate_test.sh
 file 855996289921e24f38762793b8dc638f0c75c1c1 factory/core/tests/pins_test.sh
@@ -368,7 +369,7 @@ file 6c661823e1d4c61c079cba83b45277c2285d8bd1 factory/core/tests/start_test.sh
 file 113935331537331c9df5de5de3b8668add996e80 factory/core/tests/state_test.sh
 file 67b450f2942913c89681e5da82b7e39a32df3f56 factory/core/tests/stress_test.sh
 file c8cc948d993e66ec367b5d1b54047c57e0cf4a14 factory/core/tests/sync_test.sh
-file d49bc1b622e7904c440ec56426746d130f5cf420 factory/core/tests/test_sh_test.sh
+file a8cb201604adb7654c9e0360f7212b8d62c841e2 factory/core/tests/test_sh_test.sh
 file f39aa1df0997c86b09e862d26d82c534a02f32c1 factory/core/tests/tools_test.sh
 file 0d00646f74ca7529413a99ca7f80c8da2d7cc706 factory/core/tests/twice_test.sh
 file 7444a13809823dbe95e39f390d1dc7f415baf374 factory/core/tests/update_check_test.sh

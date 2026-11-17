@@ -129,3 +129,132 @@ step() {
 	shift
 	run_cmd bash "tools/verify/$name" "$@"
 }
+
+# --- the primed project ---------------------------------------------------------------
+# The skeleton, installed and prepared, is what most of the adapter's real tests
+# start from; installing it is most of what they take. primed_project builds it
+# once per test.sh run and copies it into each test that asks.
+
+# primed_project: skeleton_project, prepared (packages installed, route types
+# generated) with no finding, or fail; cd there. The test calls needs_store (or
+# needs_browser) first. It is built once per test.sh run (cached_once) and
+# copied (link_tree), so each test has a tree of its own; a test that needs one
+# with nothing installed starts from skeleton_project instead.
+primed_project() {
+	isolate_git
+	cached_once nextjs-primed build_primed
+}
+
+# build_primed: primed_project's project, built in $TEST_TMP/project.
+build_primed() {
+	skeleton_project
+	step prepare
+	# shellcheck disable=SC2154 # out and status: set by run_cmd, in factory/core/tests/lib.sh
+	[ "$status" -eq 0 ] && [ -z "$out" ] || fail "prepare on the skeleton: status $status: $out"$'\n'"$(tail -n 20 "$TEST_TMP/stderr")"
+}
+
+# cached_once <key> <builder> [args...]: cached_project, copying by link_tree, but
+# the run's tests wait while one of them builds <key> instead of each building its
+# own at once: the first to claim the key (a symlink to its shell's pid, which ln
+# makes atomically) builds, and the others wait until it has published the
+# project, or its shell is gone (its build failed, or it was killed), then copy
+# it, or build their own as cached_project does. They wait three hang guards at
+# most, then build their own too: a slow build never fails another test.
+cached_once() {
+	# shellcheck disable=SC2034 # CACHED_COPY: read by cached_project
+	local key="$1" dir="${FACTORY_TEST_RUN:-}/fixtures" end CACHED_COPY=link_tree
+	if [ -n "${FACTORY_TEST_RUN:-}" ] && [ -d "$FACTORY_TEST_RUN" ] && [ ! -e "$dir/$key" ]; then
+		mkdir -p "$dir" || fail "could not make $dir"
+		if ! ln -s "$BASHPID" "$dir/.$key.builder" 2> /dev/null; then
+			end=$((SECONDS + TEST_HANG_GUARD * 3))
+			until [ -e "$dir/$key" ] || ! kill -0 "$(readlink "$dir/.$key.builder")" 2> /dev/null || [ "$SECONDS" -ge "$end" ]; do
+				sleep 0.1
+			done
+		fi
+	fi
+	cached_project "$@"
+}
+
+# link_tree <from> <to>: cached_project's copy of a project with its packages
+# installed. The files pnpm linked from its store (under node_modules/.pnpm, with
+# a link of the store's besides <from>'s) are hard links to <from>'s, as they are
+# to the store's already, so a test can no more change them than it could the
+# store's; every other file is a copy of its own, which a test may change in
+# place: the sources, .next, node_modules' metadata and bins, the install record.
+# A copy of the packages (cp -a) is half a gigabyte and a minute per test. Where cp
+# can't link (cp -l), it copies.
+#
+# Which files are the project's own is read from <from>'s link counts only where
+# no other copy can be running: when <from> is a test's own project, as it is when
+# cached_project caches it. That copy keeps the list (LINK_TREE_OWN), and a copy
+# of the cache breaks the links of the files it lists, however many other tests
+# are copying the cache at once (each adds a link to every file) - and leaves
+# the list out.
+#
+# pnpm's record of the project's own path (node_modules/.pnpm-workspace-state-v1.json)
+# then names <to>: naming another folder, it makes the next pnpm install link
+# every bin again, over a test's stand-ins.
+LINK_TREE_OWN=node_modules/.link-tree-own
+link_tree() {
+	local own="$1/$LINK_TREE_OWN" list="$2.own"
+	if [ ! -f "$own" ]; then
+		(cd "$1" && find . -type f \( ! -path "./node_modules/.pnpm/*" -o -links 1 \) -print0) > "$list" || return 1
+		own="$list"
+	fi
+	if cp -al "$1/." "$2/" 2> /dev/null; then
+		rm -f "$2/$LINK_TREE_OWN"
+		(cd "$2" && xargs -0 sh -c 'for f; do cp -p "$f" "$f.copy" && mv -f "$f.copy" "$f" || exit 1; done' link_tree) < "$own" || return 1
+	else
+		find "$2" -mindepth 1 -delete && cp -a "$1/." "$2/" && rm -f "$2/$LINK_TREE_OWN" || return 1
+	fi
+	if [ "$own" = "$list" ]; then
+		if [ -d "$2/node_modules" ]; then mv -f "$list" "$2/$LINK_TREE_OWN" || return 1; else rm -f "$list"; fi
+	fi
+	local state="$2/node_modules/.pnpm-workspace-state-v1.json" from to text
+	[ -f "$state" ] || return 0
+	from="$(cd "$1" && pwd -P)" && to="$(cd "$2" && pwd -P)" && text="$(cat "$state")" || return 1
+	text="${text//"\"$from\""/"\"$to\""}"
+	printf '%s\n' "${text//"\"$from/"/"\"$to/"}" > "$state.copy" && touch -r "$state" "$state.copy" && mv -f "$state.copy" "$state"
+}
+
+# --- background processes -------------------------------------------------------------
+
+# tether <pid>: the background process <pid> ends with the test however the test
+# ends. A test's EXIT trap stops what it started, and test.sh's TERM to the test's
+# process group reaches what runs in that group; but a test killed outright (KILL)
+# runs no trap, and a process in a group of its own (set -m) misses that TERM. So a
+# watcher, in a group of its own that no signal to the test's reaches, TERMs <pid>
+# once the shell that called tether is gone, KILLs it 10s later if it is still
+# there (as test.sh does), and ends when <pid> does.
+tether() {
+	local shell="$BASHPID" flags="$-"
+	set -m
+	bash -c '
+		while kill -0 "$1" 2> /dev/null; do
+			if ! kill -0 "$2" 2> /dev/null; then
+				kill -TERM "$1" 2> /dev/null
+				n=0
+				while kill -0 "$1" 2> /dev/null && [ "$n" -lt 100 ]; do
+					sleep 0.1
+					n=$((n + 1))
+				done
+				kill -KILL "$1" 2> /dev/null
+				exit 0
+			fi
+			sleep 0.1
+		done' tether "$1" "$shell" > /dev/null 2>&1 < /dev/null &
+	case "$flags" in *m*) ;; *) set +m ;; esac
+}
+
+# fixture_server <script> <port> <folder>: the Scenario fixture server <script> (a
+# _scenario_fixtures.mjs) on 127.0.0.1:<port>, serving <folder>, in the
+# background, its output in <folder>.log; once it listens. Its pid is in $server, a
+# global, so the EXIT trap this sets, which runs after the calling test returns,
+# still reads it, and it is tethered.
+fixture_server() {
+	node "$1" "$2" "$3" > "$3.log" 2>&1 < /dev/null &
+	server=$!
+	trap 'kill "$server" 2> /dev/null; wait "$server"' EXIT
+	tether "$server"
+	wait_until "the fixture server to listen on $2" grep -qx "listening on http://127.0.0.1:$2" "$3.log"
+}

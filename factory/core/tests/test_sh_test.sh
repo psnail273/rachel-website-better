@@ -536,6 +536,27 @@ test_cached_project_callers_racing_to_build_each_get_their_own_and_one_is_cached
 	assert_eq "a.txt who.txt" "$(find . -mindepth 1 | LC_ALL=C sort | sed 's#^\./##' | tr '\n' ' ' | sed 's/ $//')" "the cached copy's files"
 }
 
+# marking_copy <from> <to>: copy_tree, and a line naming the folder <from> in
+# $TEST_TMP/../copies.
+marking_copy() {
+	copy_tree "$1" "$2" && echo "${1##*/}" >> "$TEST_TMP/../copies"
+}
+
+# Both the copy that publishes the project and the one that hands it out are the
+# function CACHED_COPY names, when it names one.
+test_cached_project_copies_with_the_function_cached_copy_names() {
+	# shellcheck disable=SC2034 # CACHED_COPY: read by cached_project
+	local base="$TEST_TMP/copier" CACHED_COPY=marking_copy
+	mkdir -p "$base/one" "$base/two" "$base/run"
+	export FACTORY_TEST_RUN="$base/run"
+	TEST_TMP="$base/one" cached_project k counting_build
+	TEST_TMP="$base/two" cached_project k counting_build
+	assert_eq built "$(cat a.txt)" "the second copy's a.txt"
+	assert_eq 1 "$(wc -l < "$base/builds")" "the builds in one run"
+	assert_eq "project
+k" "$(cat "$base/copies")" "the copies: the first caller's project published, then the cached one handed out"
+}
+
 # --- raw waits ------------------------------------------------------------------------
 
 RAW_WAITS_FIXTURE="$FACTORY_CORE/tests/fixture/raw-waits"

@@ -32,7 +32,13 @@ routes() {
 # ARCHITECTURE.md, so the run has no looks; cd there.
 app_project() {
 	needs_browser
-	skeleton_project
+	isolate_git
+	cached_once nextjs-app build_app
+}
+
+# build_app: app_project's project, built in $TEST_TMP/project.
+build_app() {
+	primed_project
 	routes '/api/health  app/api/health/route.ts  route handler (GET)'
 	add_fixture scenarios/page.tsx.txt app/page.tsx
 	step prepare
@@ -148,9 +154,7 @@ test_the_driver_cannot_run_without_its_packages_with_node() {
 
 test_a_missing_browser_cannot_run_the_scenarios_with_node() {
 	needs_store
-	skeleton_project
-	step prepare
-	[ "$status" -eq 0 ] || fail "prepare failed: $out"
+	primed_project
 	stand_in_next
 	scenario one_ball serve/one_ball.ts
 	drive
@@ -257,6 +261,7 @@ driver_apart() {
 		bash tools/verify/scenarios > "$TEST_TMP/driver.out" 2> "$TEST_TMP/driver.err" &
 	driver=$!
 	set +m
+	tether "$driver"
 }
 
 # While a Scenario runs, the driver has the server, Playwright, its worker and
@@ -302,7 +307,7 @@ waits	PASS	scenarios/waits.ts:6" "$(cat "$TEST_TMP/driver.out")" "the driver's l
 # nor does next build. prepare finds a tsconfig.json or Vitest config that would.
 test_no_gate_step_or_the_build_reaches_the_scenario_folder_with_node() {
 	needs_store
-	skeleton_project
+	primed_project
 	scenario stray.test reach/stray.test.ts
 	step prepare
 	assert_status 0
@@ -410,11 +415,7 @@ test_a_taken_fixture_port_cannot_run_the_scenarios_with_node() {
 	feed_project
 	scenario feed_second feed/second.ts
 	echo 'FEED_URL={fixtures}/calendar.ics' >> tools/verify/scenario-env
-	local holder
-	node tools/verify/_scenario_fixtures.mjs "$port" "$TEST_TMP/held" > "$TEST_TMP/held.log" 2>&1 < /dev/null &
-	holder=$!
-	trap 'kill "$holder" 2> /dev/null; wait "$holder"' EXIT
-	wait_until "the other run's fixture server to listen" grep -qx "listening on http://127.0.0.1:$port" "$TEST_TMP/held.log"
+	fixture_server tools/verify/_scenario_fixtures.mjs "$port" "$TEST_TMP/held"
 	drive
 	assert_status 2
 	assert_eq "" "$out"
@@ -427,12 +428,9 @@ test_a_taken_fixture_port_cannot_run_the_scenarios_with_node() {
 # another alone, also one named like a PUT's staged file (/feed.ics.new).
 test_each_fixture_target_stands_alone_with_node() {
 	needs_node
-	local port server
+	local port
 	port="$(free_port)"
-	node "$NEXTJS_ADAPTER/tools/verify/_scenario_fixtures.mjs" "$port" "$TEST_TMP/fixtures" > "$TEST_TMP/fixtures.log" 2>&1 < /dev/null &
-	server=$!
-	trap 'kill "$server" 2> /dev/null; wait "$server"' EXIT
-	wait_until "the fixture server to listen" grep -qx "listening on http://127.0.0.1:$port" "$TEST_TMP/fixtures.log"
+	fixture_server "$NEXTJS_ADAPTER/tools/verify/_scenario_fixtures.mjs" "$port" "$TEST_TMP/fixtures"
 	cp "$NEXTJS_FIXTURES/scenarios/fixture-requests.mjs.txt" "$TEST_TMP/requests.mjs" || fail "could not copy the requests"
 	run_cmd node "$TEST_TMP/requests.mjs" "http://127.0.0.1:$port"
 	assert_status 0
@@ -443,6 +441,32 @@ GET /feed.ics 200 Y
 DELETE /feed.ics 204 
 GET /feed.ics.new 200 X
 GET /feed.ics 404 " "$out" "each target's answers"
+}
+
+# A test that starts the fixture server stops it however it ends: a TERM to it
+# alone runs its traps, but one killed outright (KILL) runs none, and its server
+# stops all the same (fixture_server tethers it). The "test" is a shell of this
+# one's, which starts the server as the tests above do.
+test_a_fixture_server_stops_with_its_test_even_one_killed_outright_with_node() {
+	needs_node
+	local sig shell pid
+	cat > "$TEST_TMP/a_test.sh" << 'SH'
+. "$FACTORY_CORE/tests/lib.sh"
+. "$NEXTJS_ADAPTER/tests/lib.sh"
+fixture_server "$NEXTJS_ADAPTER/tools/verify/_scenario_fixtures.mjs" "$1" "$2"
+echo "$server" > "$2.pid"
+wait "$server"
+SH
+	for sig in TERM KILL; do
+		NEXTJS_ADAPTER="$NEXTJS_ADAPTER" bash "$TEST_TMP/a_test.sh" "$(free_port)" "$TEST_TMP/$sig" > "$TEST_TMP/$sig.out" 2>&1 < /dev/null &
+		shell=$!
+		wait_until "the test's fixture server to listen ($sig)" test -s "$TEST_TMP/$sig.pid"
+		pid="$(cat "$TEST_TMP/$sig.pid")"
+		kill -0 "$pid" 2> /dev/null || fail "no fixture server running ($sig): $(cat "$TEST_TMP/$sig.out" "$TEST_TMP/$sig.log")"
+		kill -"$sig" "$shell"
+		wait "$shell"
+		wait_until "the fixture server to stop once its test was killed ($sig)" gone "$pid"
+	done
 }
 
 # A scenario-env line that isn't NAME=value, or names one of the driver's own;
