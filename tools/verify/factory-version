@@ -4,7 +4,7 @@ tag v0.7.0
 upstream git@git.stuffworks.net:psnail273/factory.git
 file e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 factory/.gdignore
 file 9a50e370f33449d84f1c91fad092990f0fe6b3d9 factory/.shellcheckrc
-file 8a201e9d4c2836dac784eb88e173ca706141ef36 factory/CONTEXT.md
+file d1012a8faf1c36d618410dbddc60fa1f511142c1 factory/CONTEXT.md
 file 4e36bb9b889dabe2c90dd2a0a3cdaa3f0c7a74a8 factory/README.md
 file faef31a4357c48d6e4c55e84c8be8e3bc9055e20 factory/VERSION
 file 5b71dbc61fcfb1d5513263ab5efc6ea6700bd781 factory/adapters/godot/ARCHITECTURE.md
@@ -289,6 +289,7 @@ file 078bcdaa69c06b0cda9f2c6ed738330b24102e5b factory/core/lock.sh
 file eee594b1da6c44037070d527b56f6dafcd1f16b8 factory/core/pins.sh
 file 226642a252cf2f2338478953e213555e637e9feb factory/core/prompt.sh
 file 7a9b64fa7ffb2a18cae9341954a9e3eb07aa02f0 factory/core/raw-waits.sh
+file e4829d1fc446e3e0aa781c09535f8da364deda80 factory/core/relay.sh
 file 26505632f3c5409afdcaf33a62d3581a2b23c6eb factory/core/retro.sh
 file f1014d7a16b5f0ed1b19307239c4eb0ba130d832 factory/core/rubric.sh
 file 3626ab6689b2178032483d694a04d33d156bfed1 factory/core/scenarios.sh
@@ -300,7 +301,7 @@ file 8ba79d0fd9b1b6ff25e63c932239a24e65ce3dae factory/core/state.sh
 file 47ae7a2a41a613b1ac5d8737eca722543989b021 factory/core/stress.sh
 file ce330a2eb2b3fb8cae331097a8d87dfd1c00d9fd factory/core/sync.sh
 file e0548be8efd9ab87ea4d2475d4ab1a222c4706c1 factory/core/templates/ARCHITECTURE.md
-file 8474c8e9794f5bea9b1fefd63b2d968f30a81692 factory/core/templates/agents-section.md
+file 4536b71f1e7dc74c53c193cb5766023b961e831b factory/core/templates/agents-section.md
 file 8f22a81b00d953d6a291fc00fbe00aacb1c10931 factory/core/templates/deviations.md
 file db751ed65d962c1d72d5e3ca4a701d3a25e9037c factory/core/templates/gitattributes
 file d195377215793c65d19236f8e261a4edd90c99f3 factory/core/templates/verify.ps1
@@ -355,6 +356,7 @@ file 9d50580b5cbff41a6737b52b8d3edb3c0c83f0f4 factory/core/tests/mutate_test.sh
 file 855996289921e24f38762793b8dc638f0c75c1c1 factory/core/tests/pins_test.sh
 file ea8068347b86ee1bab5acd226db5399eb488aba9 factory/core/tests/prompt_test.sh
 file cbcfd18277b0f82e22fb1bee3fb392daabc18355 factory/core/tests/red_test.sh
+file 56ebb0d660d0baf43ab8cc22a4472fde6f85e30b factory/core/tests/relay_test.sh
 file 03fd4dc1e2da3a49c86f46c3240a4b005c57f93a factory/core/tests/results_test.sh
 file f4ab52fa7702264b1e29e981f2f87396555662ea factory/core/tests/retro_test.sh
 file b40e2c11a645b0778cd38065ec4a673200d7bd70 factory/core/tests/runner_test.sh
@@ -380,7 +382,7 @@ file 3c47fdbdb4dead05de89e48b6d8a000ab6e40802 factory/skills/factory-adopt/clean
 file 00c3644255f90b5659320a67e35c67c258a1564d factory/skills/factory-adopt/tracker.md
 file 3b3cc8ecc609a4149b7c7f01aa4ff22ab8d550e1 factory/skills/factory-amend/SKILL.md
 file 2501c9cf5c65ef610621654c03ef16e8ee7105fa factory/skills/factory-amend/brief.md
-file 87923a9d52d46291e0b1c96d85ff86ad97c5b731 factory/skills/factory-run/SKILL.md
+file 93877b1b12baae5a8581db15e8a7b7f26e90495f factory/skills/factory-run/SKILL.md
 file 2e8f6b9a36ea002588b1dc389d69866bc8cb11d6 factory/skills/factory-run/amend-slices.md
 file 267a27e1595000875610a89e4527db2b2cb9f145 factory/skills/factory-run/assets.md
 file 02f3b8b5b6c65f1039de7b9f1c18de4646759eae factory/skills/factory-run/brief-rubric.md
@@ -388,7 +390,7 @@ file 4fd914aa54fd06a9e3c7e406a2321979b5e1580b factory/skills/factory-run/build-b
 file 188418d882c57e9415850b70fc9c8e4cc9188077 factory/skills/factory-run/drift-rubric.md
 file b0351fba34ca713b18ee343f343600e0d8fb0179 factory/skills/factory-run/drift.md
 file 5dae9503b3cabc6d9686216634e7230d3bf52ea8 factory/skills/factory-run/editor.md
-file e1decbef0aa22771be5c64ec946b795df3ffaaef factory/skills/factory-run/parallel.md
+file 782556ff6b519cc8c52f526313c21875e892b9e9 factory/skills/factory-run/parallel.md
 file fed23677d64e1acb99a2c0c642c083cf1a8be6f4 factory/skills/factory-run/playtest.md
 file 8418d9fdbddd1fcb1ec5a38650768a3b628a61bf factory/skills/factory-run/prompts/brief-review.md
 file 4ca4065bb88479cea6f8398cc81c262bb9c5643d factory/skills/factory-run/prompts/editor.md

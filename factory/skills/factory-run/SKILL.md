@@ -1,9 +1,9 @@
 ---
 name: factory-run
-description: Work an approved Spec's ready-for-agent issues, up to two at once and Feature by Feature, from Build Brief through the red and green phases to Land, with the Editor writing every line of code.
+description: Work an approved Spec's ready-for-agent issues, up to two at once and Feature by Feature, from Build Brief through the red and green phases to Land, the Editor writing all code.
 disable-model-invocation: true
+effort: low
 ---
-
 # factory-run
 
 You are the **Driver** of a **Run**: you brief, gate, rule and land; the Editor writes and commits all code and tests. Terms are in `factory/CONTEXT.md`; tracker commands, and how an issue reads, in the tracker doc AGENTS.md points to. Run the Core's scripts from the issue's worktree unless a step says otherwise; [`editor.md`](editor.md) holds how each Editor round and Verifier check runs, at what effort (Agents and effort), and how `prompt.sh` writes each prompt.
