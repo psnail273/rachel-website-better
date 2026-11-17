@@ -23,11 +23,11 @@ A point where the full set of verify steps decides whether work may go on. Every
 _Avoid_: Check (a check is one rule inside a step), CI
 
 **Gate stamp**:
-A verify run's verdict, kept with a key naming everything it depends on: the commit, the working tree, the **Build Brief**, the diff base and the run state. A later run on the same inputs may print it again (`verify.sh --reuse`) instead of running every step: the **Driver** and the **Verifier** reuse the one the **Editor**'s gate kept. A run in which a step failed for a transient cause (a lock held too long, a refused connection: exit 75) keeps none. Nothing that can't be undone rests on one: the red gate before the **Lock** and Land always run fresh.
+A verify run's verdict, kept with a key naming everything it depends on: the commit, the working tree, the **Build Brief**, the diff base and the run state. A later run on the same inputs may print it again (`verify.sh --reuse`) instead of running every step: the **Driver** and the **Verifier** reuse the one the **Editor**'s gate kept, but in the **Green phase**: there the **Editor**'s lighter gate keeps a stamp of its own, so the **Driver**'s runs fresh and the **Verifier** reuses that. A run in which a step failed for a transient cause (a lock held too long, a refused connection: exit 75) keeps none. Nothing that can't be undone rests on one: the red gate before the **Lock** and Land always run fresh.
 _Avoid_: Cache
 
 **Surviving mutant**:
-A small change to a line the branch changed that no test caught. In the **Green phase** the optional mutate step makes such changes one at a time and lists each survivor in the survivors file; the **Verifier** needs each one killed by a test or justified. No score gates anything.
+A small change to a line the branch changed that no test caught. In the **Green phase** the optional mutate step makes such changes one at a time and lists each survivor in the survivors file; the **Editor**'s stop hook shows it the list once, and the **Verifier** needs each one killed by a test or justified. In the **Editor**'s own gate, mutate reuses its last run's results (Stryker incremental); the **Driver**'s gate runs it in full. No score gates anything.
 _Avoid_: Mutation score
 
 ### Adoption
@@ -89,7 +89,7 @@ The agent that plans, writes each **Build Brief**, runs the **Gates** and rules 
 _Avoid_: Orchestrator, lead
 
 **Editor**:
-The agent that writes and commits every change to code and tests, inside one **Build Brief**.
+The agent that writes and commits every change to code and tests, inside one **Build Brief**. Its stop hook loops it on its phase's **Gate**; in the **Green phase** a lighter one, smoke in one browser and mutate incremental, while the **Driver**'s green gate and Land run every browser and a full mutate.
 _Avoid_: Coder, worker, implementer
 
 **Verifier**:

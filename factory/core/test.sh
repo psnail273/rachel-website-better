@@ -65,7 +65,12 @@
 # $TMPDIR/factory-test.lock), and a second full run is refused while it's held:
 # two at once would slow both past their budget. Run single suites alongside. A
 # lock whose run is gone (killed) is taken over, with a note on stderr.
+#
+# It runs outside the Editor's loop: FACTORY_GATE_LOOP (hooks/editor-gate.sh),
+# when the gate that runs it set it, is unset, so a test's step runs as the
+# test sets it up, not lighter.
 set -u
+unset FACTORY_GATE_LOOP
 
 core="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # A clone of the factory's repo has VERSION and core/ at the top of its checkout;

@@ -375,6 +375,10 @@ package.json:1 smoke-a11y / light label main > input: Form elements must have la
 	run_cmd node tools/verify/_smoke_page.mjs "http://127.0.0.1:$port" 60
 	assert_status 2
 	stderr_has "usage: node tools/verify/_smoke_page.mjs <origin> <seconds> [--cookie <name>=<value>] <route>..."
+	stderr_has "  --engines <engine>,... (before the routes) runs only those browsers: chromium, firefox, webkit"
+	run_cmd node tools/verify/_smoke_page.mjs "http://127.0.0.1:$port" 60 --engines chromium,blink /
+	assert_status 2
+	stderr_has "--engines takes chromium, firefox or webkit, each once, joined by commas, not 'chromium,blink'"
 	kill "$server"
 	wait_until "the stand-in server to stop" server_gone
 }
@@ -579,6 +583,47 @@ test_an_engine_that_doesnt_start_is_a_finding_naming_it_with_node() {
 	assert_status 1
 	# shellcheck disable=SC2053 # the right side is a glob
 	[[ $out == $(missing_line Firefox firefox) ]] || fail "smoke's finding: $out"
+}
+
+# The Editor's loop (FACTORY_GATE_LOOP=editor) starts Chromium alone: with no
+# browser installed, Chromium's is the one browser-missing line.
+test_the_editors_loop_misses_chromium_alone_with_node() {
+	needs_store
+	site_project
+	page ''
+	export FACTORY_GATE_LOOP=editor
+	smoke_and_server_gone "a missing browser in the Editor's loop"
+	assert_status 1
+	# shellcheck disable=SC2053 # the right side is a glob
+	[[ $out == $(missing_line Chromium chromium) ]] || fail "smoke's findings in the Editor's loop: $out"
+}
+
+# The Editor's loop loads the pages in Chromium alone (here the only browser
+# installed), and a finding Chromium reports names no engine, as one every engine
+# reports does; outside the loop the same folder misses Firefox and WebKit.
+test_the_editors_loop_loads_the_pages_in_chromium_alone_with_node() {
+	needs_browser
+	site_project
+	page '<script>console.error("boom")</script>'
+	local d
+	mkdir -p "$TEST_TMP/chromium-only"
+	for d in "$FACTORY_PLAYWRIGHT_BROWSERS"/chromium_headless_shell-*; do
+		[ -d "$d" ] || fail "no $d in FACTORY_PLAYWRIGHT_BROWSERS (prime it: bash factory/adapters/nextjs/tests/prime-store.sh <store> <browsers>)"
+		ln -s "$d" "$TEST_TMP/chromium-only/" || fail "could not link $d"
+	done
+	export PLAYWRIGHT_BROWSERS_PATH="$TEST_TMP/chromium-only"
+	FACTORY_GATE_LOOP=editor smoke_and_server_gone "the Editor's loop"
+	assert_status 1
+	assert_eq "package.json:1 smoke-console /: console error: boom" "$out" "smoke's findings in the Editor's loop"
+	smoke_and_server_gone "a run outside the loop"
+	assert_status 1
+	local lines
+	mapfile -t lines <<< "$out"
+	[ "${#lines[@]}" -eq 2 ] || fail "smoke's findings outside the loop, not one for Firefox and one for WebKit: $out"
+	# shellcheck disable=SC2053 # the right side is a glob
+	[[ ${lines[0]} == $(missing_line Firefox firefox) ]] || fail "Firefox's finding: ${lines[0]}"
+	# shellcheck disable=SC2053
+	[[ ${lines[1]} == $(missing_line WebKit webkit) ]] || fail "WebKit's finding: ${lines[1]}"
 }
 
 test_a_failed_build_is_a_finding_with_node() {

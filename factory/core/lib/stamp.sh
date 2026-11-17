@@ -2,7 +2,10 @@
 # everything the verdict depends on, so `verify.sh --reuse` on the same inputs
 # prints that verdict again instead of running every step. The Editor's gate
 # runs verify after each round; the Driver and the Verifier then reuse its
-# verdict instead of running the same steps on the same tree twice more. Land
+# verdict instead of running the same steps on the same tree twice more, but in
+# the green phase, where the Editor's gate exports FACTORY_GATE_LOOP (a lighter
+# smoke and mutate) and so keys its verdict apart: there the Driver's runs
+# fresh and the Verifier reuses the Driver's. Land
 # never reuses. Sourced by verify.sh; needs steps.sh, brief.sh, diff.sh,
 # run.sh and scenarios.sh.
 #

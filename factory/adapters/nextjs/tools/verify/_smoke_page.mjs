@@ -2,17 +2,22 @@
 // Chromium, Firefox and WebKit (Safari's engine) (Playwright, the project's
 // @playwright/test), in each of the views below, and prints what went wrong on
 // it.
-//   node tools/verify/_smoke_page.mjs <origin> <seconds> [--cookie <name>=<value>] <route>...
+//   node tools/verify/_smoke_page.mjs <origin> <seconds> [--cookie <name>=<value>] [--engines <engine>,...] <route>...
 // The smoke step calls it on the app it built and started. It runs as well on
 // its own, from the project root, against any server: `next dev`, say, with the
 // cookie set in every browser context and on every link request (a design
 // direction's, `--cookie design-direction=b`); it prints the same lines, and
 // exits 2, with its usage on stderr, on arguments it can't read.
+// --engines runs only the engines it names (chromium, firefox, webkit), each
+// once, joined by commas: the smoke step's `--engines chromium` in the Editor's
+// loop (FACTORY_GATE_LOOP=editor). A finding then names where it was found
+// against the engines that ran, so one Chromium alone reports names no engine,
+// as when every engine that ran reports it.
 //
-// It starts the three browsers at once, one each, and each loads the routes in
-// turn, while the others do the same. For each route it opens <origin><route>
-// in a fresh browser context for each view (VIEWS), in turn, the window 900 px
-// tall, with reduced motion:
+// It starts the three browsers (or those --engines names) at once, one each,
+// and each loads the routes in turn, while the others do the same. For each
+// route it opens <origin><route> in a fresh browser context for each view
+// (VIEWS), in turn, the window 900 px tall, with reduced motion:
 //   390 and 1280 px wide, light           the layout check, axe, the link
 //                                         reading
 //   390 and 1280 px wide, dark            axe, the link reading
@@ -129,11 +134,34 @@ import {
 } from "./_layout.mjs";
 
 const USAGE =
-  "usage: node tools/verify/_smoke_page.mjs <origin> <seconds> [--cookie <name>=<value>] <route>...";
+  "usage: node tools/verify/_smoke_page.mjs <origin> <seconds> [--cookie <name>=<value>] <route>...\n" +
+  "  --engines <engine>,... (before the routes) runs only those browsers: chromium, firefox, webkit";
+// The engines, in the order a finding names them.
+const ALL_ENGINES = [
+  { name: "chromium", title: "Chromium", type: chromium },
+  { name: "firefox", title: "Firefox", type: firefox },
+  { name: "webkit", title: "WebKit", type: webkit },
+];
 const args = [];
 let cookie = null;
+let only = null;
 for (let i = 2; i < process.argv.length; i++) {
   const arg = process.argv[i];
+  if (arg === "--engines") {
+    const value = process.argv[++i] ?? "";
+    const names = value.split(",");
+    if (
+      names.some((n) => !ALL_ENGINES.some((e) => e.name === n)) ||
+      new Set(names).size !== names.length
+    ) {
+      process.stderr.write(
+        `--engines takes chromium, firefox or webkit, each once, joined by commas, not '${value}'\n${USAGE}\n`,
+      );
+      process.exit(2);
+    }
+    only = new Set(names);
+    continue;
+  }
   const value = arg === "--cookie" ? process.argv[++i] : null;
   if (value === null) {
     args.push(arg);
@@ -160,12 +188,8 @@ if (
 }
 const limit = Number(seconds) * 1000;
 const HEIGHT = 900;
-// The engines, in the order a finding names them.
-const ENGINES = [
-  { name: "chromium", title: "Chromium", type: chromium },
-  { name: "firefox", title: "Firefox", type: firefox },
-  { name: "webkit", title: "WebKit", type: webkit },
-];
+// The engines this run starts: every one, or those --engines names.
+const ENGINES = ALL_ENGINES.filter((e) => only === null || only.has(e.name));
 // The views each route is loaded in, in each engine, in this order: a fresh
 // browser context each, HEIGHT tall, with reduced motion, running the named
 // CHECKS. To check another width, add a view. A view with shell: true is loaded
@@ -607,7 +631,7 @@ const visit = async (engine, browser, route, at, view) => {
   }
 };
 
-// The engines' browsers, started at once; none loads a page unless all three
+// The engines' browsers, started at once; none loads a page unless all of them
 // start.
 const started = await Promise.all(ENGINES.map(launch));
 const missing = started.filter((s) => s.missing).map((s) => s.missing);

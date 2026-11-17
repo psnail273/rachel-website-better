@@ -20,7 +20,15 @@
 #      lib/run.sh): verify.sh --red in the red phase; in Partial mode
 #      baseline.sh gate, with the Baseline entries the brief removes; else the
 #      full verify.sh. verify runs with --all-static: every static step's
-#      findings at once, and no long step after a red one;
+#      findings at once, and no long step after a red one. In the green phase
+#      (run state phase green: the small lane's, a test-only issue's and an
+#      amend's too) it exports FACTORY_GATE_LOOP=editor, the Editor's loop: the
+#      steps that take it run lighter (an adapter's smoke in Chromium alone, its
+#      mutate incremental), and since the gate stamp's key holds every exported
+#      FACTORY_ variable (lib/stamp.sh), that verdict keys apart from the full
+#      gate's: the Driver's `verify.sh --reuse`, the Verifier's, lock.sh record
+#      and Land never print it as theirs. The red and partial phases, and a
+#      branch with no phase, run without it, as the Driver's gate does;
 #   3. once that gate is green, finds what is still uncommitted: what the gate's
 #      tools wrote as they ran.
 #      Land refuses a dirty tree, so each one is an `editor-uncommitted` finding and
@@ -127,8 +135,13 @@ if [ -s "$tmp/uncommitted" ]; then
 	exit 1
 fi
 
-# 2. The phase's gate (lib/run.sh).
+# 2. The phase's gate (lib/run.sh); the green phase's is the Editor's loop.
 echo "gate: $(factory_gate_name "$phase")"
+if [ "$phase" = green ]; then
+	export FACTORY_GATE_LOOP=editor
+else
+	unset FACTORY_GATE_LOOP
+fi
 gate_head="$(git rev-parse HEAD 2> /dev/null)" || gate_head=""
 factory_gate "$phase" "$core/verify.sh" --removes --all-static > "$tmp/gate"
 gate=$?

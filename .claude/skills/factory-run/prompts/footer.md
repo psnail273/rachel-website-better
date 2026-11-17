@@ -1,1 +1,1 @@
-When done: commit on the current branch and end with a short final message: what you changed, the gate's result line quoted as your stop hook gives it, any Deviation, and anything you need from the Driver. The rules of your first prompt still hold.
+When done: commit on the current branch and end with a short final message: what you changed, the gate's result line quoted as your stop hook gives it, each surviving mutant it listed that you left and why, any Deviation, and anything you need from the Driver. The rules of your first prompt still hold.

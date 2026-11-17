@@ -29,7 +29,15 @@
 # (the hand-back's message, or last_assistant_message at SubagentStop) quotes the
 # gate's result line, `<verdict> at <short HEAD>` (the gate output's last
 # `verify: ...` or `baseline: ...` line, e.g. `verify: PASS at 1a2b3c4`); else it
-# blocks with that line to quote. It lets the subagent finish anyway after
+# blocks with that line to quote. Before that, once per subagent, a green gate
+# in the green phase (the Editor's loop, editor-gate.sh) whose mutate step left
+# surviving mutants (lib/mutate.sh's survivors file, its lines not starting
+# with #) blocks with them listed: kill each with a test, or say in the final
+# message why it can't be killed. It marks the subagent (<counter>.survivors),
+# so the next green stop goes on to the quote check, whatever survivors are
+# left. That block is the gate's green end, not a red try: like a green stop it
+# clears the count, so the work it asks for gets the full FACTORY_EDITOR_LOOP_LIMIT
+# again, and it is never counted itself. It lets the subagent finish anyway after
 # FACTORY_EDITOR_LOOP_LIMIT (5) blocks of one subagent, counted in
 # <git-dir>/factory/subagent-stop/<agent_id>; the Driver's own verify then sees
 # what is still red. The gate is this checkout's Core, not the worktree's copy,
@@ -150,6 +158,23 @@ round() {
 	)
 }
 snap="$(round file)" || snap=""
+
+# survivors [path]: the surviving mutants the worktree's survivors file lists
+# (lib/mutate.sh: its lines not starting with #), or with `path`, the file's path.
+survivors() {
+	(
+		. "$core/lib/mutate.sh" || exit 0
+		cd "$worktree" || exit 0
+		file="$(factory_survivors_file)" || exit 0
+		case "$file" in /*) ;; *) file="$worktree/$file" ;; esac
+		if [ "${1:-}" = path ]; then
+			printf '%s\n' "$file"
+		else
+			grep -v -e '^#' -e '^[[:space:]]*$' "$file" 2> /dev/null
+		fi
+		exit 0
+	)
+}
 
 # --- one gate at a time per worktree -------------------------------------------------
 
@@ -312,6 +337,18 @@ case "$status" in
 		# The result line the final message must quote.
 		verdict="$(printf '%s\n' "$out" | grep -E '^(verify|baseline): ' | tail -n 1)"
 		line="${verdict:-gate: PASS} at $(git -C "$worktree" rev-parse --short HEAD)"
+		if [ ! -e "$counter.survivors" ] && [ "$(printf '%s\n' "$key" | cut -d ' ' -f 2)" = green ]; then
+			list="$(survivors)"
+			if [ -n "$list" ]; then
+				mkdir -p "$(dirname "$counter")" && : > "$counter.survivors"
+				rm -f "$counter" "$counter.why"
+				{
+					echo "The gate is green, but its mutate step left these mutants no test caught ($(survivors path)); this list is shown once. Kill each with a test that fails on it, commit, then stop again; or say in your final message why it can't be killed. Your final message still quotes the gate's result line, $line, as the gate gives it then:"
+					printf '%s\n' "$list"
+				} >&2
+				exit 2
+			fi
+		fi
 		case "$message" in
 			*"$line"*)
 				rm -f "$counter" "$counter.why" "$snap"

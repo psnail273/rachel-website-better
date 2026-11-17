@@ -161,6 +161,124 @@ test_mutate_needs_the_runner_and_stryker_with_node() {
 	assert_eq "package.json:1 tool-missing node_modules/.bin/stryker is not installed; run bash tools/verify.sh prepare (on a new machine, bash tools/verify/bootstrap first)" "$out" "without Stryker"
 }
 
+# --- the Editor's loop (FACTORY_GATE_LOOP=editor): Stryker incremental ---
+
+KEPT=.git/factory/stryker-incremental.json
+
+# run_loop: the mutate step as the Editor's gate runs it in the green phase.
+run_loop() {
+	FACTORY_GATE_LOOP=editor run_mutate
+}
+
+# note: the survivors file's first note, from its `on the lines` on.
+note() {
+	sed -n '1s/.*(tools\/verify\/mutate)//p' "$TEST_TMP/survivors.txt"
+}
+
+LABELS_SURVIVOR="lib/labels.ts:1 mutant-survived StringLiteral: \`\"Nothing here yet\"\` -> \`\"\"\`; tests: all (static)"
+
+CART_SURVIVORS="lib/cart.ts:7 mutant-survived ConditionalExpression: \`sum > 100\` -> \`true\`; tests: lib/cart.test.ts
+lib/cart.ts:7 mutant-survived EqualityOperator: \`sum > 100\` -> \`sum >= 100\`; tests: lib/cart.test.ts"
+
+# The loop's first run is a full one, and keeps its results in the git dir, not
+# the tree; the next reuses them all, and finds the same survivors; a test that
+# kills them is run, from the kept results too. A run outside the loop runs
+# Stryker fresh, and leaves the kept results as they were.
+test_mutate_in_the_editors_loop_reuses_its_last_run_with_node() {
+	mutate_project
+	tree > "$TEST_TMP/before"
+	run_loop
+	assert_status 0
+	assert_eq "$CART_SURVIVORS" "$out" "the loop's first findings"
+	stderr_has "mutate: the Editor's loop: Stryker incremental, with no kept results for this tree; a full run"
+	assert_eq "; incremental in the Editor's loop, 0 of 6 results reused from its last run" "$(note)" "the first run's note"
+	[ -s "$KEPT" ] || fail "no kept results in $KEPT"
+	tree > "$TEST_TMP/after"
+	assert_eq "$(cat "$TEST_TMP/before")" "$(cat "$TEST_TMP/after")" "the project after the loop's run"
+	run_loop
+	assert_status 0
+	assert_eq "$CART_SURVIVORS" "$out" "the loop's findings, reused"
+	stderr_has "mutate: the Editor's loop: Stryker incremental, from the results kept in "
+	assert_eq "; incremental in the Editor's loop, 6 of 6 results reused from its last run" "$(note)" "the second run's note"
+	assert_eq "# killed 4, survived 2, errored 0, timed out 0, ignored 0" "$(sed -n 2p "$TEST_TMP/survivors.txt")" "the counts, reused"
+	add_fixture mutate/cart_pinned.test.ts.txt lib/cart.test.ts
+	run_loop
+	assert_status 0
+	assert_eq "" "$out" "the loop's findings, pinned"
+	stderr_has "from the results kept in"
+	assert_eq "# killed 6, survived 0, errored 0, timed out 0, ignored 0" "$(sed -n 2p "$TEST_TMP/survivors.txt")" "the counts, pinned"
+	cp "$KEPT" "$TEST_TMP/kept"
+	add_fixture mutate/cart.test.ts.txt lib/cart.test.ts
+	run_mutate
+	assert_status 0
+	assert_eq "$CART_SURVIVORS" "$out" "the findings outside the loop"
+	! grep -q "Editor's loop" "$TEST_TMP/stderr" || fail "a run outside the loop ran as the loop's"
+	assert_eq "" "$(note)" "the note outside the loop"
+	cmp -s "$KEPT" "$TEST_TMP/kept" || fail "a run outside the loop changed the kept results"
+}
+
+# A file that stops being a source (back to the base) or becomes one (a file
+# of the base, edited: a helper the tests import, say), or changes and is
+# neither a source nor a test the results name (a new data file), runs Stryker
+# fresh. A new source or a deleted one leaves the key as it was: Stryker
+# mutates the one itself, and carries the other's results over, which the loop
+# doesn't read.
+test_mutate_in_the_editors_loop_runs_fresh_when_its_sources_change_with_node() {
+	mutate_project
+	add_fixture mutate/labels.ts.txt lib/labels.ts
+	add_fixture mutate/labels.test.ts.txt lib/labels.test.ts
+	run_loop
+	assert_status 0
+	assert_eq "$CART_SURVIVORS
+$LABELS_SURVIVOR" "$out" "the loop's first findings"
+	git checkout -q -- lib/cart.ts lib/cart.test.ts
+	run_loop
+	assert_status 0
+	assert_eq "$LABELS_SURVIVOR" "$out" "the findings once cart.ts is back to the base"
+	stderr_has "with no kept results for this tree; a full run"
+	assert_eq "# killed 2, survived 1, errored 0, timed out 0, ignored 0" "$(sed -n 2p "$TEST_TMP/survivors.txt")" "the counts, this run's alone"
+	printf 'export const half = (n: number): number => n / 2;\n' > lib/half.ts
+	run_loop
+	assert_status 0
+	stderr_has "from the results kept in"
+	printf '%s\n' "$out" | grep -q '^lib/half\.ts:1 mutant-survived ' || fail "no survivor in the new source: $out"
+	rm lib/half.ts
+	run_loop
+	assert_status 0
+	stderr_has "from the results kept in"
+	assert_eq "$LABELS_SURVIVOR" "$out" "the findings once half.ts is gone"
+	assert_eq "# killed 2, survived 1, errored 0, timed out 0, ignored 0" "$(sed -n 2p "$TEST_TMP/survivors.txt")" "the counts once half.ts is gone"
+	add_fixture mutate/cart.ts.txt lib/cart.ts
+	run_loop
+	assert_status 0
+	stderr_has "with no kept results for this tree; a full run"
+	echo '{"floor": 1}' > lib/data.json
+	run_loop
+	assert_status 0
+	stderr_has "with no kept results for this tree; a full run"
+	note | grep -q "^; incremental in the Editor's loop, 0 of [1-9][0-9]* results reused from its last run$" ||
+		fail "the note after a data file changed: $(note)"
+}
+
+# Kept results Stryker can't run from are dropped, and the run is made again,
+# fresh.
+test_mutate_in_the_editors_loop_runs_fresh_when_the_kept_results_break_stryker_with_node() {
+	mutate_project
+	run_loop
+	assert_status 0
+	"${NODE_BIN:-node}" -e '
+		const fs = require("fs");
+		const r = JSON.parse(fs.readFileSync(process.argv[1], "utf8"));
+		for (const f of Object.values(r.files)) f.source = 5;
+		fs.writeFileSync(process.argv[1], JSON.stringify(r));
+	' "$KEPT" || fail "could not break the kept results"
+	run_loop
+	assert_status 0
+	assert_eq "$CART_SURVIVORS" "$out" "the findings, run again fresh"
+	stderr_has "mutate: the Editor's loop: Stryker failed from the kept results; dropping them and running it fresh"
+	assert_eq "; incremental in the Editor's loop, 0 of 6 results reused from its last run" "$(note)" "the note, run again fresh"
+}
+
 # --- the reader, on a report of Stryker's JSON shape ---
 
 # Each status, a mutant over two lines, a control character, the covering tests'
@@ -200,4 +318,26 @@ test_the_reader_refuses_what_isnt_strykers_report_with_node() {
 	run_cmd "${NODE_BIN:-node}" "$NEXTJS_ADAPTER/tools/verify/_stryker_mutants.mjs" "$TEST_TMP/bad.json"
 	assert_status 2
 	stderr_has "no files"
+}
+
+# With a ranges file, the reader prints only the mutants inside them: a file
+# named alone is whole; a range holds a mutant that starts and ends on its lines.
+test_the_reader_keeps_only_the_mutants_inside_the_ranges_with_node() {
+	needs_node
+	cat > "$TEST_TMP/report.json" << 'JSON'
+{"files": {
+  "lib/a.ts": {"source": "a\nb\nc\nd\n", "mutants": [
+    {"mutatorName": "M", "replacement": "x", "status": "Survived", "location": {"start": {"line": 1, "column": 1}, "end": {"line": 1, "column": 2}}},
+    {"mutatorName": "M", "replacement": "y", "status": "Survived", "location": {"start": {"line": 2, "column": 1}, "end": {"line": 3, "column": 2}}},
+    {"mutatorName": "M", "replacement": "z", "status": "Survived", "location": {"start": {"line": 3, "column": 1}, "end": {"line": 4, "column": 2}}}]},
+  "lib/b.ts": {"source": "b\n", "mutants": [
+    {"mutatorName": "M", "replacement": "w", "status": "Survived", "location": {"start": {"line": 1, "column": 1}, "end": {"line": 1, "column": 2}}}]},
+  "lib/c.ts": {"source": "c\n", "mutants": [
+    {"mutatorName": "M", "replacement": "v", "status": "Killed", "location": {"start": {"line": 1, "column": 1}, "end": {"line": 1, "column": 2}}}]}}}
+JSON
+	printf 'lib/a.ts\t2\t3\nlib/b.ts\n' > "$TEST_TMP/ranges"
+	run_cmd "${NODE_BIN:-node}" "$NEXTJS_ADAPTER/tools/verify/_stryker_mutants.mjs" "$TEST_TMP/report.json" "$TEST_TMP/ranges"
+	assert_status 0
+	assert_eq "lib/a.ts${TAB}2${TAB}1${TAB}survived${TAB}M: \`b...\` -> \`y\`${TAB}none
+lib/b.ts${TAB}1${TAB}1${TAB}survived${TAB}M: \`b\` -> \`w\`${TAB}none" "$out" "the reader's lines inside the ranges"
 }

@@ -193,6 +193,64 @@ test_gate_runs_the_baseline_gate_in_the_partial_phase() {
 	assert_last_line "baseline: PASS"
 }
 
+# record_loop <step>: the step appends the FACTORY_GATE_LOOP it got (or `none`)
+# to .fixture/loop.
+record_loop() {
+	printf '%s\n' 'printf "%s\n" "${FACTORY_GATE_LOOP-none}" >> .fixture/loop' > ".fixture/run-$1"
+}
+
+# The green phase's gate is the Editor's loop: its steps get FACTORY_GATE_LOOP.
+test_gate_exports_the_editor_loop_to_its_steps_in_the_green_phase() {
+	fixture_git_project
+	sealed_green
+	record_loop lint
+	FACTORY_GATE_LOOP=other run_cmd bash "$EDITOR_GATE"
+	assert_status 0
+	assert_eq editor "$(cat .fixture/loop)"
+}
+
+test_gate_exports_no_loop_in_the_red_phase_or_without_a_phase() {
+	fixture_git_project
+	record_loop lint
+	FACTORY_GATE_LOOP=editor run_cmd bash "$EDITOR_GATE"
+	assert_status 0
+	git config branch.work.factory-phase red
+	FACTORY_GATE_LOOP=editor run_cmd bash "$EDITOR_GATE"
+	assert_status 1
+	assert_eq "none"$'\n'"none" "$(cat .fixture/loop)" "a step saw the loop outside the green phase"
+}
+
+test_gate_exports_no_loop_in_the_partial_phase() {
+	fixture_git_project
+	mkdir -p tools/verify/ratchet && : > tools/verify/ratchet/baseline.txt
+	git add -A && git commit -q -m "the Baseline"
+	mkdir -p .git/factory && printf '%s\n' '```factory-brief' 'scope src/**' '```' > .git/factory/brief.md
+	git config branch.work.factory-phase partial
+	record_loop lint
+	FACTORY_GATE_LOOP=editor run_cmd bash "$EDITOR_GATE"
+	assert_status 0
+	assert_eq none "$(cat .fixture/loop)" "a step saw the loop in the partial phase"
+}
+
+# The loop's verdict keys apart (lib/stamp.sh holds every exported FACTORY_
+# variable): the Driver's `verify.sh --reuse` on the same tree runs fresh, while
+# a run under the same loop would reuse it.
+test_the_loops_gate_stamp_is_not_the_drivers() {
+	fixture_git_project
+	sealed_green
+	run_cmd bash "$EDITOR_GATE"
+	assert_status 0
+	: > .fixture/ran
+	FACTORY_GATE_LOOP=editor run_verify --reuse
+	assert_status 0
+	stderr_has "verify: --reuse: this is the verdict of the run at"
+	assert_eq "" "$(ran_steps)" "the loop's own run did not reuse its verdict"
+	run_verify --reuse
+	assert_status 0
+	stderr_has "verify: --reuse: no gate stamp for these inputs; running the steps"
+	grep -qx smoke .fixture/ran || fail "the Driver's verify reused the loop's verdict"
+}
+
 # The brief is the Driver's: once sealed, a changed brief stops the round before
 # any gate runs, whatever the phase.
 # shellcheck disable=SC2154 # out: set by run_cmd, in factory/core/tests/lib.sh
@@ -606,6 +664,105 @@ sealed_green() {
 	mkdir -p .git/factory && printf '%s\n' '```factory-brief' 'scope src/**' '```' > .git/factory/brief.md
 	git config branch.work.factory-phase green
 	git config branch.work.factory-brief-sha "$(git hash-object --no-filters .git/factory/brief.md)"
+}
+
+# mutating_green: the green phase with a mutate stub (the fixture's _stub.sh)
+# and a committed change since the base, whose survivors file is
+# .fixture/survivors: two survivors and the notes.
+mutating_green() {
+	printf '#!/usr/bin/env bash\n. "$(dirname "$0")/_stub.sh" mutate\n' > tools/verify/mutate
+	echo two > src/a.txt
+	git add -A && git commit -q -m "a change, and the mutate stub" || fail "could not commit"
+	sealed_green
+	printf '%s\n' "# StrykerJS on the lines changed" "# killed 3, survived 2" \
+		"src/a.txt:1 survived numeric: \`1\` -> \`2\`; tests: tests/a_test.txt" \
+		"src/a.txt:2 survived string: \`\"a\"\` -> \`\"\"\`; tests: tests/a_test.txt" > .fixture/survivors
+}
+
+test_stop_hook_shows_the_surviving_mutants_once_after_a_green_gate() {
+	editor_project
+	mutating_green
+	run_stop_hook
+	assert_status 2
+	stderr_has "its mutate step left these mutants no test caught ($PWD/.git/factory/survivors.txt); this list is shown once"
+	stderr_has "say in your final message why it can't be killed"
+	stderr_has "src/a.txt:1 survived numeric"
+	stderr_has "src/a.txt:2 survived string"
+	grep -q "^# killed" "$TEST_TMP/stderr" && fail "the notes were listed as survivors"
+	assert_eq "" "$(counter)" "the survivors block was counted"
+	run_stop_hook
+	assert_status 0
+	assert_eq "" "$(cat "$TEST_TMP/stderr")"
+}
+
+test_stop_hook_shows_the_survivors_on_the_handback_too() {
+	editor_project
+	mutating_green
+	handback_input
+	run_stop_hook
+	assert_status 2
+	stderr_has "src/a.txt:1 survived numeric"
+	handback_input
+	run_stop_hook
+	assert_status 0
+}
+
+# The survivors block is the gate's green end, not a red try: it clears the
+# count, so the work it asks for has the whole limit again.
+test_stop_hook_clears_the_count_at_the_survivors_block() {
+	editor_project
+	mutating_green
+	red_lint
+	# shellcheck disable=SC2034 # n counts the four blocks
+	for n in 1 2 3 4; do
+		run_stop_hook
+		assert_status 2
+	done
+	assert_eq 4 "$(counter)"
+	rm .fixture/fail-lint
+	run_stop_hook
+	assert_status 2
+	stderr_has "src/a.txt:1 survived numeric"
+	assert_eq "" "$(counter)" "the red count outlived the survivors block"
+	red_lint
+	echo three > src/a.txt && git commit -q -am "a try at a survivor" || fail "could not commit"
+	run_stop_hook
+	assert_status 2
+	stderr_has "The gate is red (block 1 of 5)"
+}
+
+test_stop_hook_shows_the_survivors_once_per_subagent() {
+	editor_project
+	mutating_green
+	run_stop_hook
+	assert_status 2
+	STOP_AGENT=agent-2 stop_input
+	run_stop_hook
+	assert_status 2
+	stderr_has "src/a.txt:1 survived numeric"
+}
+
+test_stop_hook_lets_a_green_gate_without_survivors_finish_at_once() {
+	editor_project
+	mutating_green
+	printf '%s\n' "# StrykerJS on the lines changed" "# killed 3, survived 0" > .fixture/survivors
+	start_round
+	run_stop_hook
+	assert_status 0
+	assert_eq "" "$(cat "$TEST_TMP/stderr")"
+}
+
+# The red phase's gate mutates nothing: a survivors file an earlier run left is
+# not this gate's, and blocks nothing.
+test_stop_hook_shows_no_survivors_in_the_red_phase() {
+	editor_project
+	small_red none
+	mkdir -p .git/factory
+	printf '%s\n' "src/a.txt:1 survived numeric: \`1\` -> \`2\`; tests: tests/a_test.txt" > .git/factory/survivors.txt
+	start_round
+	run_stop_hook
+	assert_status 0
+	assert_eq "" "$(cat "$TEST_TMP/stderr")"
 }
 
 # A green result serves only the stop, then the hand-back, of the subagent that

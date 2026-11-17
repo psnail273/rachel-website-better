@@ -1,7 +1,11 @@
 // The mutate step's reader of StrykerJS's JSON report (its json reporter, the
 // mutation-testing-report-schema):
-//   node tools/verify/_stryker_mutants.mjs <report.json>
-// prints one line per mutant,
+//   node tools/verify/_stryker_mutants.mjs <report.json> [<ranges>]
+// prints one line per mutant (with <ranges>, only those inside them: a file of
+// lines <file>, for the whole file, or <file>\t<first line>\t<last line>, as
+// Stryker's mutate ranges, a mutant inside when it starts and ends on those
+// lines; the mutate step's, in the Editor's loop, whose incremental report
+// carries results for code it no longer mutates),
 //   <file>\t<line>\t<column>\t<status>\t<mutator>: `<code>` -> `<mutant>`\t<tests>
 // <file> as the report names it (relative to the project root); <line> and
 // <column> where the mutant starts, from 1. <status>: killed, survived (Survived,
@@ -26,6 +30,24 @@ try {
   process.exit(2);
 }
 
+// The ranges, by file: true for the whole file, else [first, last] pairs.
+let ranges = null;
+if (process.argv[3]) {
+  ranges = new Map();
+  for (const line of readFileSync(process.argv[3], "utf8").split("\n")) {
+    if (!line) continue;
+    const [file, first, last] = line.split("\t");
+    if (first === undefined) ranges.set(file, true);
+    else if (ranges.get(file) !== true)
+      ranges.set(file, [...(ranges.get(file) ?? []), [Number(first), Number(last)]]);
+  }
+}
+const inRanges = (file, start, end) => {
+  if (ranges === null) return true;
+  const r = ranges.get(file);
+  return r === true || (r ?? []).some(([first, last]) => start.line >= first && end.line <= last);
+};
+
 const STATUS = {
   Killed: "killed",
   Survived: "survived",
@@ -49,6 +71,7 @@ for (const [file, entry] of Object.entries(report.files)) {
   for (const m of entry?.mutants ?? []) {
     const start = m.location?.start ?? { line: 1, column: 1 };
     const end = m.location?.end ?? start;
+    if (!inRanges(file, start, end)) continue;
     const text = lines[start.line - 1] ?? "";
     const code =
       end.line === start.line

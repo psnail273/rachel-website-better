@@ -23,12 +23,37 @@
 # Vitest runner and its plugin, which pnpm's layout needs named), with what the
 # step decides put over it: the mutate ranges, the json reporter alone, its
 # report and Stryker's sandbox in the step's own temp folder (so nothing lands
-# in the tree), no incremental file, no break threshold, never in place, and
+# in the tree), no incremental file (but in the Editor's loop, below), no break
+# threshold, never in place, and
 # STRYKER_JOBS (local.env) as the concurrency, else half the cores (at least 1).
 # The sandbox Stryker copies the project into leaves out what git ignores (but
 # node_modules, which Stryker links), the factory's own folder, and the
 # project's secrets (.env* and tools/verify/secret-paths): a test that needs an
 # ignored file fails Stryker's first run, and the step says mutate-failed.
+#
+# In the Editor's loop (FACTORY_GATE_LOOP=editor: the Editor's own gate in the
+# green phase, factory/core/hooks/editor-gate.sh) Stryker runs incrementally:
+# its incremental file is kept in the checkout's git dir, as
+# <git-dir>/factory/stryker-incremental.json (never in the tree), with its key,
+# stryker-incremental.key, and each loop run reuses the results of the last one
+# for the mutants and tests Stryker finds unchanged (a killed mutant whose
+# killing test is unchanged stays killed; a survivor no new test covers stays
+# survived). The key is a hash of Stryker's and node's versions and of every
+# file the sandbox copies but this run's sources and the test files the kept
+# results name (Stryker diffs those itself): a changed config, fixture, test
+# helper, new test file, or a code file that becomes a source or stops being
+# one, runs it fresh. The step copies the kept
+# file into its temp folder for the run, and back once the run passed; a kept
+# file Stryker can't read is dropped and the run is made again, fresh. Only the
+# mutants inside this run's ranges are read from the report (Stryker carries an
+# earlier run's results over for code it no longer mutates). The first note
+# says how many results were reused. What incremental can miss: a killed
+# mutant stays killed while its own code and its killing test file are
+# unchanged, though a change elsewhere in its file or in another source (a
+# helper outside the test paths included) would let it survive a fresh run;
+# the survivors file then lists fewer than a fresh run's. The Driver's gate, the Verifier's and every run but
+# the loop's run Stryker fresh (incremental: false) and never touch the kept
+# file; the gate stamp keys the loop's verdict apart (factory/core/lib/stamp.sh).
 #
 # The survivors file (factory/core/lib/mutate.sh) has two # notes (what ran; the
 # counts), then one line per survivor, sorted:
@@ -96,23 +121,92 @@ while IFS= read -r f; do
 done < "$tmp/changed"
 
 # The mutate ranges, one a line: each source's changed lines, or the whole of a
-# source new since the base.
+# source new since the base; in $tmp/ranges the same, as <file>[\t<first>\t<last>].
 root="$(pwd -P)"
 : > "$tmp/mutate"
+: > "$tmp/ranges"
 while IFS= read -r f; do
 	pattern="$(glob_literal "$root/$f")"
 	if ! git cat-file -e "$FACTORY_MUTATE_BASE:$f" 2> /dev/null; then
 		printf '%s\n' "$pattern" >> "$tmp/mutate"
+		printf '%s\n' "$f" >> "$tmp/ranges"
 		continue
 	fi
 	git -c core.quotepath=off diff --no-color --no-ext-diff --no-renames -U0 "$FACTORY_MUTATE_BASE" -- "$f" |
-		awk -v p="$pattern" '
+		awk -v p="$pattern" -v f="$f" -v ranges="$tmp/ranges" '
 			/^@@ / {
 				split($3, a, ","); first = substr(a[1], 2) + 0
 				count = (2 in a) ? a[2] + 0 : 1
-				if (count > 0) print p ":" first "-" (first + count - 1)
+				if (count > 0) {
+					print p ":" first "-" (first + count - 1)
+					print f "\t" first "\t" (first + count - 1) >> ranges
+				}
 			}' >> "$tmp/mutate"
 done < "$tmp/sources"
+
+# The Editor's loop: Stryker incremental, its file kept in the git dir.
+loop=""
+if [ "${FACTORY_GATE_LOOP:-}" = editor ]; then
+	loop=1
+	kept_dir="$(cd "$(git rev-parse --git-dir)" && pwd -P)/factory"
+	kept="$kept_dir/stryker-incremental.json"
+	kept_key="$kept_dir/stryker-incremental.key"
+	# What the sandbox leaves out, as globs (the factory's folder, the secrets).
+	{
+		echo 'factory/**'
+		echo '.env*'
+		if [ -f "$dir/secret-paths" ]; then
+			tr -d '\r' < "$dir/secret-paths" | grep -v -e '^[[:space:]]*$' -e '^#' | sed 's#^/*##'
+		fi
+	} > "$tmp/unsandboxed"
+	nx_glob_rules "$tmp/unsandboxed" > "$tmp/unsandboxed_rules"
+fi
+
+# loop_key <incremental file>: the key of a loop run whose results are that
+# file's: Stryker's and node's versions, and each file the sandbox copies (git
+# tracks it or doesn't ignore it), with its content's hash, but this run's
+# sources (Stryker diffs them by location) and the test files the incremental
+# file names.
+loop_key() {
+	{
+		cat "$tmp/sources"
+		[ ! -s "$1" ] || "${NODE_BIN:-node}" -e '
+			const fs = require("fs"), path = require("path");
+			const files = JSON.parse(fs.readFileSync(process.argv[1], "utf8")).testFiles ?? {};
+			for (const f of Object.keys(files)) if (f) console.log(path.relative(process.cwd(), path.resolve(f)).split(path.sep).join("/"));
+		' "$1" 2> /dev/null
+	} | LC_ALL=C sort -u > "$tmp/unkeyed"
+	git -c core.quotepath=off ls-files --cached --others --exclude-standard | LC_ALL=C sort -u |
+		LC_ALL=C comm -23 - "$tmp/unkeyed" > "$tmp/listed"
+	nx_filter "$tmp/unsandboxed_rules" < "$tmp/listed" > "$tmp/unsandboxed_files"
+	grep -vxF -f "$tmp/unsandboxed_files" "$tmp/listed" | while IFS= read -r f; do
+		[ -f "$f" ] && printf '%s\n' "$f"
+	done > "$tmp/keyed"
+	git hash-object --stdin-paths < "$tmp/keyed" > "$tmp/hashes" || return 1
+	{
+		echo "stryker ${version:-?}"
+		"${NODE_BIN:-node}" --version
+		paste "$tmp/hashes" "$tmp/keyed"
+	} | git hash-object --stdin
+}
+
+# run_stryker [incremental]: Stryker on the config, its output in $tmp/log;
+# with `incremental`, from the kept results ($tmp/incremental.json).
+run_stryker() {
+	rm -f "$tmp/report.json"
+	if [ "${1:-}" = incremental ]; then
+		"${NODE_BIN:-node}" -e '
+			const fs = require("fs");
+			const [config, file] = process.argv.slice(1);
+			const c = JSON.parse(fs.readFileSync(config, "utf8"));
+			fs.writeFileSync(config, JSON.stringify({ ...c, incremental: true, incrementalFile: file }, null, 2));
+		' "$tmp/stryker.config.json" "$tmp/incremental.json" || return 1
+	fi
+	tool stryker run "$tmp/stryker.config.json" > "$tmp/log" 2>&1
+	local status=$?
+	cat "$tmp/log" >&2
+	return "$status"
+}
 
 if [ -s "$tmp/mutate" ]; then
 	# What Stryker's sandbox leaves out: what git ignores (node_modules is
@@ -156,16 +250,58 @@ if [ -s "$tmp/mutate" ]; then
 		echo "stryker.config.json:1 mutate-failed could not read stryker.config.json (see stderr)"
 		exit 1
 	}
-	tool stryker run "$tmp/stryker.config.json" > "$tmp/log" 2>&1
-	status=$?
-	cat "$tmp/log" >&2
+	reused=""
+	if [ -n "$loop" ]; then
+		# The kept results, when their key is this run's; a run that fails on
+		# them drops them, and is made again, fresh.
+		key=""
+		[ ! -s "$kept" ] || key="$(loop_key "$kept")" || key=""
+		if [ -n "$key" ] && [ "$(cat "$kept_key" 2> /dev/null)" = "$key" ] &&
+			cp "$kept" "$tmp/incremental.json"; then
+			echo "mutate: the Editor's loop: Stryker incremental, from the results kept in $kept" >&2
+		else
+			rm -f "$kept" "$kept_key"
+			echo "mutate: the Editor's loop: Stryker incremental, with no kept results for this tree; a full run" >&2
+		fi
+		run_stryker incremental
+		status=$?
+		if { [ "$status" -ne 0 ] || [ ! -s "$tmp/report.json" ]; } && [ -s "$tmp/incremental.json" ]; then
+			echo "mutate: the Editor's loop: Stryker failed from the kept results; dropping them and running it fresh" >&2
+			rm -f "$kept" "$kept_key" "$tmp/incremental.json"
+			run_stryker incremental
+			status=$?
+		fi
+		reused="$(sed 's/\x1b\[[0-9;]*m//g' "$tmp/log" | sed -n 's/.*Result:[[:space:]]*\([0-9][0-9]*\) of \([0-9][0-9]*\) mutant result.*/\1 of \2/p' | tail -n 1)"
+	else
+		run_stryker
+		status=$?
+	fi
 	if [ "$status" -ne 0 ] || [ ! -s "$tmp/report.json" ]; then
 		echo "tools/verify/mutate:1 mutate-failed Stryker exited $status mutating $(tr '\n' ' ' < "$tmp/sources" | sed 's/ $//') (its output is on stderr)"
 		exit 1
 	fi
-	if ! "${NODE_BIN:-node}" "$dir/_stryker_mutants.mjs" "$tmp/report.json" > "$tmp/mutants"; then
+	if [ -n "$loop" ]; then
+		# Only this run's ranges: Stryker carries over results for code it no
+		# longer mutates.
+		set -- "$tmp/ranges"
+	else
+		set --
+	fi
+	if ! "${NODE_BIN:-node}" "$dir/_stryker_mutants.mjs" "$tmp/report.json" "$@" > "$tmp/mutants"; then
 		echo "tools/verify/mutate:1 mutate-failed could not read Stryker's report (see stderr)"
 		exit 1
+	fi
+	# Keep the loop's results for its next run; a failure to keep them costs
+	# that run its reuse, not this one its verdict.
+	if [ -n "$loop" ] && [ -s "$tmp/incremental.json" ]; then
+		if key="$(loop_key "$tmp/incremental.json")" && [ -n "$key" ] && mkdir -p "$kept_dir" &&
+			cp "$tmp/incremental.json" "$kept.$$" && printf '%s\n' "$key" > "$kept_key.$$" &&
+			mv -f "$kept.$$" "$kept" && mv -f "$kept_key.$$" "$kept_key"; then
+			:
+		else
+			rm -f "$kept" "$kept_key" "$kept.$$" "$kept_key.$$"
+			echo "mutate: the Editor's loop: could not keep Stryker's results in $kept_dir; the next run is a full one" >&2
+		fi
 	fi
 else
 	: > "$tmp/mutants"
@@ -174,7 +310,9 @@ fi
 LC_ALL=C sort -t "$(printf '\t')" -k1,1 -k2,2n -k3,3n -k5,5 "$tmp/mutants" > "$tmp/sorted"
 awk -F '\t' '$4 == "survived" || $4 == "ignored" { printf "%s:%s %s %s; tests: %s\n", $1, $2, $4, $5, $6 }' "$tmp/sorted" > "$tmp/survivors"
 {
-	echo "# StrykerJS ${version:-?} on the lines changed since $(git rev-parse --short "$FACTORY_MUTATE_BASE"), each mutant against the tests that cover it (tools/verify/mutate)"
+	note=""
+	[ -z "${loop:-}" ] || [ ! -s "$tmp/mutate" ] || note="; incremental in the Editor's loop, ${reused:-0 of $(wc -l < "$tmp/sorted" | tr -d ' ')} results reused from its last run"
+	echo "# StrykerJS ${version:-?} on the lines changed since $(git rev-parse --short "$FACTORY_MUTATE_BASE"), each mutant against the tests that cover it (tools/verify/mutate)$note"
 	awk -F '\t' '{ c[$4]++ } END {
 		printf "# killed %d, survived %d, errored %d, timed out %d, ignored %d\n", c["killed"], c["survived"], c["errored"], c["timed-out"], c["ignored"]
 	}' "$tmp/sorted"

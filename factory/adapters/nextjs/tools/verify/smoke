@@ -42,6 +42,13 @@
 #      pages hold, once, with no browser (off-site links aren't: the step runs
 #      offline). It runs on its own too, against any server and with a cookie
 #      (a design direction's on `next dev`): its header has the call.
+#      In the Editor's loop (FACTORY_GATE_LOOP=editor: the Editor's own gate in
+#      the green phase, factory/core/hooks/editor-gate.sh) it starts Chromium
+#      alone (`--engines chromium`), and a finding names where it was found
+#      against that one engine, so a Chromium finding names none, as when every
+#      engine reports it. Every other run (the Driver's gate, the Verifier's,
+#      Land's, the red phase's) runs all three; the gate stamp keys the loop's
+#      verdict apart (factory/core/lib/stamp.sh), so none takes it for theirs.
 # The app's environment for 1 and 2 is tools/verify/smoke-env's NAME=value
 # lines (its header says how; none by default, and the app runs as its own
 # config says): when a value names {fixtures}, the Scenario driver's fixture
@@ -227,7 +234,10 @@ case $? in
 esac
 
 # The browser script closes its browsers on TERM, so nx_stop stops them alone.
-nx_client 0 "${NODE_BIN:-node}" "$dir/_smoke_page.mjs" "http://127.0.0.1:$NX_PORT" "$NX_LIMIT" "${routes[@]}" > "$tmp/findings"
+# The Editor's loop runs Chromium alone.
+engines=()
+[ "${FACTORY_GATE_LOOP:-}" != editor ] || engines=(--engines chromium)
+nx_client 0 "${NODE_BIN:-node}" "$dir/_smoke_page.mjs" "http://127.0.0.1:$NX_PORT" "$NX_LIMIT" ${engines[@]+"${engines[@]}"} "${routes[@]}" > "$tmp/findings"
 nx_client_wait
 status=$?
 cat "$tmp/server.log" >&2

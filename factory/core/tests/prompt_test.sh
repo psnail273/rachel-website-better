@@ -44,13 +44,13 @@ TXT
 
 old_green() {
 	cat << 'TXT'
-Phase: green. Make the locked tests pass under every gate step. The tests the red commit touched are locked: editing them fails the gate. Write one property test for each `invariants` line of the brief, as your write-tests skill says.
+Phase: green. Make the locked tests pass under every gate step. The tests the red commit touched are locked: editing them fails the gate. Write one property test for each `invariants` line of the brief, as your write-tests skill says. Your stop hook's green gate runs smoke in Chromium alone and mutate incremental; when it leaves mutants no test caught, it lists them once: kill each with a test that fails on it, or say in your final message why it can't be killed.
 TXT
 }
 
 old_footer() {
 	cat << 'TXT'
-When done: commit on the current branch and end with a short final message: what you changed, the gate's result line quoted as your stop hook gives it, any Deviation, and anything you need from the Driver. The rules of your first prompt still hold.
+When done: commit on the current branch and end with a short final message: what you changed, the gate's result line quoted as your stop hook gives it, each surviving mutant it listed that you left and why, any Deviation, and anything you need from the Driver. The rules of your first prompt still hold.
 TXT
 }
 
