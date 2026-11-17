@@ -82,6 +82,14 @@ no_watchdog_left() {
 	! pgrep -fx "[s]leep ${LIMIT:-6171}" > /dev/null
 }
 
+# strace_on_path: strace, able to trace a child and delay its syscalls, or the
+# test skips.
+strace_on_path() {
+	command -v strace > /dev/null 2>&1 || skip "no strace on this machine's PATH"
+	strace -f -o /dev/null -e trace=clone -e inject=clone:delay_enter=1:when=1 bash -c '(:)' 2> "$TEST_TMP/strace.err" ||
+		skip "strace can't trace a child here: $(cat "$TEST_TMP/strace.err")"
+}
+
 test_a_command_that_ends_in_time_keeps_its_status_and_output_where_timeout_is_on_path() {
 	timeout_on_path
 	assert_ends_in_time
@@ -90,6 +98,47 @@ test_a_command_that_ends_in_time_keeps_its_status_and_output_where_timeout_is_on
 test_a_command_that_ends_in_time_keeps_its_status_and_output_where_timeout_is_missing() {
 	path_without timeout
 	assert_ends_in_time
+	wait_until "the watchdog to be gone" no_watchdog_left
+}
+
+# The window the watchdog's sleep once outlived the call through, forced: bash
+# blocks TERM while it forks, so a TERM that comes as the watchdog forks its
+# sleep ends the watchdog just after, and the sleep, not yet in the group when
+# the TERM went out, missed it. Here strace holds each process's first fork 2 s
+# and its first kill 1 s: the watchdog's fork of its sleep is its first, held
+# from just after it starts, and the call's TERM to it, the call's first kill,
+# sent once `true` has ended, goes out a second into that hold. (The call's own
+# fork of the command and the bash -c's of the call are held too, before.) strace
+# lets go of each process at its exec, so it ends with the call, and a sleep left
+# running is seen, not waited for.
+test_a_watchdog_stopped_as_it_forks_its_sleep_leaves_no_sleep_where_timeout_is_missing() {
+	strace_on_path
+	path_without timeout
+	LIMIT=6173
+	run_cmd strace -f -b execve -o "$TEST_TMP/strace.log" -e trace=clone,kill \
+		-e inject=clone:delay_enter=2000000:when=1 -e inject=kill:delay_enter=1000000:when=1 \
+		bash -c '. "$1" && factory_run_bounded "$2" true' bounded "$FACTORY_CORE/lib/bounded.sh" "$LIMIT"
+	assert_status 0
+	wait_until "the watchdog to be gone" no_watchdog_left
+}
+
+# The other window, forced: called from a subshell of a caller that traps TERM
+# (and EXIT, as test.sh does), the watchdog has bash's own TERM handler, and so
+# has its sleep until its exec: a TERM the sleep got before its exec was caught
+# and lost, the call's second TERM too. Here strace holds each
+# process's first rt_sigaction 1 s and its first kill 0.25 s: the sleep's first
+# rt_sigaction comes after it unblocks TERM and before its exec, so both TERMs,
+# the first held 0.25 s once `true` has ended, reach it in that hold. (The
+# shells' and the watchdog's own first ones are held too, before.)
+test_a_watchdog_sleep_that_catches_term_before_its_exec_is_stopped_where_timeout_is_missing() {
+	strace_on_path
+	path_without timeout
+	LIMIT=6174
+	run_cmd strace -f -b execve -o "$TEST_TMP/strace.log" -e trace=rt_sigaction,kill \
+		-e inject=rt_sigaction:delay_enter=1000000:when=1 -e inject=kill:delay_enter=250000:when=1 \
+		bash -c 'trap : EXIT; trap "exit 130" INT TERM; (. "$1" && factory_run_bounded "$2" true)' \
+		bounded "$FACTORY_CORE/lib/bounded.sh" "$LIMIT"
+	assert_status 0
 	wait_until "the watchdog to be gone" no_watchdog_left
 }
 

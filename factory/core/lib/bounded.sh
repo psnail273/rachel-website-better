@@ -16,6 +16,20 @@
 # through as it is. A limit that is not a number (digits, an optional fraction)
 # returns 125 there, as timeout refuses one, with the reason on stderr.
 #
+# A watchdog the function stopped gets KILL to its group once it has ended, so
+# its sleep never outlives the call. TERM alone can miss that sleep two ways.
+# Bash blocks TERM while it forks, so a TERM that comes as the watchdog forks
+# its sleep ends the watchdog only once the sleep is forked, and the sleep, not
+# yet in the group when that TERM went out, would run on. And a caller that
+# traps TERM can leave its subshells bash's own TERM handler in place of the
+# trap, the watchdog among them; its sleep keeps that handler until its exec,
+# so a TERM it gets before then is caught and lost. KILL can be neither blocked
+# nor caught. The group's id is the watchdog's pid, which the kernel holds while
+# any process of the group lives, so the KILL finds that sleep; with the group
+# empty, as it mostly is, it finds none (a new group could take the id only once
+# every other pid had been handed out since the watchdog ended, as for the first
+# TERM when the watchdog has fired and exited).
+#
 # The fallback's limit is as fine as sleep's. A process the command started that
 # left its group (setsid, a daemon) survives the TERM, as it does under timeout.
 # If the caller is killed first, the command and its watchdog run on in their
@@ -56,9 +70,10 @@ _factory_run_bounded_fallback() (
 	"$@" <&0 &
 	pid=$!
 	# The watchdog. Until its sleep is over, TERM (the function stopping it)
-	# ends it and its sleep at once, as no trap defers it; from then on it
-	# ignores TERM, so once it fires it always ends in exit 0, whichever comes
-	# first, the command's end or its stop.
+	# ends it and its sleep at once, as no trap defers it (a sleep it forks as
+	# the TERM comes, or that gets the TERM before its exec, the function's KILL
+	# ends); from then on it ignores TERM, so once it fires it always ends in
+	# exit 0, whichever comes first, the command's end or its stop.
 	(
 		sleep "$limit" || exit 1
 		trap '' TERM
@@ -73,6 +88,8 @@ _factory_run_bounded_fallback() (
 	kill -TERM -"$watchdog" 2> /dev/null
 	if wait "$watchdog"; then
 		status=124
+	else
+		kill -KILL -"$watchdog" 2> /dev/null
 	fi
 	exit "$status"
 )

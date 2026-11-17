@@ -263,7 +263,7 @@ file e68185542494af9ab61dd2576d107d24b503ceda factory/core/install.sh
 file 30a4384d54e3aff372c5c63ce88af33e26293221 factory/core/land.sh
 file 5c7fc6ca119e5206a9bbe913f9944a3d4fb44704 factory/core/lib/agents.sh
 file a1e0bd81a2148b3f03047ee1783549df0b43d33d factory/core/lib/architecture.sh
-file 515b8af9413668e488e43634a3bc7f067ed1f7ff factory/core/lib/bounded.sh
+file 8c4f0b29abd1687af6c40cc34975e216119ce2af factory/core/lib/bounded.sh
 file 7f62963803a9ae9a1c9c905ceb19e5137d333f1c factory/core/lib/brief.sh
 file d11366413a58e31acf154ed53300d5fd2b22cf84 factory/core/lib/diff.sh
 file ed00baec460ffb5119261abcd94e4bbf82969708 factory/core/lib/findings.sh
@@ -309,7 +309,7 @@ file 1b47e93f3c4d29f1de7985ce548bc66760bd6087 factory/core/tests/amend_test.sh
 file 0217883c6ec27089797ba7d2cf7650cdd38a5b13 factory/core/tests/architecture_test.sh
 file 1c3f96c252653cbcaef9c3175ea6763b2ba66e2b factory/core/tests/arm_test.sh
 file fba23038eedbe6fe726e40f3707ea008478f2d17 factory/core/tests/baseline_test.sh
-file 6d7484e16e5b83ae7c734d5efa767bda830c9d20 factory/core/tests/bounded_test.sh
+file 09897a759a930a74f1be02f60f1d58f00d7d9838 factory/core/tests/bounded_test.sh
 file 315f7761b74707573b60b83fd3ca3031fdf71b6b factory/core/tests/brief_test.sh
 file e38c357be05b8b01c7d95115227de3edc3a60be4 factory/core/tests/claude_deny_test.sh
 file c6304de9c93785a881f0e6168338ac654b950343 factory/core/tests/claude_usage_test.sh
