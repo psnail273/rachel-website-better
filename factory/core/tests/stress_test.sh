@@ -1,6 +1,7 @@
-# stress.sh: the full suite repeated under load. Every test runs it in a small
-# factory of its own (stress_factory) against a stand-in test.sh, never this
-# factory's suite, with FACTORY_STRESS_LOOPS at 0 or 1.
+# stress.sh: the full suite, or the suites a diff can affect, repeated under load.
+# Every test runs it in a small factory of its own (stress_factory, or the project
+# stress_project vendors) against a stand-in test.sh, never this factory's suite,
+# with FACTORY_STRESS_LOOPS at 0 or 1.
 
 # shellcheck disable=SC2154 # out, status: set by run_cmd, in factory/core/tests/lib.sh
 
@@ -227,4 +228,201 @@ test_term_stops_the_run_and_the_busy_loops() {
 test_int_stops_the_run_and_the_busy_loops() {
 	hears_int
 	stopped_mid_run INT
+}
+
+# --- scoped runs: named suites, --since -------------------------------------------
+
+# stress_project: $TEST_TMP/proj, a git project vendoring a small factory in
+# factory/: core with suites alpha (its test names the skills folder) and beta (its
+# test, every adapter's skills folder), adapters web
+# (the one in use, factory-version's adapter line) and game with suites one and
+# two each, a skill, and a doc outside the factory; all committed, tagged base. Its
+# test.sh is a stand-in writing its arguments to $STRESS_PROBE/args.
+stress_project() {
+	local p="$TEST_TMP/proj" a
+	isolate_git
+	mkdir -p "$p/factory/core/lib" "$p/factory/core/tests" "$p/factory/skills/s" "$p/tools/verify" "$p/docs" "$TEST_TMP/tmp" "$TEST_TMP/probe" ||
+		fail "no project"
+	cp "$FACTORY_CORE/stress.sh" "$p/factory/core/" && cp "$FACTORY_CORE/lib/localenv.sh" "$p/factory/core/lib/" || fail "could not copy stress.sh"
+	printf '%s\n' 'echo "$*" >> "$STRESS_PROBE/args"' > "$p/factory/core/test.sh"
+	echo 'test_a() { grep -r gpt "$FACTORY_CORE/../skills"; }' > "$p/factory/core/tests/alpha_test.sh"
+	echo 'test_b() { ls "$FACTORY_CORE"/../adapters/*/skills; }' > "$p/factory/core/tests/beta_test.sh"
+	echo '# helpers' > "$p/factory/core/tests/lib.sh"
+	echo 'echo helper' > "$p/factory/core/run.sh"
+	for a in web game; do
+		mkdir -p "$p/factory/adapters/$a/tests" "$p/factory/adapters/$a/tools/verify" || fail "no adapter $a"
+		echo 'test_one() { :; }' > "$p/factory/adapters/$a/tests/one_test.sh"
+		echo 'test_two() { :; }' > "$p/factory/adapters/$a/tests/two_test.sh"
+		echo 'echo step' > "$p/factory/adapters/$a/tools/verify/step"
+	done
+	echo 'a skill' > "$p/factory/skills/s/SKILL.md"
+	echo 'step' > "$p/tools/verify/step"
+	printf 'version 0.1.0\nadapter web\n' > "$p/tools/verify/factory-version"
+	echo 'a doc' > "$p/docs/readme.md"
+	git init -q "$p" && git -C "$p" add -A && git -C "$p" commit -q -m base && git -C "$p" tag base || fail "could not commit the project"
+	export TMPDIR="$TEST_TMP/tmp" STRESS_PROBE="$TEST_TMP/probe" FACTORY_STRESS_LOOPS=0
+}
+
+# stress_since <path below the project> [...]: commit an edit to each path, then
+# run stress.sh 1 --since base.
+stress_since() {
+	local f
+	for f in "$@"; do
+		echo "# edited" >> "$TEST_TMP/proj/$f" || fail "could not edit $f"
+	done
+	git -C "$TEST_TMP/proj" commit -qam edit || fail "could not commit the edit"
+	run_cmd bash "$TEST_TMP/proj/factory/core/stress.sh" 1 --since base
+}
+
+# ran_with <args>: the stand-in test.sh ran once, with exactly <args>.
+ran_with() {
+	assert_eq "$1" "$(cat "$TEST_TMP/probe/args" 2> /dev/null)" "test.sh's suite names"
+}
+
+test_named_suites_run_only_those_as_a_partial_run() {
+	stress_project
+	run_cmd bash "$TEST_TMP/proj/factory/core/stress.sh" 1 web/two beta
+	assert_status 0
+	assert_line "stress: chose 2 suites: beta web/two"
+	assert_line "stress: 1 runs of the 2 chosen suites (a partial run: no full-run lock), FACTORY_TEST_GODOT_JOBS=1, 0 busy loops (pids none)"
+	ran_with "beta web/two"
+}
+
+# A scoped run isn't niced (test.sh's partial runs are): the busy loops, at normal
+# priority, would starve it. test.sh skips nice when FACTORY_TEST_NICED names its pid.
+test_a_scoped_run_is_not_niced() {
+	stress_project
+	echo '[ "${FACTORY_TEST_NICED:-}" = "$$" ] && echo unniced > "$STRESS_PROBE/niced"' >> "$TEST_TMP/proj/factory/core/test.sh"
+	run_cmd bash "$TEST_TMP/proj/factory/core/stress.sh" 1 beta
+	assert_status 0
+	assert_eq "unniced" "$(cat "$TEST_TMP/probe/niced" 2> /dev/null)" "test.sh would nice the run"
+}
+
+test_since_a_changed_test_file_chooses_its_suite() {
+	stress_project
+	stress_since factory/core/tests/beta_test.sh factory/adapters/web/tests/one_test.sh
+	assert_status 0
+	assert_line "stress: chose 2 suites from the diff since base: beta web/one"
+	ran_with "beta web/one"
+}
+
+test_since_an_adapters_script_chooses_its_suites() {
+	stress_project
+	stress_since factory/adapters/web/tools/verify/step
+	assert_status 0
+	ran_with "web/one web/two"
+}
+
+# The project's ported tools/verify/ is the adapter in use's; its factory-version
+# record isn't.
+test_since_the_projects_tools_verify_chooses_its_adapters_suites() {
+	stress_project
+	stress_since tools/verify/step tools/verify/factory-version
+	assert_status 0
+	ran_with "web/one web/two"
+}
+
+# A core script: every core suite and the suites of the adapter in use.
+test_since_a_core_script_chooses_the_core_suites() {
+	stress_project
+	stress_since factory/core/run.sh
+	assert_status 0
+	ran_with "alpha beta web/one web/two"
+	assert_line "stress: left out the game adapter's suites: the adapter in use is web, and land's one full run covers the rest"
+}
+
+# A change to tests/lib.sh brings its folder's suites.
+test_since_an_adapters_test_lib_chooses_its_suites() {
+	stress_project
+	echo '# helpers' > "$TEST_TMP/proj/factory/adapters/web/tests/lib.sh"
+	git -C "$TEST_TMP/proj" add -A || fail "could not add lib.sh"
+	stress_since factory/adapters/web/tests/lib.sh
+	assert_status 0
+	ran_with "web/one web/two"
+}
+
+# Any other factory file: the suites whose test file names its folder.
+test_since_a_skill_chooses_the_suites_naming_skills() {
+	stress_project
+	stress_since factory/skills/s/SKILL.md
+	assert_status 0
+	ran_with "alpha beta"
+}
+
+# An adapter's skill: its suites, and a core suite checking every adapter's skills.
+test_since_an_adapters_skill_chooses_the_core_suites_checking_it() {
+	stress_project
+	mkdir -p "$TEST_TMP/proj/factory/adapters/web/skills/w" && echo 'a skill' > "$TEST_TMP/proj/factory/adapters/web/skills/w/SKILL.md" || fail "no skill"
+	git -C "$TEST_TMP/proj" add -A || fail "could not add the skill"
+	stress_since factory/adapters/web/skills/w/SKILL.md
+	assert_status 0
+	ran_with "beta web/one web/two"
+}
+
+# A test file in a fixture is a fixture: its folder's suites.
+test_since_a_nested_test_file_chooses_its_folders_suites() {
+	stress_project
+	mkdir -p "$TEST_TMP/proj/factory/adapters/web/tests/fixture" "$TEST_TMP/proj/factory/core/tests/fixture" || fail "no fixture"
+	echo '# fixture' > "$TEST_TMP/proj/factory/adapters/web/tests/fixture/x_test.sh"
+	echo '# fixture' > "$TEST_TMP/proj/factory/core/tests/fixture/y_test.sh"
+	git -C "$TEST_TMP/proj" add -A || fail "could not add the fixtures"
+	stress_since factory/adapters/web/tests/fixture/x_test.sh factory/core/tests/fixture/y_test.sh
+	assert_status 0
+	ran_with "alpha beta web/one web/two"
+}
+
+# An uncommitted or untracked change counts as well as a committed one.
+test_since_counts_the_uncommitted_changes() {
+	stress_project
+	echo '# edited' >> "$TEST_TMP/proj/factory/core/tests/beta_test.sh"
+	echo 'test_c() { :; }' > "$TEST_TMP/proj/factory/core/tests/gamma_test.sh"
+	run_cmd bash "$TEST_TMP/proj/factory/core/stress.sh" 1 --since base
+	assert_status 0
+	ran_with "beta gamma"
+}
+
+test_since_a_docs_only_change_runs_nothing() {
+	stress_project
+	stress_since docs/readme.md
+	assert_status 0
+	assert_last_line "stress: no suite to run: the diff since base touches no file a suite tests"
+	[ ! -e "$TEST_TMP/probe/args" ] || fail "a docs-only change ran test.sh"
+}
+
+# In a project, only the adapter in use runs: another adapter's change chooses
+# none of its suites, and says so.
+test_since_in_a_project_another_adapters_change_chooses_none() {
+	stress_project
+	stress_since factory/adapters/game/tools/verify/step factory/adapters/game/tests/one_test.sh
+	assert_status 0
+	assert_line "stress: left out the game adapter's suites: the adapter in use is web, and land's one full run covers the rest"
+	assert_last_line "stress: no suite to run: the diff since base touches no file a suite tests"
+	[ ! -e "$TEST_TMP/probe/args" ] || fail "another adapter's change ran test.sh"
+}
+
+# In the factory's repo (.factory-repo at the top) no adapter is in use: each
+# adapter's change chooses its suites.
+test_since_in_the_factory_repo_every_adapters_change_counts() {
+	stress_project
+	touch "$TEST_TMP/proj/.factory-repo" && git -C "$TEST_TMP/proj" add .factory-repo && git -C "$TEST_TMP/proj" commit -qm marker || fail "no marker"
+	git -C "$TEST_TMP/proj" tag -f base > /dev/null 2>&1 || fail "could not move base"
+	stress_since factory/adapters/game/tools/verify/step
+	assert_status 0
+	assert_no_line "stress: left out the game adapter's suites: the adapter in use is web, and land's one full run covers the rest"
+	ran_with "game/one game/two"
+}
+
+test_an_unknown_suite_or_a_bad_rev_is_a_usage_error() {
+	stress_project
+	run_cmd bash "$TEST_TMP/proj/factory/core/stress.sh" 1 beta nosuch
+	assert_status 2
+	stderr_has "no suite 'nosuch'"
+	run_cmd bash "$TEST_TMP/proj/factory/core/stress.sh" 1 web/nosuch
+	assert_status 2
+	run_cmd bash "$TEST_TMP/proj/factory/core/stress.sh" 1 --since no-such-rev
+	assert_status 2
+	stderr_has "--since: git can't resolve 'no-such-rev' to a commit"
+	run_cmd bash "$TEST_TMP/proj/factory/core/stress.sh" 1 --since
+	assert_status 2
+	[ ! -e "$TEST_TMP/probe/args" ] || fail "a usage error ran test.sh"
 }

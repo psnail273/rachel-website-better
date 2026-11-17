@@ -22,7 +22,7 @@
 # `test.sh: skipped <n> real-tool tests of the <a> adapter (--skip-real <a>)`.
 # A run with no suite names and --skip-real is still a full run (the lock, the
 # shared times file). amend.sh land passes it for an adapter its diff can't
-# affect; no other caller does, so a run by hand and stress.sh run every test.
+# affect; no other caller does, so a run by hand and stress.sh run every test of their suites.
 #
 # After the tests come two checks of the tree: the skill size budget
 # (skill-budget.sh), and raw-waits.sh: no test file sleeps for a fixed time or
