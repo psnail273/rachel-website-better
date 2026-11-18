@@ -35,6 +35,6 @@ export const homeLink: NavLink = { label: "Home", href: "/" };
 export type NavSection = "therapy" | "performing" | "contact";
 
 export function currentSection(pathname: string | null): NavSection | null {
-  void pathname;
-  return null;
+  const none: NavSection | null = null;
+  return pathname === null ? none : none;
 }
