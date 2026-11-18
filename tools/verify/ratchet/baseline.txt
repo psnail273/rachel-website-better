@@ -16,8 +16,6 @@ src/app/(upcoming)/layout.test.tsx @typescript-eslint/no-unnecessary-condition U
 src/app/(upcoming)/performing/bio/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary conditional, expected left-hand side of `??` operator to be possibly null or undefined.
 src/app/(upcoming)/performing/bio/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
 src/app/(upcoming)/performing/bio/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
-src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
-src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
 src/app/therapy/about/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
 src/app/therapy/about/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
 src/app/therapy/about/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
