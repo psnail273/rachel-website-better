@@ -5,6 +5,7 @@ import { join } from "node:path";
 import localFont from "next/font/local";
 import { prerender } from "react-dom/static";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { SiteFooter } from "./_components/site-footer";
 import RootLayout, { metadata } from "./layout";
 
 vi.mock("next/font/local", () => ({
@@ -50,8 +51,13 @@ describe("RootLayout", () => {
     );
     expect(homeLinks.map((a) => a.getAttribute("href"))).toEqual(["/"]);
     expect(doc.querySelector("main")?.textContent).toBe("page body");
-    expect(doc.querySelector("footer")?.textContent).toBe(
-      "© 2031 Rachel Siegel",
+    const { prelude } = await prerender(await SiteFooter());
+    const alone = new DOMParser().parseFromString(
+      await text(prelude),
+      "text/html",
+    );
+    expect(doc.querySelector("footer")?.outerHTML).toBe(
+      alone.querySelector("footer")?.outerHTML,
     );
   });
 
@@ -80,9 +86,8 @@ describe("RootLayout", () => {
     expect(headerShell?.querySelector("nav")?.getAttribute("aria-label")).toBe(
       "Main",
     );
-    expect(footer?.querySelector("[data-shell]")?.textContent).toMatch(
-      /^© \d{4} Rachel Siegel$/,
-    );
+    expect(footer?.children.length).toBe(1);
+    expect(footer?.children[0]?.hasAttribute("data-shell")).toBe(true);
   });
 
   it("loads only Fraunces from the local font files", async () => {
