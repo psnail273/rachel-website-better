@@ -26,3 +26,11 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: outside this brief. The brief's Constraints say "Class swaps, with no layout redesign" and name #53 for the layout. The survivors are class strings that no test reads, and the brief's Mutants constraint foresaw them.
 - Ruling: Measure and Board: overruled. These lines belong to #53 (PageShell, Prose at `--measure`) and the Spec's page slices ("their own redesign is in the page slices"). The Verifier passed every criterion, test, rule and token line. Survivors: driver's call: out of reach.
 - Reasoning: fixing either design line would add layout work that #53 and the page slices already own, so overruling them changes no criterion of this brief. The Services measure was already a follow-up noted at #51's close. A test that pinned the menu links' Tailwind class strings would pin presentation and not behaviour, and the dropdown and menu are redesigned in their own slices. The FAIL has every line overruled, so it counts as a PASS.
+
+## #53 e313022: invariant property tests in a new file outside the brief's scope
+
+- Issue: #53 (layout components: one column and shared building blocks for every page). Commit: e313022.
+- What deviated: the Editor added `src/lib/tie.invariants.test.ts`, which holds the three fast-check properties for the brief's `invariants` lines. That file is not under any `scope` line.
+- Reason: declared in the commit body. The brief's `invariants` lines need property tests, and `tie.test.ts` is locked from the red phase. The `Deviation:` line sat above the closing trailer paragraph, so the deviation step read it as undeclared.
+- Ruling: accept. The brief gains `scope src/lib/tie.invariants.test.ts` and is resealed (64b1c58).
+- Reasoning: the brief asked for the invariant tests but left them no unlocked file in scope, which is a gap in the brief and not scope creep. The new file tests only `src/lib/tie.ts`'s exported functions and adds no product code.
