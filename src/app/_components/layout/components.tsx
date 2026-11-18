@@ -138,16 +138,46 @@ export function Prose({ align, children }: ProseProps): ReactNode {
   return <div data-prose={align}>{children}</div>;
 }
 
+const RULE_DOTS: [string, string][] = [
+  ["6", "4.25"],
+  ["24", "4.25"],
+  ["42", "4.25"],
+  ["62", "4.25"],
+  ["80", "4.25"],
+  ["98.5", "2.6"],
+  ["105.5", "2.6"],
+  ["119.5", "2.6"],
+  ["126.5", "2.6"],
+];
+
 export function Lead({
   children,
+  rule,
 }: {
   children?: ReactNode;
   rule?: boolean;
 }): ReactNode {
-  return (
+  const lead = (
     <p data-lead="" className="type-lead">
       {children}
     </p>
+  );
+  if (rule !== true) return lead;
+  return (
+    <div>
+      {lead}
+      <svg
+        data-rule=""
+        aria-hidden="true"
+        width="132"
+        height="12"
+        viewBox="0 0 132 12"
+      >
+        {RULE_DOTS.map(([cx, r]) => (
+          <circle key={cx} cx={cx} cy="6" r={r} />
+        ))}
+      </svg>
+    </div>
   );
 }
 

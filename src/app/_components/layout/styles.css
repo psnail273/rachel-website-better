@@ -152,6 +152,12 @@ body > footer {
   white-space: nowrap;
 }
 
+[data-rule] {
+  display: block;
+  margin-block-start: var(--space-flow);
+  fill: var(--ornament);
+}
+
 [data-quote] {
   container-type: inline-size;
   background: var(--surface);
