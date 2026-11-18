@@ -145,3 +145,11 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: neither page is in this issue's scope or diff (`git diff e70da5e HEAD -- "src/app/(upcoming)"` is empty), and neither calls tie.ts, so this fix can't reach them. Each is being rebuilt in its own slice: #39 (Bio, built with tieLast on each paragraph, waiting on this landing) and #40 (Media, next).
 - Ruling: driver's call: out of reach.
 - Reasoning: fixing either here would touch another in-flight issue's files. Everything else in the verdict passed, including criteria 1 to 3 (Services at 390 px now ends "and self-confidence"), every test, the fresh full gate and the mutant ruled equivalent.
+
+## #40 brief: the video still is next/image unoptimized, not a plain img
+
+- Issue: #40 (Media: real YouTube stills and plain "Coming soon" rows). Commit: the brief, before red.
+- What deviated: `docs/design.md` §5 Video card asks for "a plain `img`" of YouTube's still. The brief builds it with next/image's `Image` and `unoptimized`, which renders an `img` that also carries `decoding="async"`, `data-nimg="1"` and `style="color:transparent"`. It also fixes the play mark's triangle, which the design leaves open: `M22 17v22l18-11z` in a 56 × 56 viewBox, centred on the disc at its centroid.
+- Reason: a plain `<img>` is a lint finding (`@next/next/no-img-element`, a warning, and warnings count under `--no-inline-config`). `unoptimized` keeps the design's intent: no optimizer, no `srcset`, YouTube's own URL, lazy, 480 × 360 (`docs/agents/facts.md`, Remote images).
+- Ruling: driver's call: inside the brief.
+- Reasoning: the rendered element is the design's `img` in every attribute the design names. The three extra attributes are next/image's own and change nothing visible.
