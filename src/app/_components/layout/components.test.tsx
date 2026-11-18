@@ -356,6 +356,7 @@ describe("layout components", () => {
 
     expect(panel?.tagName).toBe("UL");
     expect(attrs(panel)).toEqual({ "data-list": "panel", class: "type-list" });
+    expect(tags(kids(panel))).toEqual(["LI", "LI"]);
     expect(kids(panel).map(attrs)).toEqual([{}, {}]);
     expect(kids(panel).map((el) => el.textContent)).toEqual([
       "Identity development",
