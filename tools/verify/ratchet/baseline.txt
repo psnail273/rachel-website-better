@@ -13,40 +13,18 @@ package.json smoke-a11y /therapy/about light color-contrast figure.border-l-4.bo
 package.json smoke-a11y /therapy/services dark color-contrast figure.border-l-4.border-accent.pl-4 > figcaption.mt-2.text-accent: Elements must meet minimum color contrast ratio thresholds
 package.json smoke-a11y /therapy/services light color-contrast figure.border-l-4.border-accent.pl-4 > figcaption.mt-2.text-accent: Elements must meet minimum color contrast ratio thresholds
 src/app/(upcoming)/layout.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
-src/app/(upcoming)/performing/bio/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
 src/app/(upcoming)/performing/bio/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary conditional, expected left-hand side of `??` operator to be possibly null or undefined.
 src/app/(upcoming)/performing/bio/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
 src/app/(upcoming)/performing/bio/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
-src/app/(upcoming)/performing/bio/page.test.tsx @typescript-eslint/no-unnecessary-type-assertion This assertion is unnecessary since it does not change the type of the expression.
 src/app/(upcoming)/performing/bio/page.test.tsx @typescript-eslint/require-await Async function 'loadPage' has no 'await' expression.
 src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
 src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
-src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
-src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
-src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
-src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
-src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-unnecessary-type-assertion This assertion is unnecessary since it does not change the type of the expression.
-src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-unnecessary-type-assertion This assertion is unnecessary since it does not change the type of the expression.
-src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-unnecessary-type-assertion This assertion is unnecessary since it does not change the type of the expression.
-src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-unnecessary-type-assertion This assertion is unnecessary since it does not change the type of the expression.
 src/app/_components/site-footer.tsx @typescript-eslint/require-await Async function 'SiteFooter' has no 'await' expression.
-src/app/contact/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
-src/app/contact/page.test.tsx @typescript-eslint/no-unnecessary-type-assertion This assertion is unnecessary since it does not change the type of the expression.
-src/app/therapy/about/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
 src/app/therapy/about/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
 src/app/therapy/about/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
 src/app/therapy/about/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
 src/app/therapy/about/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
-src/app/therapy/about/page.test.tsx @typescript-eslint/no-unnecessary-type-assertion This assertion is unnecessary since it does not change the type of the expression.
-src/app/therapy/education-and-training/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
-src/app/therapy/education-and-training/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
-src/app/therapy/education-and-training/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
-src/app/therapy/education-and-training/page.test.tsx @typescript-eslint/no-unnecessary-type-assertion This assertion is unnecessary since it does not change the type of the expression.
-src/app/therapy/education-and-training/page.test.tsx @typescript-eslint/no-unnecessary-type-assertion This assertion is unnecessary since it does not change the type of the expression.
-src/app/therapy/education-and-training/page.test.tsx @typescript-eslint/no-unnecessary-type-assertion This assertion is unnecessary since it does not change the type of the expression.
-src/app/therapy/services/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
 src/app/therapy/services/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
-src/app/therapy/services/page.test.tsx @typescript-eslint/no-unnecessary-type-assertion This assertion is unnecessary since it does not change the type of the expression.
 src/server/calendar/events.ts @typescript-eslint/restrict-template-expressions Invalid type "number" of template literal expression.
 src/server/calendar/events.ts @typescript-eslint/restrict-template-expressions Invalid type "number" of template literal expression.
 src/server/calendar/events.ts @typescript-eslint/restrict-template-expressions Invalid type "number" of template literal expression.
