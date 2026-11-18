@@ -76,3 +76,19 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: pre-existing, on markup this diff doesn't change. The strip's own text is tied.
 - Ruling: driver's call: out of reach. Accept the PASS. The follow-up belongs to the pages' own slices of Spec #26 (#36–#41), which tie and rebuild that copy.
 - Reasoning: fixing those lines means editing page files outside this brief's scope that other slices own. The Upcoming strip's cards and copy show no one-word line.
+
+## #28 1109ea5: the header's first render was not tested as unscrolled
+
+- Issue: #28 (sticky header, current section, skip link, square dropdowns). Commit: 1109ea5.
+- What deviated: mutate left `useState(false)` → `true` alive in `src/app/_components/site-header.tsx:21`. Effects don't run in a prerender, so with that mutant every page's static HTML would ship `<header data-scrolled="">`. That shows the scrolled ground at rest until hydration, and always without JS (criterion 2). No test reads the prerendered header. The locked header tests check only after mount, and the locked layout tests prerender but never read the header's attributes.
+- Reason: a gap in the brief, not a wrong test. The brief named no test for the server render.
+- Ruling: reject the survivor; the green Verifier's FAIL line stands. A counted green fix round adds `src/app/_components/site-header.prerender.test.tsx`, a new unlocked file, which prerenders `SiteHeader` and asserts the header's attributes are `[]`. The brief gains its `scope` line and is resealed.
+- Reasoning: the mutant is in reach and the behaviour is criterion 2, so it isn't out of reach. The locked tests don't contradict the brief; they leave this case out, so a Lock lift doesn't fit. A new file in scope adds the missing test without touching the locked ones.
+
+## #28 1109ea5: design check items 6 (Board) and 8 (Layout) on parts other slices rebuild
+
+- Issue: #28. Commit: 1109ea5.
+- What deviated: read strictly, the green Verifier's design items 6 and 8 would be no. The faults are the "St. / Louis" and "life." line breaks, on page parts this issue's diff doesn't touch, which other Feature 1 slices rebuild.
+- Reason: those parts are outside #28's scope list and its diff (the header, the skip link and the dropdowns). The header itself matches the Board and wraps nowhere at 390, 768, 1280 or 1920 px.
+- Ruling: driver's call: out of reach.
+- Reasoning: fixing them would mean editing files another slice owns. It is the same scoping #33's design check used. They stay with the slices that rebuild those parts.
