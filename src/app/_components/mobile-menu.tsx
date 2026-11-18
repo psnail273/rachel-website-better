@@ -31,7 +31,8 @@ function Icon({ path }: { path: string }) {
 export function MobileMenu({ pathname }: { pathname: string | null }) {
   const [open, setOpen] = useState(false);
   const dialogId = useId();
-  const labelPrefix = useId();
+  const therapyLabelId = useId();
+  const performingLabelId = useId();
   const buttonRef = useRef<HTMLButtonElement>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -39,10 +40,7 @@ export function MobileMenu({ pathname }: { pathname: string | null }) {
 
   useEffect(() => {
     if (open) {
-      const dialog = dialogRef.current;
-      if (dialog !== null && !dialog.open) {
-        dialog.showModal();
-      }
+      dialogRef.current?.showModal();
       closeRef.current?.focus();
     } else if (wasOpen.current) {
       buttonRef.current?.focus();
@@ -89,8 +87,7 @@ export function MobileMenu({ pathname }: { pathname: string | null }) {
     );
   }
 
-  function renderGroup(menu: NavMenu, key: string) {
-    const labelId = `${labelPrefix}-${key}`;
+  function renderGroup(menu: NavMenu, labelId: string) {
     return (
       <div role="group" aria-labelledby={labelId} data-menu-group="">
         <p id={labelId} className="type-label" data-menu-label="">
@@ -153,8 +150,8 @@ export function MobileMenu({ pathname }: { pathname: string | null }) {
           <PageShell>
             <div data-menu-links="">
               {renderLink(homeLink)}
-              {renderGroup(therapyMenu, "therapy")}
-              {renderGroup(performingMenu, "performing")}
+              {renderGroup(therapyMenu, therapyLabelId)}
+              {renderGroup(performingMenu, performingLabelId)}
               {renderLink(contactLink)}
             </div>
           </PageShell>
