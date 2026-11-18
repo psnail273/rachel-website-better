@@ -12,7 +12,6 @@ package.json smoke-a11y /therapy/about light color-contrast figcaption.text-acce
 package.json smoke-a11y /therapy/about light color-contrast figure.border-l-4.border-accent.pl-4 > figcaption.text-accent: Elements must meet minimum color contrast ratio thresholds
 package.json smoke-a11y /therapy/services dark color-contrast figure.border-l-4.border-accent.pl-4 > figcaption.mt-2.text-accent: Elements must meet minimum color contrast ratio thresholds
 package.json smoke-a11y /therapy/services light color-contrast figure.border-l-4.border-accent.pl-4 > figcaption.mt-2.text-accent: Elements must meet minimum color contrast ratio thresholds
-src/app/(upcoming)/layout.test.tsx @typescript-eslint/consistent-type-assertions Do not use any type assertions.
 src/app/(upcoming)/layout.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
 src/app/(upcoming)/layout.tsx no-restricted-syntax R12: no bare fetch() in a component; fetch in src/server/.
 src/app/(upcoming)/performing/bio/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
@@ -31,9 +30,6 @@ src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-unnecess
 src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-unnecessary-type-assertion This assertion is unnecessary since it does not change the type of the expression.
 src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-unnecessary-type-assertion This assertion is unnecessary since it does not change the type of the expression.
 src/app/(upcoming)/performing/media/page.test.tsx @typescript-eslint/no-unnecessary-type-assertion This assertion is unnecessary since it does not change the type of the expression.
-src/app/_components/mobile-menu.test.tsx @typescript-eslint/consistent-type-assertions Do not use any type assertions.
-src/app/_components/mobile-menu.test.tsx @typescript-eslint/consistent-type-assertions Do not use any type assertions.
-src/app/_components/nav-dropdown.test.tsx @typescript-eslint/consistent-type-assertions Do not use any type assertions.
 src/app/_components/site-footer.tsx @typescript-eslint/require-await Async function 'SiteFooter' has no 'await' expression.
 src/app/contact/page.test.tsx @typescript-eslint/no-non-null-assertion Forbidden non-null assertion.
 src/app/contact/page.test.tsx @typescript-eslint/no-unnecessary-type-assertion This assertion is unnecessary since it does not change the type of the expression.
