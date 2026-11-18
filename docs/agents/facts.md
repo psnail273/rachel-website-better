@@ -91,3 +91,8 @@ Engine and library facts that briefs rely on, each with the probe that showed it
 ## Line breaks at hyphens (Playwright 1.65.0's Chromium, Firefox and WebKit)
 
 - A no-break space doesn't stop a break after a hyphen-minus inside the next word: all three engines break "and\u00a0self-confidence" in a 1 px-wide `div` as "and self-" / "confidence". A word joiner (U+2060) right after the hyphen ("self-\u2060confidence") or a no-break hyphen (U+2011) keeps it whole. `innerText` keeps the U+2060 and the real "-" (U+002D) in all three, so a copy gets the same characters plus one invisible joiner. Probe: a Node script with `page.setContent` and per-character `Range.getClientRects` in each engine. (#63)
+
+## Remote images (Next.js 16.4.6, eslint-config-next of the repo's lockfile)
+
+- A plain `<img>` in a `.tsx` file is a lint finding under the gate's `--no-inline-config`: `@next/next/no-img-element` reports it as a warning, and warnings count. Probe: a scratch `src/app/zz-probe.tsx` holding one `<img>`, run through `pnpm exec eslint --no-inline-config` (1 warning); removed. (#40)
+- `next/image` with a remote `src` (`https://i.ytimg.com/vi/<id>/hqdefault.jpg`) and `unoptimized` needs no `images.remotePatterns` and renders, under `prerender` and under RTL's `render` alike, a plain `img` with exactly `alt`, `loading="lazy"`, `width`, `height`, `decoding="async"`, `data-nimg="1"`, `style="color:transparent"` and `src` unchanged: no `srcset`, no `sizes`. Without `unoptimized`, `getImageProps` throws `Invalid src prop ... hostname "i.ytimg.com" is not configured under images in your next.config.js`. Probe: a scratch Vitest file in the #40 worktree printing both; removed. (#40)
