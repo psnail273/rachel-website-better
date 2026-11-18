@@ -22,6 +22,14 @@ const ALLOW =
 const PASSACAILLE = "“Passacaille” by Jacques-Martin Hotteterre";
 const BERGAMASCA = "“Aria sopra La Bergamasca” by Marco Uccellini";
 
+function audioSection(doc: Document): Element {
+  const section = Array.from(doc.querySelectorAll("h2"))
+    .find((h) => h.textContent === "Audio")
+    ?.closest("section");
+  if (!section) throw new Error("no Audio section");
+  return section;
+}
+
 let folder = "";
 
 beforeEach(() => {
@@ -154,13 +162,11 @@ describe("MediaPage", () => {
 
   it("lists the three recordings as coming soon", async () => {
     const doc = await renderPage();
-    const audio = Array.from(doc.querySelectorAll("h2"))
-      .find((h) => h.textContent === "Audio")
-      ?.closest("section");
+    const audio = audioSection(doc);
 
     expect(audio).toBeTruthy();
     expect(
-      Array.from(audio!.querySelectorAll("li"), (li) =>
+      Array.from(audio.querySelectorAll("li"), (li) =>
         texts(Array.from(li.children)),
       ),
     ).toEqual([
@@ -176,10 +182,8 @@ describe("MediaPage", () => {
 
   it("links email in the Brahms line to Rachel's address", async () => {
     const doc = await renderPage();
-    const audio = Array.from(doc.querySelectorAll("h2"))
-      .find((h) => h.textContent === "Audio")
-      ?.closest("section");
-    const paragraphs = Array.from(audio!.querySelectorAll("p"));
+    const audio = audioSection(doc);
+    const paragraphs = Array.from(audio.querySelectorAll("p"));
     const links = Array.from(doc.querySelectorAll("a"));
 
     expect(texts(paragraphs)).toEqual([
