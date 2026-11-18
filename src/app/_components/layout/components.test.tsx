@@ -330,6 +330,9 @@ describe("layout components", () => {
     expect(bare?.tagName).toBe("P");
     expect(attrs(bare)).toEqual({ "data-lead": "", class: "type-lead" });
     expect(bare?.querySelector("svg")).toBeNull();
+    expect(renderToStaticMarkup(<Lead>Some words here.</Lead>)).not.toContain(
+      "<svg",
+    );
   });
 
   it("renders PullQuote, Photo, List and Rows with their attributes and tied text", () => {

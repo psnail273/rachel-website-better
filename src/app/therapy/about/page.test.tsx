@@ -137,6 +137,7 @@ describe("AboutPage", () => {
     expect(stack?.tagName).toBe("DIV");
     expect(attrs(stack)).toEqual({ "data-stack": "heading" });
     expect(stack?.children).toHaveLength(2);
+    expect(leadBox?.tagName).toBe("DIV");
     expect(attrs(leadBox)).toEqual({});
     expect(leadBox?.children).toHaveLength(2);
     expect(child(leadBox, 0)).toBe(lead);
