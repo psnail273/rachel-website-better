@@ -34,7 +34,7 @@ afterEach(() => {
   rmSync(folder, { recursive: true, force: true });
 });
 
-function loadPage(): Promise<PageModule> {
+function loadPage(): PageModule {
   expect(page).toBeDefined();
   return page;
 }
