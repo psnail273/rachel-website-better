@@ -12,8 +12,8 @@ async function renderHome(): Promise<Document> {
   return new DOMParser().parseFromString(html, "text/html");
 }
 
-function find(doc: Document, selector: string): Element {
-  return doc.querySelector(selector) ?? document.createElement("template");
+function find(doc: Document, selector: string): Element | null {
+  return doc.querySelector(selector);
 }
 
 function attrs(el: Element | null | undefined): Record<string, string> {
@@ -26,8 +26,11 @@ function kids(el: Element | null | undefined): Element[] {
   return Array.from(el?.children ?? []);
 }
 
-function nth(el: Element | null | undefined, index: number): Element {
-  return kids(el).at(index) ?? document.createElement("template");
+function nth(
+  el: Element | null | undefined,
+  index: number,
+): Element | undefined {
+  return kids(el).at(index);
 }
 
 describe("Home", () => {
