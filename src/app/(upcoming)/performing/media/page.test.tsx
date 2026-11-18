@@ -85,6 +85,45 @@ function iframesOf(): {
   }));
 }
 
+const TOKENS = [
+  "bg",
+  "surface",
+  "tint",
+  "ink",
+  "heading",
+  "muted",
+  "link",
+  "accent",
+  "error",
+  "ornament",
+  "line",
+  "line-strong",
+  "band",
+  "on-band",
+  "on-band-muted",
+  "band-accent",
+  "plum",
+  "on-image",
+  "poster",
+];
+
+function tokenClasses(el: Element, prefix: string): string[] {
+  return [...el.classList].filter((name) =>
+    TOKENS.some((token) => name === `${prefix}-${token}`),
+  );
+}
+
+function ancestorsUpToBody(el: Element): Element[] {
+  const found: Element[] = [];
+  let current = el.parentElement;
+  while (current !== null) {
+    found.push(current);
+    if (current.tagName === "BODY") break;
+    current = current.parentElement;
+  }
+  return found;
+}
+
 describe("MediaPage", () => {
   it("shows the Media heading, the recorder headshot and the Video and Audio sections", async () => {
     const doc = await renderPage();
@@ -178,6 +217,23 @@ describe("MediaPage", () => {
       ],
     ]);
     expect(doc.querySelectorAll("audio")).toHaveLength(0);
+  });
+
+  it("marks each recording coming soon in muted text", async () => {
+    const doc = await renderPage();
+    const labels = [...doc.body.querySelectorAll("*")].filter(
+      (el) => el.textContent === "Coming soon",
+    );
+    const groundClasses = labels.flatMap((label) =>
+      ancestorsUpToBody(label).flatMap((el) => tokenClasses(el, "bg")),
+    );
+
+    expect(labels.map((label) => tokenClasses(label, "text"))).toEqual([
+      ["text-muted"],
+      ["text-muted"],
+      ["text-muted"],
+    ]);
+    expect(groundClasses).toEqual([]);
   });
 
   it("links email in the Brahms line to Rachel's address", async () => {

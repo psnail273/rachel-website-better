@@ -55,7 +55,7 @@ describe("RootLayout", () => {
     );
   });
 
-  it("loads Fraunces and Source Sans 3 from the local font files", async () => {
+  it("loads only Fraunces from the local font files", async () => {
     expect(fontOptions).toStrictEqual([
       {
         src: [
@@ -64,14 +64,8 @@ describe("RootLayout", () => {
         ],
         weight: "100 900",
         variable: "--font-fraunces",
-      },
-      {
-        src: [
-          { path: "./fonts/SourceSans3-Variable.ttf", style: "normal" },
-          { path: "./fonts/SourceSans3-Italic-Variable.ttf", style: "italic" },
-        ],
-        weight: "200 900",
-        variable: "--font-source-sans",
+        fallback: ["Georgia", "serif"],
+        adjustFontFallback: "Times New Roman",
       },
     ]);
 
@@ -79,7 +73,7 @@ describe("RootLayout", () => {
 
     expect(doc.documentElement.getAttribute("lang")).toBe("en");
     expect(doc.documentElement.getAttribute("class")).toBe(
-      "mock---font-fraunces mock---font-source-sans antialiased",
+      "mock---font-fraunces antialiased",
     );
   });
 

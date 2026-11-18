@@ -49,6 +49,34 @@ function links(doc: Document) {
   }));
 }
 
+const TOKENS = [
+  "bg",
+  "surface",
+  "tint",
+  "ink",
+  "heading",
+  "muted",
+  "link",
+  "accent",
+  "error",
+  "ornament",
+  "line",
+  "line-strong",
+  "band",
+  "on-band",
+  "on-band-muted",
+  "band-accent",
+  "plum",
+  "on-image",
+  "poster",
+];
+
+function tokenClasses(el: Element | null, prefix: string): string[] {
+  return [...(el?.classList ?? [])].filter((name) =>
+    TOKENS.some((token) => name === `${prefix}-${token}`),
+  );
+}
+
 describe("UpcomingStrip", () => {
   it("shows a section headed Upcoming", async () => {
     const doc = await renderStrip(CARDS);
@@ -136,5 +164,19 @@ describe("UpcomingStrip", () => {
       })),
     ).toEqual([{ tabindex: "0", label: "Upcoming events" }]);
     expect(regions[0]?.querySelectorAll("li").length).toBe(CARD_COUNT);
+  });
+
+  it("sets each card's date in heading on the surface ground", async () => {
+    const doc = await renderStrip(CARDS);
+    const items = [...doc.querySelectorAll("li")];
+
+    expect(items.map((li) => tokenClasses(li, "bg"))).toEqual([
+      ["bg-surface"],
+      ["bg-surface"],
+      ["bg-surface"],
+    ]);
+    expect(
+      items.map((li) => tokenClasses(li.firstElementChild, "text")),
+    ).toEqual([["text-heading"], ["text-heading"], ["text-heading"]]);
   });
 });
