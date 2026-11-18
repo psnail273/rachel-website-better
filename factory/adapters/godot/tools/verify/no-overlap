@@ -1,0 +1,9 @@
+# The steps of the parallel set that write the same place, so the gate runner
+# (factory/core/verify.sh) never runs them at the same time: a line per set,
+# space-separated (factory/core/lib/steps.sh, FACTORY_NO_OVERLAP). typecheck,
+# arch and test each run Godot on the project (godot --headless --path .), which
+# rewrites the project's .godot/ folder as it opens it: its import and script
+# class caches, and the steps' own output under .godot/factory. Two Godot runs at
+# once on one .godot/ race, so the line below keeps them, and with them lint and
+# deviation, to one at a time: the parallel steps run one by one, as before.
+typecheck lint arch deviation test

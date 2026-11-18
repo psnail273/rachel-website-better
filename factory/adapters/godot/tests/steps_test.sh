@@ -1309,3 +1309,17 @@ test_mutate_gives_each_worker_its_own_user_data_with_gdmutant() {
 	[ "$(printf '%s\n' "$dirs" | wc -l)" -ge 2 ] || fail "not a user data folder per project copy: $dirs"
 	! grep -q "^$TEST_TMP/\(session\|appdata\)/" <<< "$dirs" || fail "a Godot used the session's user data: $dirs"
 }
+
+# The adapter's no-overlap file: typecheck, arch and test each rewrite the
+# project's .godot/, so no two of the parallel steps run at once.
+test_no_two_parallel_steps_overlap() {
+	steps_project
+	. "$FACTORY_CORE/lib/steps.sh"
+	factory_no_overlap_check || fail "the no-overlap file names a step outside the parallel set"
+	local a b
+	for a in $FACTORY_PARALLEL_STEPS; do
+		for b in $FACTORY_PARALLEL_STEPS; do
+			! factory_steps_may_overlap "$a" "$b" || fail "$a and $b may overlap"
+		done
+	done
+}

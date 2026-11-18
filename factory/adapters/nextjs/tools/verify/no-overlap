@@ -1,0 +1,17 @@
+# The steps of the parallel set that write the same place, so the gate runner
+# (factory/core/verify.sh) never runs them at the same time: a line per set,
+# space-separated (factory/core/lib/steps.sh, FACTORY_NO_OVERLAP). None here, so
+# typecheck, lint, arch, deviation and test all run at once. What each writes,
+# past a temp folder of its own:
+#   typecheck  tsc --noEmit, through tsconfig.json's incremental, writes
+#              tsconfig.tsbuildinfo, which no other step reads or writes
+#   lint       ESLint runs with no --cache, so it writes no .eslintcache
+#   arch       dependency-cruiser runs with no --cache; ESLint's config API
+#              writes nothing
+#   deviation  the Core's (deviation.sh): it reads git and writes nothing else
+#   test       Vitest keeps its results cache under node_modules/.vite/vitest,
+#              which no other step reads; the project's tests keep their files
+#              in the system's temp folder
+# None writes .next/ (prepare's next typegen does, before them; smoke's build
+# after them) or node_modules/ past Vitest's own cache. A step that comes to
+# write where another reads or writes gets a line here naming both.

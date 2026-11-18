@@ -364,3 +364,35 @@ test_node_and_pnpm_off_path_are_found_through_local_env_with_node() {
 	assert_status 0
 	assert_eq "PATH=$(printf '%q' "$(dirname "$node")"):$(printf '%q' "$(dirname "$pnpm")"):\"\$PATH\" pnpm exec next start --port 3000   then open http://localhost:3000" "$out" "playtest's stdout"
 }
+
+# The adapter's no-overlap file: its steps share nothing (each one's writes are in
+# the file's comments), so the gate runs typecheck, lint, arch, deviation and test
+# at once.
+test_the_parallel_steps_may_all_overlap() {
+	mkdir -p "$TEST_TMP/project/tools" && cd "$TEST_TMP/project" || fail "could not make the project"
+	cp -R "$NEXTJS_ADAPTER/tools/verify" tools/verify || fail "could not copy the adapter"
+	. "$FACTORY_CORE/lib/steps.sh"
+	factory_no_overlap_check || fail "the no-overlap file names a step outside the parallel set"
+	local a b
+	for a in $FACTORY_PARALLEL_STEPS; do
+		for b in $FACTORY_PARALLEL_STEPS; do
+			[ "$a" = "$b" ] || factory_steps_may_overlap "$a" "$b" || fail "$a and $b may not overlap"
+		done
+	done
+}
+
+# The four tool steps of the parallel set at once on the skeleton, with the real
+# tools: the same report as one by one (deviation, the Core's, reads git only).
+test_the_tool_steps_at_once_report_as_one_by_one_with_node() {
+	prepared_project
+	FACTORY_SERIAL_STEPS=1 run_cmd bash "$FACTORY_CORE/verify.sh" typecheck lint arch test
+	local serial_out="$out" serial_status="$status"
+	run_cmd bash "$FACTORY_CORE/verify.sh" typecheck lint arch test
+	assert_eq "$serial_out" "$out" "the report at once against one by one"
+	assert_eq "$serial_status" "$status" "the exit code at once against one by one"
+	assert_eq "== typecheck PASS
+== lint PASS
+== arch PASS
+== test PASS
+verify: PASS" "$out" "the report at once"
+}

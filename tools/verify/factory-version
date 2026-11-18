@@ -58,7 +58,7 @@ file 5e23aede6ffaa1b65b28f3830d5296475fe5e06b factory/adapters/godot/tests/isola
 file 91c91d0ca381721636c90c8a789f3d01e31e5432 factory/adapters/godot/tests/lib.sh
 file 3238cfc69b6a56b0884c235676372607dedd3fa3 factory/adapters/godot/tests/names_test.sh
 file 2deff241f75b4e6013286aa445b29262ff5f012a factory/adapters/godot/tests/pre_commit_test.sh
-file 28537243046706f2f8ce1cb6eb5e6b12081bd21b factory/adapters/godot/tests/steps_test.sh
+file ba4c55cd30936241291ab083d8ddaaed7d5fd5a8 factory/adapters/godot/tests/steps_test.sh
 file 4ef94106063611b02a4565a32a08141b3dcf193f factory/adapters/godot/tests/verify_skill_test.sh
 file 70f4b425c0e1bfc377ed0d7c2b04b8587dc3fb3f factory/adapters/godot/tools/verify/_arch_probe.gd
 file e74f1b3f724cf1196fffd1e6ff5fba16352ebe24 factory/adapters/godot/tools/verify/_arch_probe.gd.uid
@@ -76,6 +76,7 @@ file dd112206c2cdb45bb113944b07c253ae89eeea71 factory/adapters/godot/tools/verif
 file fc6cb90706fcc58d2f3e1c017c4d2ca935521036 factory/adapters/godot/tools/verify/lint
 file 4cc213dc5bc6c5b6f0c87781fca0ae04c4aa2555 factory/adapters/godot/tools/verify/local.env.example
 file a9e78cdaa35fa1b5f2e48fbcb9f2d176dd092f38 factory/adapters/godot/tools/verify/mutate
+file 0dde51c4fa9e745f5398d870facfc78e55238c8e factory/adapters/godot/tools/verify/no-overlap
 file 32b88526c29d4d35c9268e58c4a3194163e8a1ce factory/adapters/godot/tools/verify/pins
 file c4b1cef1bf7790df84a2a932c7b65c00583d0f35 factory/adapters/godot/tools/verify/playtest
 file eb6f9a18a2bea43c62cba8ce7521c881cf1d950f factory/adapters/godot/tools/verify/prepare
@@ -186,7 +187,7 @@ file d0a634a656f68932e85b95149139ed322572ec75 factory/adapters/nextjs/tests/name
 file 74950168c992a51a001ba7ce6538866e57fe2b51 factory/adapters/nextjs/tests/prime-store.sh
 file 49614a6dba0bf1df583ce48cb3a6fd3ce240d31e factory/adapters/nextjs/tests/scenarios_test.sh
 file 2aed7c51b1cd249e909cc97d012458b2d0ca5d12 factory/adapters/nextjs/tests/smoke_test.sh
-file 17970e8deab46b417c2c0d4c0d66e90527e197a9 factory/adapters/nextjs/tests/steps_test.sh
+file f0823c908f651d741344e12f0e4f645d00cd036a factory/adapters/nextjs/tests/steps_test.sh
 file 2f13b4cca0ed02a2bf3c5e4b71969a88d076006c factory/adapters/nextjs/tests/test_step_test.sh
 file 05d678310165db988ef683f8eeec4758e15c6dbb factory/adapters/nextjs/tests/verify_skill_test.sh
 file 79c84ecc2b9f0e1e8adcb586dea2fe256d6ee981 factory/adapters/nextjs/tools/verify/_arch_imports.mjs
@@ -217,6 +218,7 @@ file c004db70740472766f5b3ff82d19e43c54b0a319 factory/adapters/nextjs/tools/veri
 file 0ce9d2f91f5abea43a42b50329ff8ac672a2905d factory/adapters/nextjs/tools/verify/lint
 file a7114266991f06514d19980a40af3f80392377ef factory/adapters/nextjs/tools/verify/local.env.example
 file b434b211183c9dbc9da7120596cfb2103b3749cd factory/adapters/nextjs/tools/verify/mutate
+file 1707d19124af5f2fac0c9d0c6d1932b4add4ca92 factory/adapters/nextjs/tools/verify/no-overlap
 file b04ea3692daf22810785f79ee5dbbadee7a0b124 factory/adapters/nextjs/tools/verify/pins
 file 76e1e77e1012a5f22dd0fbda7ea9e473e502b0c5 factory/adapters/nextjs/tools/verify/playtest
 file 6bd43cae4b273558381e0d3560ef285dddfa73bf factory/adapters/nextjs/tools/verify/prepare
@@ -280,7 +282,7 @@ file f42dc7286f8e8f3a98e0f3b48ca744849f912d23 factory/core/lib/round.sh
 file a78752f22408b12604c57cf56995e88fbc3faba3 factory/core/lib/run.sh
 file 5bc118f0001a8575014d9d4f8965bfd547cc8fc0 factory/core/lib/scenarios.sh
 file ca9e1a4f28590fa57e7722a9f52cb2213cbd50f1 factory/core/lib/stamp.sh
-file 49161412db4bd9100f621ef37aaa738de5a9c016 factory/core/lib/steps.sh
+file a340c6a0f36c71086a88bea38f4e91aca82b3769 factory/core/lib/steps.sh
 file d68029928639480ae2c38dfd0f0bad2bc54aface factory/core/lib/vendor.sh
 file 078bcdaa69c06b0cda9f2c6ed738330b24102e5b factory/core/lock.sh
 file eee594b1da6c44037070d527b56f6dafcd1f16b8 factory/core/pins.sh
@@ -354,7 +356,7 @@ file ea8068347b86ee1bab5acd226db5399eb488aba9 factory/core/tests/prompt_test.sh
 file cbcfd18277b0f82e22fb1bee3fb392daabc18355 factory/core/tests/red_test.sh
 file 03fd4dc1e2da3a49c86f46c3240a4b005c57f93a factory/core/tests/results_test.sh
 file f4ab52fa7702264b1e29e981f2f87396555662ea factory/core/tests/retro_test.sh
-file f1bd7977d38e610f72d54f44158428630368de2e factory/core/tests/runner_test.sh
+file b40e2c11a645b0778cd38065ec4a673200d7bd70 factory/core/tests/runner_test.sh
 file 7520c88d1e0ecf471dcd8d9655137e84de0601a6 factory/core/tests/scenarios_test.sh
 file b3a05a18d047a519c1c5b468ce1933dca4f7802c factory/core/tests/shell_lint_test.sh
 file faf4026f0e2596cab2d9e4918087b0ccf88626f8 factory/core/tests/skill_budget_test.sh
@@ -371,7 +373,7 @@ file 8a8d985eb0c9fca5d78482d69e44754f25465bde factory/core/tests/verify_skill_te
 file 231216872e3bdc021f548ab10a3516b24a1a3123 factory/core/tests/wrapper_test.sh
 file fc6397904cc1aea3ea62413706278c42a88c3fbc factory/core/verify-skill.sh
 file 664b3c2bf5671f36d90dad66d011dccbd1e61857 factory/core/verify.ps1
-file b50005b31e74ee2517bb5363b7e5f0372b460061 factory/core/verify.sh
+file e0e0e499c9cf9b0bfc1ba167766db99d07fbac03 factory/core/verify.sh
 file 447b8d6ae549a8a25c55e3c8cc7006852fc0e098 factory/skills/factory-adopt/SKILL.md
 file 3c47fdbdb4dead05de89e48b6d8a000ab6e40802 factory/skills/factory-adopt/cleanup.md
 file 00c3644255f90b5659320a67e35c67c258a1564d factory/skills/factory-adopt/tracker.md
