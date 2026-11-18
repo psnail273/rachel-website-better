@@ -138,7 +138,12 @@ export function Prose({ align, children }: ProseProps): ReactNode {
   return <div data-prose={align}>{children}</div>;
 }
 
-export function Lead({ children }: { children?: ReactNode }): ReactNode {
+export function Lead({
+  children,
+}: {
+  children?: ReactNode;
+  rule?: boolean;
+}): ReactNode {
   return (
     <p data-lead="" className="type-lead">
       {children}

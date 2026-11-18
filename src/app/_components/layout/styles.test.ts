@@ -166,6 +166,11 @@ const EXPECTED_RULES: Block[] = [
   }),
   rule("[data-lead]", { color: "var(--heading)", "text-wrap": "wrap" }),
   rule("[data-lead] a", { "font-weight": "inherit", "white-space": "nowrap" }),
+  rule("[data-rule]", {
+    display: "block",
+    "margin-block-start": "var(--space-flow)",
+    fill: "var(--ornament)",
+  }),
   rule("[data-quote]", {
     "container-type": "inline-size",
     background: "var(--surface)",
@@ -272,7 +277,7 @@ const STYLE_PROPERTY =
 describe("layout styles", () => {
   it("holds exactly the layout rules, in order", () => {
     expect(withDecls.map(ordered)).toEqual(EXPECTED_RULES.map(ordered));
-    expect(withDecls).toHaveLength(42);
+    expect(withDecls).toHaveLength(43);
     expect(css).not.toContain("@layer");
   });
 
