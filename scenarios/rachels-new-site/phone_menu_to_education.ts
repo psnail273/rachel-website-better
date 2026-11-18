@@ -7,7 +7,11 @@ test("on a phone, the menu button then Education and Training opens the Educatio
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Menu" }).tap();
-  await page.getByRole("link", { name: "Education and Training" }).tap();
+  // The open full-screen menu: the footer also links Education and Training.
+  await page
+    .getByRole("dialog", { name: "Menu" })
+    .getByRole("link", { name: "Education and Training" })
+    .tap();
   await expect(page).toHaveURL(/\/therapy\/education-and-training$/);
   await expect(
     page.getByRole("heading", { name: "Specialized Training" }),
