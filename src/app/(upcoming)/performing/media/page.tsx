@@ -50,7 +50,7 @@ export default function MediaPage() {
               {recordings.map((title) => (
                 <li key={title} className="flex flex-wrap items-center gap-3">
                   <span>{title}</span>
-                  <span className="rounded-full border border-accent px-2 py-0.5 text-xs text-accent">
+                  <span className="rounded-full border border-accent px-2 py-0.5 text-xs text-accent-text">
                     Coming soon
                   </span>
                 </li>

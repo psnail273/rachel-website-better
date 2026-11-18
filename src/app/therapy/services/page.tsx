@@ -67,7 +67,9 @@ export default function ServicesPage() {
         <blockquote className="font-serif text-2xl italic">
           {'And you may ask yourself, "Well, how did I get here?"'}
         </blockquote>
-        <figcaption className="mt-2 text-accent">— Talking Heads</figcaption>
+        <figcaption className="mt-2 text-accent-text">
+          — Talking Heads
+        </figcaption>
       </figure>
       <section>
         <h2 className={h2Class}>You might be struggling with…</h2>

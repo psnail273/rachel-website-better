@@ -39,7 +39,9 @@ function Body({
             key={index}
             className="w-60 shrink-0 snap-start rounded-2xl border border-accent bg-accent-soft p-4"
           >
-            <p className="text-sm font-semibold text-accent">{card.date}</p>
+            <p className="text-sm font-semibold text-accent-text">
+              {card.date}
+            </p>
             <h3 className="mt-1 text-lg">{card.title}</h3>
             {card.location?.kind === "text" ? (
               <p className="mt-1 text-sm">{card.location.text}</p>

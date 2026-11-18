@@ -69,7 +69,7 @@ export default function AboutPage() {
           Let everything happen to you: beauty and terror. Just keep going. No
           feeling is final.
         </blockquote>
-        <figcaption className="text-accent">
+        <figcaption className="text-accent-text">
           — Rainer Maria Rilke, <cite>Letters to a Young Poet</cite>
         </figcaption>
       </figure>
