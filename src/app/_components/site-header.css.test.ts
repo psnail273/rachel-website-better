@@ -62,6 +62,8 @@ const withDecls = blocks(css).filter(
 );
 
 const WIDE = "@media (width >= 48rem)";
+const PHONE = "@media (width < 48rem)";
+const FADE = "@keyframes menu-fade";
 const EASE = "200ms cubic-bezier(0.2, 0.7, 0.2, 1)";
 const HERO_HEADER =
   "body:has(> main [data-bleed]) > header:not([data-scrolled])";
@@ -103,7 +105,7 @@ const EXPECTED_RULES: Block[] = [
     "box-shadow": "0 1px 0 var(--line)",
   }),
   rule(HERO_HEADER, { color: "var(--on-image)" }),
-  rule(`${HERO_HEADER} :is([data-brand], [data-nav-tab])`, {
+  rule(`${HERO_HEADER} :is([data-brand], [data-nav-tab], [data-menu-button])`, {
     "--accent": "var(--on-image)",
   }),
   rule("body > header > [data-shell]", {
@@ -127,6 +129,7 @@ const EXPECTED_RULES: Block[] = [
     gap: "0.375rem",
     "min-block-size": "2.75rem",
     cursor: "pointer",
+    "white-space": "nowrap",
   }),
   rule("[data-nav-label]", { "text-underline-offset": "0.3rem" }),
   rule("[data-nav-tab]:hover [data-nav-label]", {
@@ -164,6 +167,65 @@ const EXPECTED_RULES: Block[] = [
     "text-underline-offset": "0.35em",
   }),
   rule("[data-dropdown-panel] a:focus-visible", { "outline-offset": "-3px" }),
+  rule("[data-brand], [data-menu-brand]", { "white-space": "nowrap" }),
+  rule("[data-menu-button], [data-menu-close]", {
+    display: "flex",
+    "align-items": "center",
+    "justify-content": "flex-end",
+    "inline-size": "2.75rem",
+    "block-size": "2.75rem",
+    cursor: "pointer",
+  }),
+  rule("[data-menu]", {
+    position: "fixed",
+    inset: "0",
+    "inline-size": "100%",
+    "max-inline-size": "none",
+    "block-size": "100%",
+    "max-block-size": "none",
+    margin: "0",
+    padding: "0",
+    border: "0",
+    "overflow-y": "auto",
+    background: "var(--bg)",
+    color: "var(--heading)",
+  }),
+  rule("[data-menu][open]", {
+    animation: `menu-fade ${EASE}`,
+  }),
+  { path: [FADE, "from"], decls: { opacity: "0" } },
+  { path: [FADE, "to"], decls: { opacity: "1" } },
+  rule("[data-menu-head]", {
+    display: "flex",
+    "align-items": "center",
+    "block-size": "var(--header)",
+  }),
+  rule("[data-menu-head] > [data-shell]", {
+    display: "flex",
+    "align-items": "center",
+    "justify-content": "space-between",
+  }),
+  rule("[data-menu-links]", {
+    display: "flex",
+    "flex-direction": "column",
+    "padding-block": "var(--space-heading) var(--space-block)",
+  }),
+  rule("[data-menu-group]", { "margin-block": "var(--space-flow)" }),
+  rule("[data-menu-label]", { color: "var(--accent)" }),
+  rule("[data-menu-links] a", {
+    display: "flex",
+    "align-items": "center",
+    "min-block-size": "3.5rem",
+    color: "var(--heading)",
+  }),
+  rule('[data-menu-links] a[aria-current="page"]', {
+    "text-decoration": "underline 2px var(--accent)",
+    "text-underline-offset": "0.2em",
+  }),
+  {
+    path: [PHONE, "html:has([data-menu][open])"],
+    decls: { overflow: "hidden" },
+  },
 ];
 
 // Key order is part of the contract, so compare decls as ordered entries.
@@ -174,7 +236,7 @@ function ordered(entry: Block): { path: string[]; decls: [string, string][] } {
 describe("header styles", () => {
   it("holds exactly the header rules, in order", () => {
     expect(withDecls.map(ordered)).toEqual(EXPECTED_RULES.map(ordered));
-    expect(withDecls).toHaveLength(20);
+    expect(withDecls).toHaveLength(34);
     expect(css).not.toContain("@layer");
   });
 
