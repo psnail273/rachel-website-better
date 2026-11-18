@@ -1,0 +1,81 @@
+[data-bleed] {
+  position: relative;
+  display: flex;
+  inline-size: 100cqi;
+  min-block-size: max(100svh, 34rem);
+  margin-block-start: calc(-1 * var(--header));
+  margin-inline-start: calc(50% - 50cqi);
+  padding-block-start: var(--header);
+  overflow: hidden;
+  background: var(--plum);
+  color: var(--on-image);
+  --accent: var(--on-image);
+}
+
+[data-bleed] > img {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+  object-position: 50% 55%;
+}
+
+/* prettier-ignore */
+[data-hero-scrim] {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 75% 55% at 50% 52%, rgb(36 18 28 / 0.42), transparent 100%),
+    linear-gradient(to bottom, rgb(36 18 28 / 0.6) 0%, rgb(36 18 28 / 0.3) 24%, rgb(36 18 28 / 0.3) 100%);
+}
+
+[data-bleed] > [data-shell] {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding-block: var(--space-block);
+  text-align: center;
+}
+
+[data-bleed] h1 {
+  color: var(--on-image);
+  text-wrap: balance;
+}
+
+[data-bleed] h1 + p {
+  margin-block-start: var(--space-flow);
+  text-wrap: balance;
+}
+
+[data-bleed] [data-cluster] {
+  align-self: stretch;
+  margin-block-start: var(--space-heading);
+}
+
+[data-hero-button] {
+  display: flex;
+  flex: 1 1 0;
+  align-items: center;
+  justify-content: center;
+  max-inline-size: 12.5rem;
+  block-size: 3.5rem;
+  border: 1px solid var(--on-image);
+  color: var(--on-image);
+  transition:
+    background-color 150ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    color 150ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+[data-hero-button]:hover {
+  background: var(--on-image);
+  color: var(--plum);
+}
+
+@media (width >= 30rem) {
+  [data-hero-button] {
+    flex: 0 0 12.5rem;
+  }
+}

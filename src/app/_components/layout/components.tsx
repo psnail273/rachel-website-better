@@ -19,11 +19,17 @@ export type SectionProps = { children?: ReactNode; bleed?: boolean } & (
 
 export function Section({
   children,
+  bleed,
   labelledBy,
   label,
 }: SectionProps): ReactNode {
   return (
-    <section data-section="" aria-labelledby={labelledBy} aria-label={label}>
+    <section
+      data-section=""
+      data-bleed={bleed === true ? "" : undefined}
+      aria-labelledby={labelledBy}
+      aria-label={label}
+    >
       {children}
     </section>
   );

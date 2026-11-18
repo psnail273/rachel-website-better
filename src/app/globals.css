@@ -1,6 +1,7 @@
 @import "tailwindcss";
 @import "./_components/layout/styles.css" layer(components);
 @import "./_components/site-header.css" layer(components);
+@import "./_components/hero.css" layer(components);
 
 :root {
   color-scheme: light dark;
