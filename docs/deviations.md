@@ -57,3 +57,14 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: undeclared. Both tests now call one helper, `expectMessageState` (`upcoming-strip.test.tsx:166`). The helper holds 8 assertion calls: the section's children, the centred Prose, its two `p`s, the one calendar link, and no `ul`, `li`, `button` or region. The probe counts only the calls written in each test's own body.
 - Ruling: driver's call: accept. The brief gains `asserts` lines for both tests (4 → 1) and is resealed.
 - Reasoning: nothing was dropped. Every check from the base, and the ones the brief added, still runs in both states through the helper, and the brief's bullets for those tests are pinned in full. A fix round would only copy the helper's body into the two tests.
+
+## #33 70a9811: 21 surviving mutants out of reach
+
+- Issue: #33 (Upcoming cards with one-line dates and Previous/Next arrows). Commit: 70a9811.
+- What deviated: the green gate's mutate step left 21 survivors.
+  - Presentation (no test reads it): the class strings in `upcoming-strip.tsx` (ARROW_CLASS :23, LINKED_CARD_CLASS :28), the chevron direction and paths (:45–47), and the linked-card hover condition (:60).
+  - Equivalent in `upcoming-strip.tsx`: the measure's null guards, its skip of an unchanged update, its effect dependencies and the `?.` on card offsets (:94, :104, :108, :116, :120, :123), since the arrows render only with a measured row of at least two cards.
+  - Equivalent in `events.ts`: the `?? ""` fallbacks at :335 and :338, since a month index is always 0–11 and NaN dates are dropped first.
+- Reason: declared in the Editor's final message for the `??` fallbacks. The green Verifier judged every survivor PASS.
+- Ruling: driver's call: out of reach.
+- Reasoning: tests that pinned class strings or SVG paths would pin presentation, not behaviour. The design check judges those against the Board. The other mutants change no observable behaviour.
