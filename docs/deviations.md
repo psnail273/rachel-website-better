@@ -68,3 +68,11 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: declared in the Editor's final message for the `??` fallbacks. The green Verifier judged every survivor PASS.
 - Ruling: driver's call: out of reach.
 - Reasoning: tests that pinned class strings or SVG paths would pin presentation, not behaviour. The design check judges those against the Board. The other mutants change no observable behaviour.
+
+## #33 ab3b877: one-word lines on pages this issue doesn't touch
+
+- Issue: #33 (Upcoming cards with one-line dates and Previous/Next arrows). Commit: ab3b877.
+- What deviated: the green Verifier passed design 8 (Layout), but the layout check lists real one-word lines. Bio's first paragraph ends with "experiences." alone at 390 px (performing-bio-390-light.png). The Services h2 and paragraphs at 390 px are listed as one-word too.
+- Reason: pre-existing, on markup this diff doesn't change. The strip's own text is tied.
+- Ruling: driver's call: out of reach. Accept the PASS. The follow-up belongs to the pages' own slices of Spec #26 (#36–#41), which tie and rebuild that copy.
+- Reasoning: fixing those lines means editing page files outside this brief's scope that other slices own. The Upcoming strip's cards and copy show no one-word line.
