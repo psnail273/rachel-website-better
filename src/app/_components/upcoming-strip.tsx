@@ -16,7 +16,7 @@ function Body({
       <>
         <p>Events are unavailable right now.</p>
         <p>
-          <a href={calendarUrl} {...LINK_PROPS} className="underline">
+          <a href={calendarUrl} {...LINK_PROPS}>
             See the full calendar
           </a>
         </p>
@@ -31,17 +31,15 @@ function Body({
       role="region"
       aria-label="Upcoming events"
       tabIndex={0}
-      className="overflow-x-auto rounded-2xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+      className="overflow-x-auto rounded-2xl"
     >
       <ul className="flex snap-x gap-4 pb-3">
         {upcoming.cards.map((card, index) => (
           <li
             key={index}
-            className="w-60 shrink-0 snap-start rounded-2xl border border-accent bg-accent-soft p-4"
+            className="w-60 shrink-0 snap-start rounded-2xl bg-surface p-4"
           >
-            <p className="text-sm font-semibold text-accent-text">
-              {card.date}
-            </p>
+            <p className="text-sm font-semibold text-heading">{card.date}</p>
             <h3 className="mt-1 text-lg">{card.title}</h3>
             {card.location?.kind === "text" ? (
               <p className="mt-1 text-sm">{card.location.text}</p>
@@ -50,7 +48,7 @@ function Body({
               <a
                 href={card.location.href}
                 {...LINK_PROPS}
-                className="mt-1 inline-block text-sm underline"
+                className="mt-1 inline-block text-sm"
               >
                 Details
               </a>

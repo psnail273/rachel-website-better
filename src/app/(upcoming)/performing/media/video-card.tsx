@@ -22,7 +22,7 @@ export function VideoCard({ id, title }: { id: string; title: string }) {
       onClick={() => {
         setPlaying(true);
       }}
-      className="aspect-video w-full rounded-lg bg-gradient-to-br from-heading to-accent text-background flex flex-col items-center justify-center gap-3 p-4 hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2"
+      className="aspect-video w-full rounded-lg bg-poster text-on-image flex flex-col items-center justify-center gap-3 p-4 hover:opacity-90"
     >
       <svg
         aria-hidden="true"

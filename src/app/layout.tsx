@@ -11,15 +11,8 @@ const fraunces = localFont({
   ],
   weight: "100 900",
   variable: "--font-fraunces",
-});
-
-const sourceSans = localFont({
-  src: [
-    { path: "./fonts/SourceSans3-Variable.ttf", style: "normal" },
-    { path: "./fonts/SourceSans3-Italic-Variable.ttf", style: "italic" },
-  ],
-  weight: "200 900",
-  variable: "--font-source-sans",
+  fallback: ["Georgia", "serif"],
+  adjustFontFallback: "Times New Roman",
 });
 
 export const metadata: Metadata = {
@@ -30,10 +23,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${fraunces.variable} ${sourceSans.variable} antialiased`}
-    >
+    <html lang="en" className={`${fraunces.variable} antialiased`}>
       <body className="flex min-h-screen flex-col">
         <SiteHeader />
         <main className="flex-1 px-6 py-8">{children}</main>

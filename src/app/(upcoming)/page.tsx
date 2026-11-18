@@ -28,8 +28,8 @@ export default function Home() {
         className="absolute inset-0 bg-gradient-to-b from-[#2e1a47]/50 to-[#1f2a4d]/50"
       />
       <div className="relative px-6 text-center">
-        <h1 className="text-5xl text-background! sm:text-6xl">Rachel Siegel</h1>
-        <p className="mt-4 text-xl text-background">
+        <h1 className="text-5xl text-on-image sm:text-6xl">Rachel Siegel</h1>
+        <p className="mt-4 text-xl text-on-image">
           Licensed psychotherapist, clarinetist, recorder player
         </p>
       </div>

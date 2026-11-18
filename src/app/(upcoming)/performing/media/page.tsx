@@ -50,22 +50,13 @@ export default function MediaPage() {
               {recordings.map((title) => (
                 <li key={title} className="flex flex-wrap items-center gap-3">
                   <span>{title}</span>
-                  <span className="rounded-full border border-accent px-2 py-0.5 text-xs text-accent-text">
-                    Coming soon
-                  </span>
+                  <span className="text-muted">Coming soon</span>
                 </li>
               ))}
             </ul>
             <p>
               For access to the full Brahms Quintet performance, contact Rachel
-              via{" "}
-              <a
-                href={`mailto:${siteConfig.email}`}
-                className="underline underline-offset-4 hover:text-accent focus-visible:text-accent"
-              >
-                email
-              </a>
-              .
+              via <a href={`mailto:${siteConfig.email}`}>email</a>.
             </p>
           </section>
         </div>

@@ -5,8 +5,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import type { NavMenu } from "../../lib/navigation";
 
-const linkClass =
-  "block rounded px-3 py-2 hover:text-accent focus-visible:text-accent focus-visible:outline-2 focus-visible:outline-accent";
+const linkClass = "block rounded px-3 py-2 hover:text-accent";
 
 export function NavDropdown({ menu }: { menu: NavMenu }) {
   const [open, setOpen] = useState(false);
@@ -101,7 +100,7 @@ export function NavDropdown({ menu }: { menu: NavMenu }) {
         }}
         onKeyDown={onTabKeyDown}
         onKeyUp={onTabKeyUp}
-        className="cursor-pointer rounded px-3 py-2 hover:text-accent focus-visible:text-accent focus-visible:outline-2 focus-visible:outline-accent"
+        className="cursor-pointer rounded px-3 py-2 hover:text-accent"
       >
         {menu.label} <span aria-hidden="true">▾</span>
       </button>
@@ -110,7 +109,7 @@ export function NavDropdown({ menu }: { menu: NavMenu }) {
           ref={listRef}
           id={listId}
           onKeyDown={onListKeyDown}
-          className="absolute right-0 z-10 mt-1 min-w-48 rounded-md border border-accent-soft bg-background p-1 shadow-md"
+          className="absolute right-0 z-10 mt-1 min-w-48 rounded-md border border-line-strong bg-surface p-1 shadow-md"
         >
           {menu.links.map((link) => (
             <li key={link.href}>

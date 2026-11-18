@@ -11,8 +11,7 @@ import {
 } from "../../lib/navigation";
 import type { NavMenu } from "../../lib/navigation";
 
-const linkClass =
-  "block rounded px-3 py-2 hover:text-accent focus-visible:text-accent focus-visible:outline-2 focus-visible:outline-accent";
+const linkClass = "block rounded px-3 py-2 hover:text-accent";
 
 export function MobileMenu() {
   const [open, setOpen] = useState(false);
@@ -66,7 +65,7 @@ export function MobileMenu() {
           }
           setOpen((wasOpen) => !wasOpen);
         }}
-        className="flex cursor-pointer flex-col gap-1 rounded px-3 py-3 hover:text-accent focus-visible:outline-2 focus-visible:outline-accent"
+        className="flex cursor-pointer flex-col gap-1 rounded px-3 py-3 hover:text-accent"
       >
         <span aria-hidden="true" className="block h-0.5 w-5 bg-current" />
         <span aria-hidden="true" className="block h-0.5 w-5 bg-current" />
@@ -75,7 +74,7 @@ export function MobileMenu() {
       {open ? (
         <div
           id={panelId}
-          className="absolute inset-x-0 top-full z-10 border-b border-accent-soft bg-background p-2 shadow-md"
+          className="absolute inset-x-0 top-full z-10 border-b border-line bg-bg p-2 shadow-md"
         >
           <Link href={homeLink.href} className={linkClass} onClick={close}>
             {homeLink.label}
