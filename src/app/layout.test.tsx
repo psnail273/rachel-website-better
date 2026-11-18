@@ -34,7 +34,34 @@ async function renderPage(): Promise<Document> {
   return new DOMParser().parseFromString(html, "text/html");
 }
 
+function sortedAttributes(element: Element | null | undefined) {
+  return Array.from(element?.attributes ?? [], (attribute) => [
+    attribute.name,
+    attribute.value,
+  ]).sort(([a], [b]) => (a < b ? -1 : 1));
+}
+
 describe("RootLayout", () => {
+  it("puts a Skip to content link first, targeting main", async () => {
+    const doc = await renderPage();
+    const skip = doc.body.firstElementChild;
+    const firstFocusable = doc.querySelector(
+      'a[href], button, input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    );
+
+    expect(skip?.tagName).toBe("A");
+    expect(sortedAttributes(skip)).toEqual([
+      ["data-skip-link", ""],
+      ["href", "#main"],
+    ]);
+    expect(skip?.textContent).toBe("Skip to content");
+    expect(sortedAttributes(doc.querySelector("main"))).toEqual([
+      ["id", "main"],
+      ["tabindex", "-1"],
+    ]);
+    expect(firstFocusable).toBe(skip);
+  });
+
   it("wraps every page in the header and the footer", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2031-06-15T12:00:00Z"));
@@ -42,6 +69,7 @@ describe("RootLayout", () => {
     const doc = await renderPage();
 
     expect(Array.from(doc.body.children).map((el) => el.tagName)).toEqual([
+      "A",
       "HEADER",
       "MAIN",
       "FOOTER",
@@ -74,7 +102,10 @@ describe("RootLayout", () => {
         (el) => el?.querySelectorAll("[data-shell]").length,
       ),
     ).toEqual([1, 1, 1]);
-    expect(main?.attributes.length).toBe(0);
+    expect(sortedAttributes(main)).toEqual([
+      ["id", "main"],
+      ["tabindex", "-1"],
+    ]);
     expect(main?.children.length).toBe(1);
     expect(mainShell?.hasAttribute("data-shell")).toBe(true);
     expect(mainShell?.textContent).toBe("page body");

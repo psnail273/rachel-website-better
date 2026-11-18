@@ -259,7 +259,7 @@ describe("MobileMenu", () => {
       .filter((type) => type !== "selectionchange");
     const windowTypes = windowSpy.mock.calls.map((call) => call[0]);
     expect(documentTypes).toEqual(["pointerdown", "pointerdown"]);
-    expect(windowTypes).toEqual([]);
+    expect(windowTypes).toEqual(["scroll"]);
   });
 
   it("the menu's Contact link to /contact leaves prefetch on", () => {
