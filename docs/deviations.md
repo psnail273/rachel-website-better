@@ -18,3 +18,11 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - **Reason:** undeclared, a side effect of pnpm's peer resolution.
 - **Ruling:** accept.
 - **Reasoning:** both versions were already locked at the base (c6dd194), no package is added beyond the three named, and R8 holds (the Verifier passed it). Every gate step passes with it.
+
+## #27 996ce90: green Verifier FAIL on the Measure and Board design lines; two class-constant survivors
+
+- Issue: #27 (design tokens: blush and evergreen palettes, Fraunces type roles, space tokens). Commit: 996ce90.
+- What deviated: the green Verifier FAILed two design lines. **Measure:** the /therapy/services body runs 83–90 characters a line at 1280 px, because `max-w-3xl` (services/page.tsx:58) is unchanged from base. **Board:** no page matches its Board layout (hero buttons, footer band, square Upcoming cards, photo frame, list panel, centred pull quote). Mutate also left two StringLiteral survivors: the `linkClass` constants at mobile-menu.tsx:14 and nav-dropdown.tsx:8, blanked to `""`.
+- Reason: outside this brief. The brief's Constraints say "Class swaps, with no layout redesign" and name #53 for the layout. The survivors are class strings that no test reads, and the brief's Mutants constraint foresaw them.
+- Ruling: Measure and Board: overruled. These lines belong to #53 (PageShell, Prose at `--measure`) and the Spec's page slices ("their own redesign is in the page slices"). The Verifier passed every criterion, test, rule and token line. Survivors: driver's call: out of reach.
+- Reasoning: fixing either design line would add layout work that #53 and the page slices already own, so overruling them changes no criterion of this brief. The Services measure was already a follow-up noted at #51's close. A test that pinned the menu links' Tailwind class strings would pin presentation and not behaviour, and the dropdown and menu are redesigned in their own slices. The FAIL has every line overruled, so it counts as a PASS.
