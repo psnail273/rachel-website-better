@@ -375,9 +375,9 @@ describe("MediaPage", () => {
     ]);
     expect(items.map((li) => attrs(li.children[0]))).toEqual([{}, {}, {}]);
     expect(items.map((li) => li.children[0].textContent)).toEqual([
-      "Brahms Clarinet Quintet, mvmt. 3",
-      "Brahms Clarinet Quintet, mvmt. 4",
-      "Chamber Music St. Louis radio broadcast, September 2025",
+      "Brahms Clarinet Quintet, mvmt.\u00A03",
+      "Brahms Clarinet Quintet, mvmt.\u00A04",
+      "Chamber Music St. Louis radio broadcast, September\u00A02025",
     ]);
     expect(items.map((li) => attrs(li.children[1]))).toEqual([
       { "data-status": "" },
@@ -404,7 +404,7 @@ describe("MediaPage", () => {
     expect(p?.tagName).toBe("P");
     expect(attrs(p)).toEqual({});
     expect(p?.textContent).toBe(
-      "For access to the full Brahms Quintet performance, contact Rachel via email.",
+      "For access to the full Brahms Quintet performance, contact Rachel via\u00A0email.",
     );
     expect(tags(p)).toEqual(["A"]);
     expect(links).toHaveLength(1);
