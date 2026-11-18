@@ -50,3 +50,10 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: no test reads Tailwind class strings. The green Verifier judged the footer's styling against design.md §6 and the Board instead, and passed it.
 - Ruling: driver's call: out of reach.
 - Reasoning: a test that pinned the class strings would pin presentation, not behaviour. This is the same ruling as #28's link-class survivors.
+## #33 2537e9c: the two message-state tests share their assertions in a helper
+
+- Issue: #33 (Upcoming cards with one-line dates and Previous/Next arrows). Commit: 2537e9c.
+- What deviated: the deviation step found an assert-drop in `UpcomingStrip.says_none_are_scheduled_when_no_events_are_upcoming` and in `UpcomingStrip.shows_the_fallback_message_and_a_calendar_link_when_no_events_are_available`. Each went from 4 assertion calls at the base to 1 at HEAD.
+- Reason: undeclared. Both tests now call one helper, `expectMessageState` (`upcoming-strip.test.tsx:166`). The helper holds 8 assertion calls: the section's children, the centred Prose, its two `p`s, the one calendar link, and no `ul`, `li`, `button` or region. The probe counts only the calls written in each test's own body.
+- Ruling: driver's call: accept. The brief gains `asserts` lines for both tests (4 → 1) and is resealed.
+- Reasoning: nothing was dropped. Every check from the base, and the ones the brief added, still runs in both states through the helper, and the brief's bullets for those tests are pinned in full. A fix round would only copy the helper's body into the two tests.
