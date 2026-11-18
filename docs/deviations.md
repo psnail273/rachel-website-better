@@ -42,3 +42,11 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: undeclared. The Editor flagged it in its final message. The brief asked for an `on-image` ring on the footer links' `:focus-visible`, which the test forbids components to set.
 - Ruling: reject. A counted green fix round replaces it: the `footer` sets `[--accent:var(--on-image)]`, and the global `:focus-visible` rule draws the ring in `on-image` inside the band. The brief's Constraint is corrected and resealed.
 - Reasoning: getting past a test's regex works around a gate, which the factory never allows. Re-scoping the token keeps design.md §5's `on-image` ring in the footer, and the ring still comes from the one global rule, as #27's test intends. The brief's wording caused the clash, so it is fixed with the round.
+
+## #30 39f74d0: two surviving class-string mutants in the footer
+
+- Issue: #30 (full footer). Commit: 39f74d0.
+- What deviated: mutate left two StringLiteral survivors in `src/app/_components/site-footer.tsx`: `linkClass` (line 12) and `labelClass` (line 13), each blanked to `""`.
+- Reason: no test reads Tailwind class strings. The green Verifier judged the footer's styling against design.md §6 and the Board instead, and passed it.
+- Ruling: driver's call: out of reach.
+- Reasoning: a test that pinned the class strings would pin presentation, not behaviour. This is the same ruling as #28's link-class survivors.
