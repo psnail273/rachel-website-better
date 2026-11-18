@@ -57,7 +57,7 @@ export function SiteHeader() {
             <span data-nav-label="">{contactLink.label}</span>
           </Link>
         </nav>
-        <MobileMenu />
+        <MobileMenu pathname={pathname} />
       </PageShell>
     </header>
   );
