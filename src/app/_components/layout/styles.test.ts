@@ -339,6 +339,7 @@ describe("layout styles", () => {
       "(upcoming)/performing/media/video-card.tsx",
       "contact/page.tsx",
       "layout.tsx",
+      "not-found.tsx",
       "therapy/about/page.tsx",
       "therapy/education-and-training/page.tsx",
       "therapy/services/page.tsx",
