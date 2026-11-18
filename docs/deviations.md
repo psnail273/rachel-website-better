@@ -116,3 +116,11 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: the mutants are equivalent. The dialog and the Close button render only while the menu is open, and their refs attach before that commit's effect runs. The Menu button always renders, and the effect has no cleanup. The `?.` is there only because the ref types are nullable.
 - Ruling: driver's call: out of reach.
 - Reasoning: no test can tell the mutants apart from the original. The green Verifier judged them equivalent.
+
+## #36 ab93ca8: seven surviving mutants on the About Me specialisations
+
+- Issue: #36 (About Me photo page). Commit: ab93ca8.
+- What deviated: mutate left `SPECIALTIES` → `[]` and each of its six strings → `""` alive (`src/app/therapy/about/page.tsx:21`-`27`).
+- Reason: these are false survivors from the per-test coverage artefact in `docs/agents/facts.md` (the page module loads lazily inside a test, so its constants count as covered by one test only). `page.test.tsx:172` asserts the list items exactly, so it would kill every one of them.
+- Ruling: driver's call: out of reach.
+- Reasoning: the green Verifier judged all seven false survivors. The fix belongs to the test harness: load the page at the test file's top level. That is a follow-up, not this slice's work.
