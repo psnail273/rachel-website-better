@@ -248,9 +248,25 @@ describe("layout components", () => {
       ["DIV", "DIV"],
       ["DIV", "DIV"],
     ]);
-    expect(kids(pair).map(attrs)).toEqual([{}, {}]);
-    expect(kids(pair).map((el) => tags(kids(el)))).toEqual([["P"], ["P"]]);
-    expect(kids(pair).map((el) => el.textContent)).toEqual(["a", "b"]);
+    expect([pair, label, run].map((el) => kids(el).map(attrs))).toEqual([
+      [{}, {}],
+      [{}, {}],
+      [{}, {}],
+    ]);
+    expect(
+      [pair, label, run].map((el) => kids(el).map((k) => tags(kids(k)))),
+    ).toEqual([
+      [["P"], ["P"]],
+      [["P"], ["P"]],
+      [["P"], ["P"]],
+    ]);
+    expect(
+      [pair, label, run].map((el) => kids(el).map((k) => k.textContent)),
+    ).toEqual([
+      ["a", "b"],
+      ["a", "b"],
+      ["a", "b"],
+    ]);
     expect(three).not.toContain(">c<");
   });
 
