@@ -13,7 +13,7 @@ export function PageShell({ children, className }: WithChildren): ReactNode {
   );
 }
 
-export type SectionProps = { children?: ReactNode } & (
+export type SectionProps = { children?: ReactNode; bleed?: boolean } & (
   { labelledBy: string; label?: never } | { label: string; labelledBy?: never }
 );
 

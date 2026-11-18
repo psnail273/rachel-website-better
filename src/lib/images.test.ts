@@ -41,6 +41,19 @@ describe("images", () => {
     });
   });
 
+  it("draws the hero placeholder as the design's dusk-lake illustration", () => {
+    const root = join(import.meta.dirname, "..", "..");
+    const publicFile = join(root, "public", "images", "hero-mountain-lake.svg");
+    const design = readFileSync(
+      join(root, "docs", "design", "hero-dusk-lake.svg"),
+      "utf-8",
+    );
+    const placeholder = existsSync(publicFile)
+      ? readFileSync(publicFile, "utf-8")
+      : "";
+    expect(placeholder).toBe(design);
+  });
+
   it("points every src at a file in public", () => {
     const missing = keys.filter(
       (key) =>

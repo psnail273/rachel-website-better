@@ -380,6 +380,31 @@ describe("layout components", () => {
     ]);
   });
 
+  it("renders data-bleed on a Section only when it bleeds", () => {
+    const bleeding = render(
+      <Section bleed labelledBy="hero-heading">
+        x
+      </Section>,
+    );
+    const plain = render(
+      <Section bleed={false} label="Upcoming">
+        x
+      </Section>,
+    );
+
+    expect(bleeding?.tagName).toBe("SECTION");
+    expect(attrs(bleeding)).toEqual({
+      "data-section": "",
+      "data-bleed": "",
+      "aria-labelledby": "hero-heading",
+    });
+    expect(plain?.tagName).toBe("SECTION");
+    expect(attrs(plain)).toEqual({
+      "data-section": "",
+      "aria-label": "Upcoming",
+    });
+  });
+
   it("composes PhotoPage as Section > Sidebar lead", () => {
     const page = render(
       <PhotoPage
