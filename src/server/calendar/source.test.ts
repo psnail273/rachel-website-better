@@ -1,8 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { openEventsCache } from "./cache";
 import type { CalendarEvent } from "./events";
-import { feedUrls, loadEvents, type FetchFeed } from "./source";
+import { feedUrls, fetchFeed, loadEvents, type FetchFeed } from "./source";
 
 const A = "https://calendar.example/a.ics";
 const B = "https://calendar.example/b.ics";
@@ -326,5 +326,28 @@ describe("loadEvents", () => {
       available: true,
     });
     expect(fake.calls).toEqual([[A], [B]]);
+  });
+});
+
+describe("fetchFeed", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("fetches the url once with a 10 second timeout signal and returns the response", async () => {
+    const response = new Response("body", { status: 200 });
+    const fake = vi.fn(() => Promise.resolve(response));
+    vi.stubGlobal("fetch", fake);
+    const timeoutSignal = AbortSignal.timeout(10_000);
+    const timeout = vi
+      .spyOn(AbortSignal, "timeout")
+      .mockReturnValue(timeoutSignal);
+
+    const result = await fetchFeed(A);
+
+    expect(result).toBe(response);
+    expect(timeout).toHaveBeenCalledExactlyOnceWith(10_000);
+    expect(fake).toHaveBeenCalledExactlyOnceWith(A, { signal: timeoutSignal });
+    timeout.mockRestore();
   });
 });

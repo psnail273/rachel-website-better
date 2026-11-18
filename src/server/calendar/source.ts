@@ -3,6 +3,11 @@ import { parseIcs, type CalendarEvent } from "./events";
 
 export type FetchFeed = (url: string) => Promise<Response>;
 
+export const FEED_TIMEOUT_MS = 10_000;
+
+export const fetchFeed: FetchFeed = (url) =>
+  fetch(url, { signal: AbortSignal.timeout(FEED_TIMEOUT_MS) });
+
 export type EventsResult = { events: CalendarEvent[]; available: boolean };
 
 export function feedUrls(

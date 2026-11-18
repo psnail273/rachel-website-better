@@ -3,10 +3,8 @@ import type { ReactNode } from "react";
 import { siteConfig } from "../../lib/site-config";
 import { eventsCachePath, openEventsCache } from "../../server/calendar/cache";
 import { buildEventCards } from "../../server/calendar/events";
-import { feedUrls, loadEvents } from "../../server/calendar/source";
+import { feedUrls, fetchFeed, loadEvents } from "../../server/calendar/source";
 import { UpcomingStrip, type Upcoming } from "../_components/upcoming-strip";
-
-const FEED_TIMEOUT_MS = 10_000;
 
 async function loadUpcoming(): Promise<Upcoming> {
   "use cache";
@@ -18,7 +16,7 @@ async function loadUpcoming(): Promise<Upcoming> {
         siteConfig.calendarFeeds.map((feed) => feed.icsUrl),
         process.env,
       ),
-      (url) => fetch(url, { signal: AbortSignal.timeout(FEED_TIMEOUT_MS) }),
+      fetchFeed,
       cache,
     );
     return { cards: buildEventCards(events, new Date()), available };
