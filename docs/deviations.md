@@ -92,3 +92,27 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: those parts are outside #28's scope list and its diff (the header, the skip link and the dropdowns). The header itself matches the Board and wraps nowhere at 390, 768, 1280 or 1920 px.
 - Ruling: driver's call: out of reach.
 - Reasoning: fixing them would mean editing files another slice owns. It is the same scoping #33's design check used. They stay with the slices that rebuild those parts.
+
+## #29 784e8c7: query helpers return stand-ins instead of throwing
+
+- Issue: #29 (full-screen mobile menu). Commit: 784e8c7.
+- What deviated: the brief's fixture asked for query helpers that throw when nothing is found. `only`, `childAt`, `dialogById` and `linkNamed` in `src/app/_components/mobile-menu.test.tsx` return a detached stand-in element (`div`, `dialog` or `a`) instead.
+- Reason: the red gate refuses a test that fails with a thrown error (ERROR) rather than an assertion (FAILURE), so a throwing helper could never go red against the unchanged product.
+- Ruling: driver's call: accepted.
+- Reasoning: the brief's intent holds. Every `expect` stays in a test body, and a missing element fails the test's own comparing `expect`. The red Verifier checked that no stand-in can make a test pass falsely: a stand-in dialog isn't open, a stand-in link has no `href`, and a keyDown on a stand-in isn't prevented.
+
+## #29 01ec1ad: the menu stays modal when the window widens past 48rem
+
+- Issue: #29. Commit: 01ec1ad.
+- What deviated: the menu can be open when the window widens past 48rem, such as a tablet rotated to landscape. The root's `md:hidden` then hides the dialog, but it stays modal and keeps the page behind inert until it is closed (Escape still closes it).
+- Reason: raised as a note in the last brief review. No acceptance criterion covers it, and closing on that change would need a `matchMedia` listener the brief doesn't have.
+- Ruling: driver's call: out of reach for this issue; a follow-up.
+- Reasoning: it falls outside #29's criteria and only shows when the window is resized with the menu open. The close comment names it as a follow-up.
+
+## #29 01ec1ad: three surviving optional-chaining mutants on refs
+
+- Issue: #29. Commit: 01ec1ad.
+- What deviated: mutate left `dialogRef.current?.showModal`, `closeRef.current?.focus` and `buttonRef.current?.focus` → `.` alive (`src/app/_components/mobile-menu.tsx:43`, `:44`, `:46`).
+- Reason: the mutants are equivalent. The dialog and the Close button render only while the menu is open, and their refs attach before that commit's effect runs. The Menu button always renders, and the effect has no cleanup. The `?.` is there only because the ref types are nullable.
+- Ruling: driver's call: out of reach.
+- Reasoning: no test can tell the mutants apart from the original. The green Verifier judged them equivalent.
