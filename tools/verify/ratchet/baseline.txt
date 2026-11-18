@@ -25,7 +25,4 @@ src/app/therapy/about/page.test.tsx @typescript-eslint/no-unnecessary-condition 
 src/app/therapy/about/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
 src/app/therapy/about/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
 src/app/therapy/services/page.test.tsx @typescript-eslint/no-unnecessary-condition Unnecessary optional chain on a non-nullish value.
-src/server/calendar/events.ts @typescript-eslint/restrict-template-expressions Invalid type "number" of template literal expression.
-src/server/calendar/events.ts @typescript-eslint/restrict-template-expressions Invalid type "number" of template literal expression.
-src/server/calendar/events.ts @typescript-eslint/restrict-template-expressions Invalid type "number" of template literal expression.
 src/server/calendar/source.test.ts @typescript-eslint/no-unnecessary-condition Unnecessary conditional, the types have no overlap.
