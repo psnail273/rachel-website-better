@@ -67,3 +67,11 @@ Engine and library facts that briefs rely on, each with the probe that showed it
 ## Link prefetch (Next.js 16.4.6)
 
 - Under Vitest, `next/link` resolves to `node_modules/next/dist/client/link.js` and renders `prefetch={false}` and the default identically (`<a href="/contact">C</a>`); its `onMouseEnter`/`onTouchStart` prefetch ignores the prop, and `prefetchEnabled` gates only the viewport prefetch, which runs only in production with a router. So no rendered output under Vitest shows the prop: a test of it reads the component's source. In a production build (`next start`), loading `/` fetches `/contact?_rsc=...` for an in-viewport Link. Probe: scratch Vitest file, `link.js:145`, `:309-330`, `:356-375`; Playwright on `next start`. (#20)
+
+## Design tokens in CSS (Tailwind 4.3.3, Next.js 16.4.6, StrykerJS 10.1.1)
+
+- Under `@tailwindcss/turbopack`, `--bg: light-dark(#f6e4e6, #17302a)` in `:root` compiles to `var(--lightningcss-light, #f6e4e6) var(--lightningcss-dark, #17302a)`, with `color-scheme: light dark` kept and an `@media (prefers-color-scheme: dark)` block that swaps the two switch variables: the system setting picks the palette with no script. Probe: scratch `next build` of #27's worktree, `grep` of `.next/static/chunks/*.css`; reverted. (#27)
+- The same build: `@theme inline { --color-bg: var(--bg); --spacing-flow: var(--space-flow) }` gives `.bg-bg { background-color: var(--bg) }` and `.gap-flow { gap: var(--space-flow) }`; `@utility type-h2 { ... }` gives a `.type-h2` utility with `font-variation-settings` quotes kept; rules in `@layer base` lose to every utility, while unlayered rules (the old `h1, h2, h3`) beat them. (#27)
+- `next/font/local` takes `fallback` (array of family names) and `adjustFontFallback` (`"Arial"`, `"Times New Roman"` or `false`): `node_modules/next/dist/docs/01-app/03-api-reference/02-components/font.md`, lines 93-94, 198-222. (#27)
+- The WCAG 2.x formula on `docs/design.md` §1's hex values, rounded with `Math.round(r * 10) / 10`, gives every pair of its ratio table exactly as printed (accent on bg 6.001 -> 6.0). (#27)
+- StrykerJS 10.1.1's StringLiteral mutator skips a string whose parent is a JSX attribute (`className="..."`) but mutates a string constant (`isValidParent` in the instrumenter's `string-literal-mutator.js`): a changed class constant can survive when no test reads classes. (#27)
