@@ -332,13 +332,13 @@ function formatDay(day: number): { month: number; d: number; year: number } {
 
 function formatRange(first: number, last: number): string {
   const a = formatDay(first);
-  const startText = `${MONTHS[a.month] ?? ""} ${a.d}`;
+  const startText = `${MONTHS[a.month] ?? ""} ${String(a.d)}`;
   if (last <= first) return startText;
   const b = formatDay(last);
   if (a.month === b.month && a.year === b.year) {
-    return `${startText}–${b.d}`;
+    return `${startText}–${String(b.d)}`;
   }
-  return `${startText}–${MONTHS[b.month] ?? ""} ${b.d}`;
+  return `${startText}–${MONTHS[b.month] ?? ""} ${String(b.d)}`;
 }
 
 function toCardLocation(location: string | null): CardLocation | null {
