@@ -55,18 +55,18 @@ const FIXTURE =
 
 const THREE_CARDS = [
   [
-    ["P", "Nov 22"],
-    ["H3", "American Kantorei Performance"],
-    ["P", "Concordia Seminary, St. Louis"],
+    ["P", "22\u00a0November"],
+    ["H3", "American\u00a0Kantorei Performance"],
+    ["P", "Concordia Seminary, St.\u00a0Louis"],
   ],
   [
-    ["P", "Dec 4–5"],
-    ["H3", "Harry Potter in Concert"],
-    ["A", "Details"],
+    ["P", "4–5\u00a0December"],
+    ["H3", "Harry Potter in\u00a0Concert"],
+    ["A", "Details about Harry Potter in Concert"],
   ],
   [
-    ["P", "Mar 1"],
-    ["H3", "Chamber Music Society"],
+    ["P", "1\u00a0March"],
+    ["H3", "Chamber\u00a0Music Society"],
   ],
 ];
 

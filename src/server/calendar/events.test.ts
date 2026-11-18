@@ -201,7 +201,7 @@ describe("buildEventCards", () => {
       buildEventCards(events, new Date("2026-11-01T12:00:00.000Z")),
     ).toEqual([
       {
-        date: "Nov 7",
+        date: "7 November",
         title: "Harry Potter with the Nashville Symphony",
         location: {
           kind: "text",
@@ -219,7 +219,7 @@ describe("buildEventCards", () => {
     ];
     expect(
       buildEventCards(events, new Date("2026-10-10T12:00:00.000Z")),
-    ).toEqual([{ date: "Oct 10", title: "Still on", location: null }]);
+    ).toEqual([{ date: "10 October", title: "Still on", location: null }]);
   });
 
   it("sorts cards soonest first", () => {
@@ -231,9 +231,9 @@ describe("buildEventCards", () => {
     expect(
       buildEventCards(events, new Date("2026-10-01T12:00:00.000Z")),
     ).toEqual([
-      { date: "Oct 4", title: "A", location: null },
-      { date: "Oct 25", title: "B", location: null },
-      { date: "Nov 22", title: "C", location: null },
+      { date: "4 October", title: "A", location: null },
+      { date: "25 October", title: "B", location: null },
+      { date: "22 November", title: "C", location: null },
     ]);
   });
 
@@ -269,12 +269,12 @@ describe("buildEventCards", () => {
       buildEventCards(events, new Date("2026-10-01T12:00:00.000Z")),
     ).toEqual([
       {
-        date: "Oct 16–18",
+        date: "16–18 October",
         title: "Harry Potter with the Philadelphia orchestra",
         location: { kind: "link", href: url },
       },
       {
-        date: "Oct 25",
+        date: "25 October",
         title: "Collegium Vocale of St. Louis Concert",
         location: null,
       },
@@ -290,9 +290,9 @@ describe("buildEventCards", () => {
     expect(
       buildEventCards(events, new Date("2026-10-01T12:00:00.000Z")),
     ).toEqual([
-      { date: "Oct 16", title: "Concert", location: null },
-      { date: "Oct 18", title: "Concert", location: null },
-      { date: "Oct 19", title: "Recital", location: null },
+      { date: "16 October", title: "Concert", location: null },
+      { date: "18 October", title: "Concert", location: null },
+      { date: "19 October", title: "Recital", location: null },
     ]);
   });
 
@@ -303,7 +303,7 @@ describe("buildEventCards", () => {
     ];
     expect(
       buildEventCards(events, new Date("2026-10-01T12:00:00.000Z")),
-    ).toEqual([{ date: "Oct 16", title: "Concert", location: null }]);
+    ).toEqual([{ date: "16 October", title: "Concert", location: null }]);
   });
 
   it("shows both months for a run that crosses months", () => {
@@ -322,7 +322,11 @@ describe("buildEventCards", () => {
     expect(
       buildEventCards(events, new Date("2026-10-01T12:00:00.000Z")),
     ).toEqual([
-      { date: "Oct 31–Nov 1", title: "Halloween Pops", location: null },
+      {
+        date: "31 October – 1 November",
+        title: "Halloween Pops",
+        location: null,
+      },
     ]);
   });
 
@@ -357,7 +361,7 @@ describe("buildEventCards", () => {
       buildEventCards(events, new Date("2026-10-01T12:00:00.000Z")),
     ).toEqual([
       {
-        date: "Oct 4",
+        date: "4 October",
         title: "One",
         location: {
           kind: "link",
@@ -365,7 +369,7 @@ describe("buildEventCards", () => {
         },
       },
       {
-        date: "Oct 5",
+        date: "5 October",
         title: "Two",
         location: {
           kind: "text",
@@ -373,17 +377,21 @@ describe("buildEventCards", () => {
         },
       },
       {
-        date: "Oct 6",
+        date: "6 October",
         title: "Three",
         location: { kind: "text", text: "www.example.org" },
       },
-      { date: "Oct 7", title: "Four", location: null },
+      { date: "7 October", title: "Four", location: null },
     ]);
   });
 
   it("dates an all-day event by its own day", () => {
     const events = [allDay("Open Rehearsal", "2026-11-22", "2026-11-23")];
-    const card = { date: "Nov 22", title: "Open Rehearsal", location: null };
+    const card = {
+      date: "22 November",
+      title: "Open Rehearsal",
+      location: null,
+    };
     expect(
       buildEventCards(events, new Date("2026-11-22T12:00:00.000Z")),
     ).toEqual([card]);
@@ -399,7 +407,7 @@ describe("buildEventCards", () => {
     const events = [allDay("Festival", "2026-10-16", "2026-10-19")];
     expect(
       buildEventCards(events, new Date("2026-10-01T12:00:00.000Z")),
-    ).toEqual([{ date: "Oct 16–18", title: "Festival", location: null }]);
+    ).toEqual([{ date: "16–18 October", title: "Festival", location: null }]);
   });
 
   it("merges events from two feeds into one sorted list", () => {
@@ -425,14 +433,18 @@ describe("buildEventCards", () => {
       new Date("2026-10-01T12:00:00.000Z"),
     );
     expect(cards).toEqual([
-      { date: "Oct 4", title: "Early Music Missouri Concert", location: null },
       {
-        date: "Oct 25",
+        date: "4 October",
+        title: "Early Music Missouri Concert",
+        location: null,
+      },
+      {
+        date: "25 October",
         title: "Collegium Vocale of St. Louis Concert",
         location: null,
       },
       {
-        date: "Nov 22",
+        date: "22 November",
         title: "American Kantorei Performance",
         location: null,
       },

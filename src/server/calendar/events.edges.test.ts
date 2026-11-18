@@ -283,18 +283,18 @@ describe("buildEventCards edges", () => {
       );
     });
     const dates = [
-      "Jan 5",
-      "Feb 5",
-      "Mar 5",
-      "Apr 5",
-      "May 5",
-      "Jun 5",
-      "Jul 5",
-      "Aug 5",
-      "Sep 5",
-      "Oct 5",
-      "Nov 5",
-      "Dec 5",
+      "5 January",
+      "5 February",
+      "5 March",
+      "5 April",
+      "5 May",
+      "5 June",
+      "5 July",
+      "5 August",
+      "5 September",
+      "5 October",
+      "5 November",
+      "5 December",
     ];
     expect(buildEventCards(events, NOW)).toEqual(
       dates.map((date, i) => ({
@@ -350,16 +350,20 @@ describe("buildEventCards edges", () => {
       ),
     ];
     expect(buildEventCards(events, NOW)).toEqual([
-      { date: "Oct 4", title: "Empty", location: null },
+      { date: "4 October", title: "Empty", location: null },
     ]);
   });
 
   it("shows both months for a run across years", () => {
     expect(
       buildEventCards([allDay("New Year", "2026-12-31", "2027-01-02")], NOW),
-    ).toEqual([{ date: "Dec 31–Jan 1", title: "New Year", location: null }]);
+    ).toEqual([
+      { date: "31 December – 1 January", title: "New Year", location: null },
+    ]);
     expect(
       buildEventCards([allDay("Season", "2026-10-16", "2027-10-19")], NOW),
-    ).toEqual([{ date: "Oct 16–Oct 18", title: "Season", location: null }]);
+    ).toEqual([
+      { date: "16 October – 18 October", title: "Season", location: null },
+    ]);
   });
 });
