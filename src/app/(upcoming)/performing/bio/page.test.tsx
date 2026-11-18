@@ -54,6 +54,10 @@ function texts(nodes: Iterable<Element>): string[] {
   return Array.from(nodes, (node) => node.textContent);
 }
 
+function at(list: ArrayLike<Element>, index: number): Element | undefined {
+  return list[index];
+}
+
 function attributes(el: Element | null | undefined): Record<string, string> {
   return Object.fromEntries(
     Array.from(el?.attributes ?? [], (a) => [a.name, a.value]),
@@ -76,8 +80,8 @@ describe("BioPage", () => {
     const section = doc.body.firstElementChild;
     const sidebar = section?.firstElementChild;
     const parts = Array.from(sidebar?.children ?? []);
-    const head = parts[0];
-    const aside = parts[1];
+    const head = at(parts, 0);
+    const aside = at(parts, 1);
     const figure = aside?.firstElementChild;
     const heading = head?.firstElementChild;
     const image = figure?.firstElementChild;
@@ -153,7 +157,7 @@ describe("BioPage", () => {
   it("links the therapy section of this website to About Me", async () => {
     const doc = await renderPage();
     const links = Array.from(doc.querySelectorAll("a"));
-    const link = links[0];
+    const link = at(links, 0);
     const paragraphs = doc.querySelectorAll("[data-prose='start'] > p");
 
     expect(links).toHaveLength(1);
@@ -176,7 +180,8 @@ describe("BioPage", () => {
   it("shows the Upcoming strip below the bio in its group's layout", async () => {
     const { default: BioPage } = loadPage();
     const doc = await toDoc(await UpcomingLayout({ children: <BioPage /> }));
-    const [bio, upcoming] = Array.from(doc.body.children);
+    const bio = at(doc.body.children, 0);
+    const upcoming = at(doc.body.children, 1);
 
     expect(Array.from(doc.body.children, (el) => el.tagName)).toEqual([
       "SECTION",
