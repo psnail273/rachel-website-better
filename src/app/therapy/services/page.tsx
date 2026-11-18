@@ -1,5 +1,16 @@
 import type { Metadata } from "next";
-import { Stack } from "../../_components/layout/components";
+import {
+  Lead,
+  List,
+  Prose,
+  PullQuote,
+  Section,
+  SectionHeading,
+  Sidebar,
+  Stack,
+  Switcher,
+} from "../../_components/layout/components";
+import { tieLast } from "../../../lib/tie";
 
 export const metadata: Metadata = {
   title: "Services",
@@ -41,55 +52,71 @@ const perfectionism = [
   "Frequent and intense anxiety of being perceived negatively.",
 ];
 
-const h2Class = "font-serif text-2xl text-heading";
-
-function Items({ items }: { items: string[] }) {
-  return (
-    <Stack space="tight" as="ul" className="list-disc list-inside">
-      {items.map((item) => (
-        <li key={item}>{item}</li>
-      ))}
-    </Stack>
-  );
-}
-
 export default function ServicesPage() {
   return (
-    <Stack space="block" className="w-full max-w-3xl self-center">
-      <h1 className="font-serif text-4xl text-heading">Services</h1>
-      <p>
-        I provide individual therapy to adults and adolescents (aged 14 and up)
-        through a group practice, Wellness Alliance Counseling and
-        Psychotherapy. In-person therapy takes place at our office in Clayton,
-        MO. For telehealth, clients must be in Missouri or Illinois.
-      </p>
-      <Stack space="tight" as="figure">
-        <blockquote className="font-serif text-2xl italic">
-          {'And you may ask yourself, "Well, how did I get here?"'}
-        </blockquote>
-        <figcaption className="text-muted">— Talking Heads</figcaption>
-      </Stack>
-      <Stack space="tight" as="section">
-        <h2 className={h2Class}>You might be struggling with…</h2>
-        <Items items={struggling} />
-      </Stack>
-      <Stack space="tight" as="section">
-        <h2 className={h2Class}>Therapy may help you…</h2>
-        <Items items={help} />
-      </Stack>
-      <Stack space="tight" as="section">
-        <h2 className={h2Class}>A note on perfectionism…</h2>
-        <p>
-          {
-            "Contrary to common belief, perfectionism usually doesn't help us achieve our goals. More often, it keeps us small, distracted by the fear of making a mistake or seeming messy. Perfectionism can cause:"
+    <>
+      <Section labelledBy="services-heading">
+        <Sidebar
+          side="trail"
+          head={
+            <SectionHeading level={1} id="services-heading">
+              Services
+            </SectionHeading>
           }
-        </p>
-        <Items items={perfectionism} />
-        <p>
-          What if you could let that all go, and still be successful, loved and
-          accepted as you are?
-        </p>
-      </Stack>
-    </Stack>
+          aside={
+            <PullQuote
+              quote="And you may ask yourself, “Well, how did I get here?”"
+              caption="Talking Heads"
+            />
+          }
+        >
+          <Prose align="start">
+            <p>
+              {tieLast(
+                "I provide individual therapy to adults and adolescents (aged 14 and up) through a group practice, Wellness Alliance Counseling and Psychotherapy. In-person therapy takes place at our office in Clayton, MO. For telehealth, clients must be in Missouri or Illinois.",
+              )}
+            </p>
+          </Prose>
+        </Sidebar>
+      </Section>
+      <Section label="What therapy can help with">
+        <Switcher kind="pair">
+          <>
+            <SectionHeading level={2}>
+              You might be struggling with…
+            </SectionHeading>
+            <List variant="plain" items={struggling} />
+          </>
+          <>
+            <SectionHeading level={2}>Therapy may help you…</SectionHeading>
+            <List variant="plain" items={help} />
+          </>
+        </Switcher>
+      </Section>
+      <Section labelledBy="perfectionism-heading">
+        <SectionHeading level={2} id="perfectionism-heading">
+          A note on perfectionism…
+        </SectionHeading>
+        <Stack space="block">
+          <Switcher kind="run">
+            <Prose align="start">
+              <p>
+                {tieLast(
+                  "Contrary to common belief, perfectionism usually doesn’t help us achieve our goals. More often, it keeps us small, distracted by the fear of making a mistake or seeming messy. Perfectionism can cause:",
+                )}
+              </p>
+            </Prose>
+            <List variant="plain" items={perfectionism} />
+          </Switcher>
+          <Prose align="center">
+            <Lead>
+              {tieLast(
+                "What if you could let that all go, and still be successful, loved and accepted as you are?",
+              )}
+            </Lead>
+          </Prose>
+        </Stack>
+      </Section>
+    </>
   );
 }
