@@ -35,7 +35,7 @@ function texts(nodes: Iterable<Element>): string[] {
   return Array.from(nodes, (node) => node.textContent);
 }
 
-function attrs(el: Element | undefined): Record<string, string> {
+function attrs(el: Element | null | undefined): Record<string, string> {
   return Object.fromEntries(
     Array.from(el?.attributes ?? [], (a) => [a.name, a.value]),
   );
