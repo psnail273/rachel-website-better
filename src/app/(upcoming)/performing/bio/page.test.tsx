@@ -135,4 +135,22 @@ describe("BioPage", () => {
       "See the full calendar",
     ]);
   });
+
+  it("starts its heading at the column's left edge, not centred in it", async () => {
+    const doc = await renderPage();
+    const block = doc.body.firstElementChild;
+    const heading = block?.firstElementChild;
+
+    expect(doc.querySelectorAll("h1")).toHaveLength(1);
+    expect(heading?.tagName).toBe("H1");
+    expect(block?.getAttribute("class")?.split(" ").sort()).toEqual([
+      "max-w-5xl",
+      "w-full",
+    ]);
+    expect(heading?.getAttribute("class")?.split(" ").sort()).toEqual([
+      "font-serif",
+      "text-4xl",
+      "text-heading",
+    ]);
+  });
 });
