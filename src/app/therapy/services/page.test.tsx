@@ -73,7 +73,7 @@ describe("ServicesPage", () => {
     expect(attrs(head)).toEqual({ "data-sidebar-head": "" });
     expect(attrs(body)).toEqual({ "data-sidebar-body": "" });
     expect(attrs(slot)).toEqual({ "data-sidebar-aside": "" });
-    expect(head.children).toHaveLength(1);
+    expect(head?.children).toHaveLength(1);
     expect(h1?.tagName).toBe("H1");
     expect(attrs(h1)).toEqual({
       "data-heading": "1",
@@ -87,7 +87,7 @@ describe("ServicesPage", () => {
     expect(attrs(prose)).toEqual({ "data-prose": "start" });
     expect(tags(prose?.children)).toEqual(["P"]);
     expect(kid(prose, 0)?.textContent).toBe(
-      `I provide individual therapy to adults and adolescents (aged 14 and up) through a group practice, Wellness Alliance Counseling and${NBSP}Psychotherapy. In-person therapy takes place at our office in Clayton, MO. For telehealth, clients must be in Missouri or${NBSP}Illinois.`,
+      `I provide individual therapy to adults and adolescents (aged 14 and up) through a group practice, Wellness Alliance Counseling and Psychotherapy. In-person therapy takes place at our office in Clayton, MO. For telehealth, clients must be in Missouri or${NBSP}Illinois.`,
     );
     expect(slot.children).toHaveLength(1);
     expect(figure?.tagName).toBe("FIGURE");
@@ -110,9 +110,9 @@ describe("ServicesPage", () => {
     const halves = Array.from(pair?.children ?? []);
 
     expect(texts(doc.querySelectorAll("h2"))).toEqual([
-      "You might be struggling with…",
-      "Therapy may help you…",
-      "A note on perfectionism…",
+      `You might be struggling${NBSP}with…`,
+      `Therapy may help${NBSP}you…`,
+      `A note on${NBSP}perfectionism…`,
     ]);
     expect(attrs(second)).toEqual({
       "data-section": "",
@@ -135,32 +135,32 @@ describe("ServicesPage", () => {
       { "data-list": "plain", class: "type-list" },
     ]);
     expect(at(halves, 0)?.children[0]?.textContent).toBe(
-      "You might be struggling with…",
+      `You might be struggling${NBSP}with…`,
     );
     expect(texts(at(halves, 0)?.querySelectorAll("li") ?? [])).toEqual([
-      "Identity development",
-      "Anxiety and stress management",
-      "Maladaptive perfectionism",
-      "Self-doubt and imposter syndrome",
-      "Depression or burnout",
-      "Disordered eating and body image concerns",
-      "Work-life balance",
-      `Relationship issues/${ZWSP}setting boundaries`,
+      `Identity development`,
+      `Anxiety and stress${NBSP}management`,
+      `Maladaptive perfectionism`,
+      `Self-doubt and imposter${NBSP}syndrome`,
+      `Depression${NBSP}or burnout`,
+      `Disordered eating and body image${NBSP}concerns`,
+      `Work-life balance`,
+      `Relationship issues/${ZWSP}setting${NBSP}boundaries`,
     ]);
     expect(at(halves, 1)?.children[0]?.textContent).toBe(
-      "Therapy may help you…",
+      `Therapy may help${NBSP}you…`,
     );
     expect(texts(at(halves, 1)?.querySelectorAll("li") ?? [])).toEqual([
-      "Manage stress and anxiety",
-      "Reframe unhelpful beliefs",
-      "Develop greater self worth and self-confidence",
-      "Cope with uncomfortable emotions and situations",
-      "Increase compassion for yourself and others",
-      "Develop self-care strategies",
-      "Learn and set healthier boundaries in relationships and with work",
-      "Move through creative or career blocks with clarity",
+      `Manage stress and${NBSP}anxiety`,
+      `Reframe${NBSP}unhelpful beliefs`,
+      `Develop greater self worth and${NBSP}self-confidence`,
+      `Cope with uncomfortable emotions and${NBSP}situations`,
+      `Increase compassion for yourself and${NBSP}others`,
+      `Develop${NBSP}self-care strategies`,
+      `Learn and set healthier boundaries in relationships and with${NBSP}work`,
+      `Move through creative or career blocks with${NBSP}clarity`,
       `Explore identity outside of work/${ZWSP}art/achievement`,
-      `Create work/${ZWSP}performances that have meaning and purpose.`,
+      `Create work/${ZWSP}performances that have meaning and${NBSP}purpose.`,
     ]);
   });
 
@@ -186,7 +186,7 @@ describe("ServicesPage", () => {
       id: "perfectionism-heading",
       class: "type-h2",
     });
-    expect(h2?.textContent).toBe("A note on perfectionism…");
+    expect(h2?.textContent).toBe(`A note on${NBSP}perfectionism…`);
     expect(attrs(stack)).toEqual({ "data-stack": "block" });
     expect(tags(stack?.children)).toEqual(["DIV", "DIV"]);
     expect(attrs(run)).toEqual({ "data-switcher": "run" });
@@ -197,17 +197,17 @@ describe("ServicesPage", () => {
     expect(attrs(prose)).toEqual({ "data-prose": "start" });
     expect(tags(prose?.children)).toEqual(["P"]);
     expect(kid(prose, 0)?.textContent).toBe(
-      `Contrary to common belief, perfectionism usually doesn\u2019t help us achieve our goals. More often, it keeps us small, distracted by the fear of making a mistake or seeming${NBSP}messy. Perfectionism can${NBSP}cause:`,
+      `Contrary to common belief, perfectionism usually doesn\u2019t help us achieve our goals. More often, it keeps us small, distracted by the fear of making a mistake or seeming messy. Perfectionism can${NBSP}cause:`,
     );
     expect(at(halves, 1)?.children).toHaveLength(1);
     expect(list?.tagName).toBe("UL");
     expect(attrs(list)).toEqual({ "data-list": "plain", class: "type-list" });
     expect(texts(list?.querySelectorAll("li"))).toEqual([
-      "Procrastination",
-      "Shame",
+      `Procrastination`,
+      `Shame`,
       `Shutting down when${NBSP}emotional`,
-      `Imposter${NBSP}syndrome`,
-      `Obsession with${NBSP}achievement`,
+      `Imposter syndrome`,
+      `Obsession${NBSP}with achievement`,
       `Chronic stress and${NBSP}burnout`,
       `Frequent and intense anxiety of being perceived${NBSP}negatively.`,
     ]);
