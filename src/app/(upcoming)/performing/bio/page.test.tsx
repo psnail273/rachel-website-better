@@ -34,7 +34,7 @@ afterEach(() => {
   rmSync(folder, { recursive: true, force: true });
 });
 
-async function loadPage(): Promise<PageModule> {
+function loadPage(): Promise<PageModule> {
   expect(page).toBeDefined();
   return page;
 }
@@ -46,7 +46,7 @@ async function toDoc(element: ReactElement): Promise<Document> {
 }
 
 async function renderPage(): Promise<Document> {
-  const { default: BioPage } = await loadPage();
+  const { default: BioPage } = loadPage();
   return toDoc(<BioPage />);
 }
 
@@ -109,8 +109,8 @@ describe("BioPage", () => {
     ]);
   });
 
-  it("has its own title and meta description", async () => {
-    const { metadata } = await loadPage();
+  it("has its own title and meta description", () => {
+    const { metadata } = loadPage();
 
     expect(metadata).toStrictEqual({
       title: "Bio",
@@ -120,7 +120,7 @@ describe("BioPage", () => {
   });
 
   it("shows the Upcoming strip below the bio in its group's layout", async () => {
-    const { default: BioPage } = await loadPage();
+    const { default: BioPage } = loadPage();
     const doc = await toDoc(await UpcomingLayout({ children: <BioPage /> }));
 
     expect(Array.from(doc.body.children, (el) => el.tagName)).toEqual([
