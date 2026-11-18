@@ -55,6 +55,36 @@ describe("RootLayout", () => {
     );
   });
 
+  it("puts one PageShell in the header, in main and in the footer", async () => {
+    const doc = await renderPage();
+    const header = doc.querySelector("header");
+    const main = doc.querySelector("main");
+    const footer = doc.querySelector("footer");
+    const mainShell = main?.firstElementChild;
+    const headerShell = header?.querySelector("[data-shell]");
+
+    expect(
+      [header, main, footer].map(
+        (el) => el?.querySelectorAll("[data-shell]").length,
+      ),
+    ).toEqual([1, 1, 1]);
+    expect(main?.attributes.length).toBe(0);
+    expect(main?.children.length).toBe(1);
+    expect(mainShell?.hasAttribute("data-shell")).toBe(true);
+    expect(mainShell?.textContent).toBe("page body");
+    expect(
+      Array.from(headerShell?.querySelectorAll("a") ?? [])
+        .filter((a) => a.textContent === "Rachel Siegel")
+        .map((a) => a.getAttribute("href")),
+    ).toEqual(["/"]);
+    expect(headerShell?.querySelector("nav")?.getAttribute("aria-label")).toBe(
+      "Main",
+    );
+    expect(footer?.querySelector("[data-shell]")?.textContent).toMatch(
+      /^© \d{4} Rachel Siegel$/,
+    );
+  });
+
   it("loads only Fraunces from the local font files", async () => {
     expect(fontOptions).toStrictEqual([
       {
