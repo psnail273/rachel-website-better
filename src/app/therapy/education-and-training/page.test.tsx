@@ -12,7 +12,7 @@ const pages = import.meta.glob<PageModule>("./page.tsx");
 async function loadPage(): Promise<PageModule> {
   const load = pages["./page.tsx"];
   expect(load).toBeDefined();
-  return load!();
+  return load();
 }
 
 async function renderPage(): Promise<Document> {
@@ -52,7 +52,7 @@ describe("EducationPage", () => {
     const list = doc.querySelectorAll("ul")[0];
 
     expect(list).toBeDefined();
-    expect(texts(list!.querySelectorAll("li"))).toEqual([
+    expect(texts(list.querySelectorAll("li"))).toEqual([
       "MSW, Master of Social Work — Saint Louis University",
       "MM, Music Performance — University of Southern California",
       "BM, Music Performance — University of Minnesota – Twin Cities",
@@ -65,7 +65,7 @@ describe("EducationPage", () => {
     const list = doc.querySelectorAll("ul")[1];
 
     expect(list).toBeDefined();
-    expect(texts(list!.querySelectorAll("li"))).toEqual([
+    expect(texts(list.querySelectorAll("li"))).toEqual([
       "RO-DBT (Radically Open Dialectical Behavioral Therapy) Level 1",
       "Compassion Focused Therapy (Drs. Dennis Church and Paul Gilbert, Psychwire)",
       "Treating Adult ADHD (Margaret Dawson)",

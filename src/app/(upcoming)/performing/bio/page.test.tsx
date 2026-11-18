@@ -36,7 +36,7 @@ afterEach(() => {
 
 async function loadPage(): Promise<PageModule> {
   expect(page).toBeDefined();
-  return page!;
+  return page;
 }
 
 async function toDoc(element: ReactElement): Promise<Document> {

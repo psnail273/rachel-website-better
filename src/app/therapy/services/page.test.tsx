@@ -12,7 +12,7 @@ const pages = import.meta.glob<PageModule>("./page.tsx");
 async function loadPage(): Promise<PageModule> {
   const load = pages["./page.tsx"];
   expect(load).toBeDefined();
-  return load!();
+  return load();
 }
 
 async function renderPage(): Promise<Document> {

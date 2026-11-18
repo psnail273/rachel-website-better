@@ -45,7 +45,7 @@ afterEach(() => {
 async function loadPage(): Promise<PageModule> {
   const load = pages["./page.tsx"];
   expect(load).toBeDefined();
-  return load!();
+  return load();
 }
 
 async function toDoc(element: ReactElement): Promise<Document> {
@@ -214,9 +214,9 @@ describe("MediaPage", () => {
       "DIV",
       "SECTION",
     ]);
-    expect(texts(page!.querySelectorAll("h1"))).toEqual(["Media"]);
-    expect(texts(strip!.querySelectorAll("h2"))).toEqual(["Upcoming"]);
-    expect(texts(strip!.querySelectorAll("p"))).toEqual([
+    expect(texts(page.querySelectorAll("h1"))).toEqual(["Media"]);
+    expect(texts(strip.querySelectorAll("h2"))).toEqual(["Upcoming"]);
+    expect(texts(strip.querySelectorAll("p"))).toEqual([
       "Events are unavailable right now.",
       "See the full calendar",
     ]);
