@@ -16,8 +16,8 @@ function firstItem(): HTMLElement {
     tab().getAttribute("aria-controls") ?? "",
   );
   const first = list?.querySelector("a");
-  expect(first).toBeTruthy();
-  return first as HTMLElement;
+  if (!(first instanceof HTMLElement)) throw new Error("no first item");
+  return first;
 }
 
 function openTabWithClick(): HTMLElement {

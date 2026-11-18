@@ -124,9 +124,10 @@ describe("UpcomingLayout", () => {
     expect(doc.body.children[0]?.textContent).toBe("Page body");
     expect(cardsOf(doc)).toEqual(THREE_CARDS);
     expect(fetchFake).toHaveBeenCalledTimes(1);
-    expect(fetchFake).toHaveBeenCalledWith(FEED_URL, {
-      signal: expect.any(AbortSignal) as unknown,
-    });
+    const [calledUrl, calledInit] = fetchFake.mock.calls[0] ?? [];
+    expect(calledUrl).toBe(FEED_URL);
+    expect(calledInit?.signal).toBeInstanceOf(AbortSignal);
+    expect(Object.keys(calledInit ?? {})).toEqual(["signal"]);
   });
 
   it("serves the cached events when the feed can't be read", async () => {

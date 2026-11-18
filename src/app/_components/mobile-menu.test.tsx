@@ -47,8 +47,8 @@ function openMenu(): HTMLElement {
 
 function panelLink(button: HTMLElement, name: string): HTMLElement {
   const panel = panelOf(button);
-  expect(panel).not.toBeNull();
-  const links = within(panel as HTMLElement).queryAllByRole("link", { name });
+  if (!(panel instanceof HTMLElement)) throw new Error("panel is missing");
+  const links = within(panel).queryAllByRole("link", { name });
   expect(links).toHaveLength(1);
   return links[0];
 }
@@ -85,7 +85,8 @@ describe("MobileMenu", () => {
     render(<SiteHeader />);
 
     const button = openMenu();
-    const panel = panelOf(button) as HTMLElement;
+    const panel = panelOf(button);
+    if (!(panel instanceof HTMLElement)) throw new Error("panel is missing");
     const groups = within(panel)
       .queryAllByRole("group")
       .map((group) => ({
