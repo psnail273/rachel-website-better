@@ -26,91 +26,223 @@ function texts(nodes: Iterable<Element>): string[] {
   return Array.from(nodes, (node) => node.textContent);
 }
 
-function sectionOf(doc: Document, index: number): Element | null {
-  const h2 = doc.querySelectorAll("h2")[index];
-  return h2.parentElement;
+const NBSP = "\u00a0";
+const ZWSP = "\u200b";
+const EVERY = "[class], :not([class])";
+
+function attrs(node: Element | null | undefined): Record<string, string> {
+  return Object.fromEntries(
+    Array.from(node?.attributes ?? [], (a) => [a.name, a.value]),
+  );
+}
+
+function tags(nodes: Iterable<Element>): string[] {
+  return Array.from(nodes, (node) => node.tagName);
+}
+
+function section(doc: Document, index: number): Element | undefined {
+  return doc.body.children[index];
 }
 
 describe("ServicesPage", () => {
   it("shows the Services heading, the practice paragraph and the pull quote", async () => {
     const doc = await renderPage();
+    const first = section(doc, 0);
+    const sidebar = first?.children[0];
+    const [head, body, slot] = Array.from(sidebar?.children ?? []);
+    const h1 = head?.children[0];
+    const prose = body?.children[0];
+    const figure = slot?.children[0];
 
-    expect(texts(doc.querySelectorAll("h1"))).toEqual(["Services"]);
-    expect(doc.querySelector("p")?.textContent).toBe(
-      "I provide individual therapy to adults and adolescents (aged 14 and up) through a group practice, Wellness Alliance Counseling and Psychotherapy. In-person therapy takes place at our office in Clayton, MO. For telehealth, clients must be in Missouri or Illinois.",
+    expect(tags(doc.body.children)).toEqual(["SECTION", "SECTION", "SECTION"]);
+    expect(attrs(first)).toEqual({
+      "data-section": "",
+      "aria-labelledby": "services-heading",
+    });
+    expect(tags(first?.children ?? [])).toEqual(["DIV"]);
+    expect(attrs(sidebar)).toEqual({ "data-sidebar": "trail" });
+    expect(sidebar?.children).toHaveLength(3);
+    expect(attrs(head)).toEqual({ "data-sidebar-head": "" });
+    expect(attrs(body)).toEqual({ "data-sidebar-body": "" });
+    expect(attrs(slot)).toEqual({ "data-sidebar-aside": "" });
+    expect(head?.children).toHaveLength(1);
+    expect(h1?.tagName).toBe("H1");
+    expect(attrs(h1)).toEqual({
+      "data-heading": "1",
+      id: "services-heading",
+      class: "type-h1",
+    });
+    expect(h1?.textContent).toBe("Services");
+    expect(doc.querySelectorAll("h1")).toHaveLength(1);
+    expect(body?.children).toHaveLength(1);
+    expect(prose?.tagName).toBe("DIV");
+    expect(attrs(prose)).toEqual({ "data-prose": "start" });
+    expect(tags(prose?.children ?? [])).toEqual(["P"]);
+    expect(prose?.children[0]?.textContent).toBe(
+      `I provide individual therapy to adults and adolescents (aged 14 and up) through a group practice, Wellness Alliance Counseling and${NBSP}Psychotherapy. In-person therapy takes place at our office in Clayton, MO. For telehealth, clients must be in Missouri or${NBSP}Illinois.`,
     );
+    expect(slot?.children).toHaveLength(1);
+    expect(figure?.tagName).toBe("FIGURE");
+    expect(attrs(figure)).toEqual({ "data-quote": "" });
+    expect(tags(figure?.children ?? [])).toEqual(["BLOCKQUOTE", "FIGCAPTION"]);
+    expect(attrs(figure?.children[0])).toEqual({ class: "type-quote" });
+    expect(figure?.children[0]?.textContent).toBe(
+      `And you may ask yourself, \u201cWell, how did I get${NBSP}here?\u201d`,
+    );
+    expect(attrs(figure?.children[1])).toEqual({ class: "type-small" });
+    expect(figure?.children[1]?.textContent).toBe("Talking Heads");
     expect(doc.querySelectorAll("figure")).toHaveLength(1);
-    expect(texts(doc.querySelectorAll("blockquote"))).toEqual([
-      'And you may ask yourself, "Well, how did I get here?"',
-    ]);
-    expect(texts(doc.querySelectorAll("figcaption"))).toEqual([
-      "— Talking Heads",
-    ]);
+    expect(doc.querySelectorAll("blockquote")).toHaveLength(1);
   });
 
   it("lists what you might be struggling with and how therapy may help", async () => {
     const doc = await renderPage();
+    const second = section(doc, 1);
+    const pair = second?.children[0];
+    const halves = Array.from(pair?.children ?? []);
 
     expect(texts(doc.querySelectorAll("h2"))).toEqual([
       "You might be struggling with…",
       "Therapy may help you…",
       "A note on perfectionism…",
     ]);
-    expect(doc.querySelectorAll("section")).toHaveLength(3);
-    expect(doc.querySelectorAll("ul")).toHaveLength(3);
-    expect(texts(sectionOf(doc, 0)?.querySelectorAll("ul > li") ?? [])).toEqual(
-      [
-        "Identity development",
-        "Anxiety and stress management",
-        "Maladaptive perfectionism",
-        "Self-doubt and imposter syndrome",
-        "Depression or burnout",
-        "Disordered eating and body image concerns",
-        "Work-life balance",
-        "Relationship issues/setting boundaries",
-      ],
+    expect(attrs(second)).toEqual({
+      "data-section": "",
+      "aria-label": "What therapy can help with",
+    });
+    expect(tags(second?.children ?? [])).toEqual(["DIV"]);
+    expect(attrs(pair)).toEqual({ "data-switcher": "pair" });
+    expect(tags(halves)).toEqual(["DIV", "DIV"]);
+    expect(halves.map((half) => attrs(half))).toEqual([{}, {}]);
+    expect(halves.map((half) => tags(half.children))).toEqual([
+      ["H2", "UL"],
+      ["H2", "UL"],
+    ]);
+    expect(halves.map((half) => attrs(half.children[0]))).toEqual([
+      { "data-heading": "2", class: "type-h2" },
+      { "data-heading": "2", class: "type-h2" },
+    ]);
+    expect(halves.map((half) => attrs(half.children[1]))).toEqual([
+      { "data-list": "plain", class: "type-list" },
+      { "data-list": "plain", class: "type-list" },
+    ]);
+    expect(halves[0]?.children[0]?.textContent).toBe(
+      "You might be struggling with…",
     );
-    expect(texts(sectionOf(doc, 1)?.querySelectorAll("ul > li") ?? [])).toEqual(
-      [
-        "Manage stress and anxiety",
-        "Reframe unhelpful beliefs",
-        "Develop greater self worth and self-confidence",
-        "Cope with uncomfortable emotions and situations",
-        "Increase compassion for yourself and others",
-        "Develop self-care strategies",
-        "Learn and set healthier boundaries in relationships and with work",
-        "Move through creative or career blocks with clarity",
-        "Explore identity outside of work/art/achievement",
-        "Create work/performances that have meaning and purpose.",
-      ],
-    );
+    expect(texts(halves[0]?.querySelectorAll("li") ?? [])).toEqual([
+      "Identity development",
+      "Anxiety and stress management",
+      "Maladaptive perfectionism",
+      "Self-doubt and imposter syndrome",
+      "Depression or burnout",
+      "Disordered eating and body image concerns",
+      "Work-life balance",
+      `Relationship issues/${ZWSP}setting boundaries`,
+    ]);
+    expect(halves[1]?.children[0]?.textContent).toBe("Therapy may help you…");
+    expect(texts(halves[1]?.querySelectorAll("li") ?? [])).toEqual([
+      "Manage stress and anxiety",
+      "Reframe unhelpful beliefs",
+      "Develop greater self worth and self-confidence",
+      "Cope with uncomfortable emotions and situations",
+      "Increase compassion for yourself and others",
+      "Develop self-care strategies",
+      "Learn and set healthier boundaries in relationships and with work",
+      "Move through creative or career blocks with clarity",
+      `Explore identity outside of work/${ZWSP}art/achievement`,
+      `Create work/${ZWSP}performances that have meaning and purpose.`,
+    ]);
   });
 
   it("shows the note on perfectionism with its list", async () => {
     const doc = await renderPage();
-    const section = sectionOf(doc, 2);
-    const children = Array.from(section?.children ?? []);
+    const third = section(doc, 2);
+    const [h2, stack] = Array.from(third?.children ?? []);
+    const [run, center] = Array.from(stack?.children ?? []);
+    const halves = Array.from(run?.children ?? []);
+    const prose = halves[0]?.children[0];
+    const list = halves[1]?.children[0];
+    const lead = center?.children[0];
 
-    expect(children.map((child) => child.tagName)).toEqual([
-      "H2",
-      "P",
-      "UL",
-      "P",
-    ]);
-    expect(children[1]?.textContent).toBe(
-      "Contrary to common belief, perfectionism usually doesn't help us achieve our goals. More often, it keeps us small, distracted by the fear of making a mistake or seeming messy. Perfectionism can cause:",
+    expect(attrs(third)).toEqual({
+      "data-section": "",
+      "aria-labelledby": "perfectionism-heading",
+    });
+    expect(tags(third?.children ?? [])).toEqual(["H2", "DIV"]);
+    expect(attrs(h2)).toEqual({
+      "data-heading": "2",
+      id: "perfectionism-heading",
+      class: "type-h2",
+    });
+    expect(h2?.textContent).toBe("A note on perfectionism…");
+    expect(attrs(stack)).toEqual({ "data-stack": "block" });
+    expect(tags(stack?.children ?? [])).toEqual(["DIV", "DIV"]);
+    expect(attrs(run)).toEqual({ "data-switcher": "run" });
+    expect(attrs(center)).toEqual({ "data-prose": "center" });
+    expect(tags(halves)).toEqual(["DIV", "DIV"]);
+    expect(halves.map((half) => attrs(half))).toEqual([{}, {}]);
+    expect(halves[0]?.children).toHaveLength(1);
+    expect(attrs(prose)).toEqual({ "data-prose": "start" });
+    expect(tags(prose?.children ?? [])).toEqual(["P"]);
+    expect(prose?.children[0]?.textContent).toBe(
+      `Contrary to common belief, perfectionism usually doesn\u2019t help us achieve our goals. More often, it keeps us small, distracted by the fear of making a mistake or seeming${NBSP}messy. Perfectionism can${NBSP}cause:`,
     );
-    expect(texts(children[2]?.querySelectorAll("li") ?? [])).toEqual([
+    expect(halves[1]?.children).toHaveLength(1);
+    expect(list?.tagName).toBe("UL");
+    expect(attrs(list)).toEqual({ "data-list": "plain", class: "type-list" });
+    expect(texts(list?.querySelectorAll("li") ?? [])).toEqual([
       "Procrastination",
       "Shame",
-      "Shutting down when emotional",
-      "Imposter syndrome",
-      "Obsession with achievement",
-      "Chronic stress and burnout",
-      "Frequent and intense anxiety of being perceived negatively.",
+      `Shutting down when${NBSP}emotional`,
+      `Imposter${NBSP}syndrome`,
+      `Obsession with${NBSP}achievement`,
+      `Chronic stress and${NBSP}burnout`,
+      `Frequent and intense anxiety of being perceived${NBSP}negatively.`,
     ]);
-    expect(children[3]?.textContent).toBe(
-      "What if you could let that all go, and still be successful, loved and accepted as you are?",
+    expect(center?.children).toHaveLength(1);
+    expect(attrs(lead)).toEqual({ "data-lead": "", class: "type-lead" });
+    expect(lead?.textContent).toBe(
+      `What if you could let that all go, and still be successful, loved and accepted as you${NBSP}are?`,
+    );
+    expect(lead?.querySelector("svg")).toBeNull();
+  });
+
+  it("styles nothing as a callout box", async () => {
+    const doc = await renderPage();
+    const all = Array.from(doc.body.querySelectorAll(EVERY));
+    const classes = new Set(all.flatMap((el) => Array.from(el.classList)));
+    const aside = section(doc, 0)?.querySelector("[data-sidebar-aside]");
+
+    expect(Array.from(classes).sort()).toEqual([
+      "type-h1",
+      "type-h2",
+      "type-lead",
+      "type-list",
+      "type-quote",
+      "type-small",
+    ]);
+    expect(doc.body.querySelectorAll("[style]")).toHaveLength(0);
+    expect(doc.querySelectorAll('[data-list="panel"]')).toHaveLength(0);
+    expect(doc.querySelectorAll("[data-quote]")).toHaveLength(1);
+    expect(aside?.querySelectorAll("[data-quote]")).toHaveLength(1);
+  });
+
+  it("centres the closing question in its column", async () => {
+    const doc = await renderPage();
+    const leads = doc.querySelectorAll("[data-lead]");
+    const lead = leads[0];
+    const parent = lead?.parentElement;
+    const stack = section(doc, 2)?.querySelector('[data-stack="block"]');
+    const inSection = Array.from(
+      section(doc, 2)?.querySelectorAll(EVERY) ?? [],
+    );
+
+    expect(leads).toHaveLength(1);
+    expect(attrs(parent)).toEqual({ "data-prose": "center" });
+    expect(stack?.lastElementChild).toBe(parent);
+    expect(inSection.at(-1)).toBe(lead);
+    expect(lead?.textContent).toBe(
+      `What if you could let that all go, and still be successful, loved and accepted as you${NBSP}are?`,
     );
   });
 
