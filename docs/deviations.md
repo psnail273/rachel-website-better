@@ -138,3 +138,10 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: the test contradicts the sealed brief (6ad92a2), whose Existing tests and Constraints say the green phase rewrites this property as the tieItem round-trip invariant that also removes word joiners.
 - Ruling: driver's call: lock lift.
 - Reasoning: the test is wrong and the brief is right. The green round may change only `src/lib/tie.invariants.test.ts`, and only as the brief says (that property rewritten, the four `invariants` properties added, the 30 s timeouts kept); every other locked test stays as at 5e2a4f0. The Lock is recorded again after the round, on a full fresh verify, and a fresh Verifier checks it.
+## #63 c44a14c: one-word lines on Bio and Media, outside this diff
+
+- Issue: #63 (a hyphenated last word breaks at its hyphen). Commit: c44a14c.
+- What deviated: the green Verifier failed design 8 (Layout) on two one-word lines at 390 px light: "Hotteterre" alone in the "Passacaille" video card (`src/app/(upcoming)/performing/media/page.tsx:16`), and "experiences." alone at the end of Bio's first paragraph (`src/app/(upcoming)/performing/bio/page.tsx:22`-`27`).
+- Reason: neither page is in this issue's scope or diff (`git diff e70da5e HEAD -- "src/app/(upcoming)"` is empty), and neither calls tie.ts, so this fix can't reach them. Each is being rebuilt in its own slice: #39 (Bio, built with tieLast on each paragraph, waiting on this landing) and #40 (Media, next).
+- Ruling: driver's call: out of reach.
+- Reasoning: fixing either here would touch another in-flight issue's files. Everything else in the verdict passed, including criteria 1 to 3 (Services at 390 px now ends "and self-confidence"), every test, the fresh full gate and the mutant ruled equivalent.
