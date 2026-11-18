@@ -15,7 +15,7 @@ const TRAININGS = [
   "Compassion Focused Therapy (Drs. Dennis Church and Paul Gilbert, Psychwire)",
   "Treating Adult ADHD (Margaret Dawson)",
   "Body Perfectionism: Innovative Tools from DBT, CBT, ACT ERP and More to Improve Self-Worth (Deanna Smith, PESI)",
-  "Certification Training in DBT (Alexa Mulee, C-DBT)",
+  "Certification Training in DBT (Alexa Mulee,\u00a0C-\u2060DBT)",
   "Understanding Adolescent Eating Disorders: Foundations in Family-Based Treatment (Washington University, St. Louis)",
   "Shamelessly Imperfect: A guide to Help Your Clients Break Free from Perfectionism (Milly Feliz, PESI)",
   "ACT 2-Day Intensive (Dr. DJ Moran)",

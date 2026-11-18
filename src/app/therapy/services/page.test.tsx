@@ -28,6 +28,7 @@ function texts(nodes: Iterable<Element> | undefined): string[] {
 
 const NBSP = "\u00a0";
 const ZWSP = "\u200b";
+const WJ = "\u2060";
 const EVERY = "[class], :not([class])";
 
 function attrs(node: Element | null | undefined): Record<string, string> {
@@ -153,10 +154,10 @@ describe("ServicesPage", () => {
     expect(texts(at(halves, 1)?.querySelectorAll("li") ?? [])).toEqual([
       `Manage stress and${NBSP}anxiety`,
       `Reframe${NBSP}unhelpful beliefs`,
-      `Develop greater self worth and${NBSP}self-confidence`,
+      `Develop greater self worth and${NBSP}self-${WJ}confidence`,
       `Cope with uncomfortable emotions and${NBSP}situations`,
       `Increase compassion for yourself and${NBSP}others`,
-      `Develop${NBSP}self-care strategies`,
+      `Develop${NBSP}self-${WJ}care strategies`,
       `Learn and set healthier boundaries in relationships and with${NBSP}work`,
       `Move through creative or career blocks with${NBSP}clarity`,
       `Explore identity outside of work/${ZWSP}art/achievement`,
