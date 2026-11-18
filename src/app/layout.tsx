@@ -26,8 +26,11 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${fraunces.variable} antialiased`}>
       <body className="flex min-h-screen flex-col">
+        <a href="#main" data-skip-link="">
+          Skip to content
+        </a>
         <SiteHeader />
-        <main>
+        <main id="main" tabIndex={-1}>
           <PageShell>{children}</PageShell>
         </main>
         <SiteFooter />

@@ -34,7 +34,18 @@ export const homeLink: NavLink = { label: "Home", href: "/" };
 
 export type NavSection = "therapy" | "performing" | "contact";
 
+const sectionPrefixes: { prefix: string; section: NavSection }[] = [
+  { prefix: "/therapy", section: "therapy" },
+  { prefix: "/performing", section: "performing" },
+  { prefix: "/contact", section: "contact" },
+];
+
 export function currentSection(pathname: string | null): NavSection | null {
-  const none: NavSection | null = null;
-  return pathname === null ? none : none;
+  if (pathname === null) {
+    return null;
+  }
+  const match = sectionPrefixes.find(
+    ({ prefix }) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+  return match?.section ?? null;
 }

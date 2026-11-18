@@ -1,27 +1,60 @@
+"use client";
+
 import Link from "next/link";
-import { contactLink, performingMenu, therapyMenu } from "../../lib/navigation";
+import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
+import {
+  contactLink,
+  currentSection,
+  performingMenu,
+  therapyMenu,
+} from "../../lib/navigation";
 import { PageShell } from "./layout/components";
 import { MobileMenu } from "./mobile-menu";
 import { NavDropdown } from "./nav-dropdown";
 
+const scrolledPast = 24;
+
 export function SiteHeader() {
+  const pathname = usePathname();
+  const section = currentSection(pathname);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    function update() {
+      setScrolled(window.scrollY > scrolledPast);
+    }
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", update);
+    };
+  }, []);
+
   return (
-    <header className="relative border-b border-line py-4">
-      <PageShell className="flex items-center justify-between gap-4">
-        <Link
-          href="/"
-          className="font-serif text-xl text-heading hover:text-accent"
-        >
+    <header data-scrolled={scrolled ? "" : undefined}>
+      <PageShell>
+        <Link href="/" data-brand="" className="type-brand">
           Rachel Siegel
         </Link>
-        <nav aria-label="Main" className="hidden items-center gap-2 md:flex">
-          <NavDropdown menu={therapyMenu} />
-          <NavDropdown menu={performingMenu} />
+        <nav aria-label="Main" data-nav="">
+          <NavDropdown
+            menu={therapyMenu}
+            current={section === "therapy"}
+            pathname={pathname}
+          />
+          <NavDropdown
+            menu={performingMenu}
+            current={section === "performing"}
+            pathname={pathname}
+          />
           <Link
             href={contactLink.href}
-            className="rounded px-3 py-2 hover:text-accent"
+            data-nav-tab=""
+            className="type-nav"
+            aria-current={section === "contact" ? "page" : undefined}
           >
-            {contactLink.label}
+            <span data-nav-label="">{contactLink.label}</span>
           </Link>
         </nav>
         <MobileMenu />

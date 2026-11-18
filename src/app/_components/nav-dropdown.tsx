@@ -5,9 +5,15 @@ import { useEffect, useId, useRef, useState } from "react";
 import type { KeyboardEvent } from "react";
 import type { NavMenu } from "../../lib/navigation";
 
-const linkClass = "block rounded px-3 py-2 hover:text-accent";
-
-export function NavDropdown({ menu }: { menu: NavMenu }) {
+export function NavDropdown({
+  menu,
+  current,
+  pathname,
+}: {
+  menu: NavMenu;
+  current: boolean;
+  pathname: string | null;
+}) {
   const [open, setOpen] = useState(false);
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -89,33 +95,48 @@ export function NavDropdown({ menu }: { menu: NavMenu }) {
   }
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} data-dropdown="">
       <button
         ref={tabRef}
         type="button"
         aria-expanded={open}
         aria-controls={listId}
+        aria-current={current ? "true" : undefined}
+        data-nav-tab=""
         onClick={() => {
           setOpen((wasOpen) => !wasOpen);
         }}
         onKeyDown={onTabKeyDown}
         onKeyUp={onTabKeyUp}
-        className="cursor-pointer rounded px-3 py-2 hover:text-accent"
+        className="type-nav"
       >
-        {menu.label} <span aria-hidden="true">▾</span>
+        <span data-nav-label="">{menu.label}</span>
+        <svg
+          aria-hidden="true"
+          data-chevron=""
+          width="10"
+          height="10"
+          viewBox="0 0 10 10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        >
+          <path d="M1 3.5 5 7.5 9 3.5" />
+        </svg>
       </button>
       {open ? (
         <ul
           ref={listRef}
           id={listId}
           onKeyDown={onListKeyDown}
-          className="absolute right-0 z-10 mt-1 min-w-48 rounded-md border border-line-strong bg-surface p-1 shadow-md"
+          data-dropdown-panel=""
         >
           {menu.links.map((link) => (
             <li key={link.href}>
               <Link
                 href={link.href}
-                className={linkClass}
+                className="type-nav-item"
+                aria-current={link.href === pathname ? "page" : undefined}
                 onClick={() => {
                   setOpen(false);
                 }}

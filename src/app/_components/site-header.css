@@ -1,1 +1,129 @@
-/* The header's stylesheet: filled in the green phase. */
+[data-skip-link] {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  block-size: 3rem;
+  padding-inline: var(--space-flow);
+  background: var(--heading);
+  color: var(--bg);
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+[data-skip-link]:not(:focus) {
+  translate: 0 -5rem;
+}
+
+body > header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  block-size: var(--header);
+  color: var(--heading);
+  transition:
+    background-color 200ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    color 200ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+body > header[data-scrolled] {
+  background: rgb(from var(--bg) r g b / 0.92);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 1px 0 var(--line);
+}
+
+body:has(> main [data-bleed]) > header:not([data-scrolled]) {
+  color: var(--on-image);
+}
+
+body:has(> main [data-bleed])
+  > header:not([data-scrolled])
+  :is([data-brand], [data-nav-tab]) {
+  --accent: var(--on-image);
+}
+
+body > header > [data-shell] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+[data-nav] {
+  display: none;
+}
+
+@media (width >= 48rem) {
+  [data-nav] {
+    display: flex;
+    align-items: center;
+    gap: var(--space-heading);
+  }
+}
+
+[data-dropdown] {
+  position: relative;
+}
+
+[data-nav-tab] {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-block-size: 2.75rem;
+  cursor: pointer;
+}
+
+[data-nav-label] {
+  text-underline-offset: 0.3rem;
+}
+
+[data-nav-tab]:hover [data-nav-label] {
+  text-decoration: underline 1px currentColor;
+}
+
+[data-nav-tab][aria-current] [data-nav-label] {
+  text-decoration: underline 2px var(--accent);
+}
+
+[data-chevron] {
+  opacity: 0.8;
+}
+
+[data-dropdown-panel] {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 10;
+  inline-size: 15rem;
+  padding: 0;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+}
+
+[data-dropdown-panel] a {
+  display: flex;
+  align-items: center;
+  block-size: 2.75rem;
+  padding-inline: var(--space-flow);
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+[data-dropdown-panel] a:hover {
+  background: var(--tint);
+  color: var(--heading);
+}
+
+[data-dropdown-panel] a[aria-current="page"] {
+  color: var(--heading);
+  text-decoration: underline 2px var(--accent);
+  text-underline-offset: 0.35em;
+}
+
+[data-dropdown-panel] a:focus-visible {
+  outline-offset: -3px;
+}
