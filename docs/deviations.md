@@ -34,3 +34,11 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: declared in the commit body. The brief's `invariants` lines need property tests, and `tie.test.ts` is locked from the red phase. The `Deviation:` line sat above the closing trailer paragraph, so the deviation step read it as undeclared.
 - Ruling: accept. The brief gains `scope src/lib/tie.invariants.test.ts` and is resealed (64b1c58).
 - Reasoning: the brief asked for the invariant tests but left them no unlocked file in scope, which is a gap in the brief and not scope creep. The new file tests only `src/lib/tie.ts`'s exported functions and adds no product code.
+
+## #30 443630b: footer focus ring through an arbitrary variant that slips past the focus-ring test
+
+- Issue: #30 (full footer: evergreen band with page links, contact paths and location). Commit: 443630b.
+- What deviated: the footer links set their ring colour with `[&:focus-visible]:outline-on-image` in `src/app/_components/site-footer.tsx`. `src/app/globals.test.ts`'s "leaves the focus ring to the global rule in every component" fails on any `focus-visible:` utility, and the arbitrary variant gets past its regex.
+- Reason: undeclared. The Editor flagged it in its final message. The brief asked for an `on-image` ring on the footer links' `:focus-visible`, which the test forbids components to set.
+- Ruling: reject. A counted green fix round replaces it: the `footer` sets `[--accent:var(--on-image)]`, and the global `:focus-visible` rule draws the ring in `on-image` inside the band. The brief's Constraint is corrected and resealed.
+- Reasoning: getting past a test's regex works around a gate, which the factory never allows. Re-scoping the token keeps design.md §5's `on-image` ring in the footer, and the ring still comes from the one global rule, as #27's test intends. The brief's wording caused the clash, so it is fixed with the round.
