@@ -7,7 +7,10 @@ import { describe, expect, it } from "vitest";
 type PageModule = { default: () => ReactElement };
 
 const pages = import.meta.glob<PageModule>("./not-found.tsx");
-const page = await pages["./not-found.tsx"]?.();
+function loader(): (() => Promise<PageModule>) | undefined {
+  return pages["./not-found.tsx"];
+}
+const page: PageModule | undefined = await loader()?.();
 
 async function renderPage(): Promise<Document> {
   expect(page).toBeDefined();
@@ -52,18 +55,18 @@ describe("NotFound", () => {
     expect(page).toBeDefined();
     expect(Object.keys(page ?? {})).toEqual(["default"]);
     expect(doc.body.children).toHaveLength(1);
-    const section = doc.body.children[0];
+    const section = doc.body.children.item(0);
     expect(section?.tagName).toBe("SECTION");
     expect(attrs(section)).toEqual({
       "data-section": "",
       "aria-labelledby": "not-found-heading",
     });
     expect(section?.children).toHaveLength(1);
-    const center = section?.children[0];
+    const center = section?.children.item(0);
     expect(center?.tagName).toBe("DIV");
     expect(attrs(center)).toEqual({ "data-center": "" });
     expect(center?.children).toHaveLength(2);
-    const h1 = center?.children[0];
+    const h1 = center?.children.item(0);
     expect(h1?.tagName).toBe("H1");
     expect(attrs(h1)).toEqual({
       "data-heading": "1",
@@ -71,15 +74,15 @@ describe("NotFound", () => {
       class: "type-h1",
     });
     expect(h1?.textContent).toBe("This page wandered off");
-    const stack = center?.children[1];
+    const stack = center?.children.item(1);
     expect(stack?.tagName).toBe("DIV");
     expect(attrs(stack)).toEqual({ "data-stack": "heading" });
     expect(stack?.children).toHaveLength(2);
-    const lead = stack?.children[0];
+    const lead = stack?.children.item(0);
     expect(lead?.tagName).toBe("P");
     expect(attrs(lead)).toEqual({ "data-lead": "", class: "type-lead" });
     expect(lead?.textContent).toBe("The page you’re looking for isn’t here.");
-    const link = stack?.children[1];
+    const link = stack?.children.item(1);
     expect(link?.tagName).toBe("A");
     expect(link?.getAttribute("href")).toBe("/");
     expect(link?.textContent).toBe("Back to Home");
