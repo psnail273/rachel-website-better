@@ -1,11 +1,47 @@
+const NBSP = " ";
+const ZWSP = "​";
+
+// Joins the words of text, tying the word at `gap` to the one before it.
+function tieGap(text: string, gap: number): string {
+  return text
+    .split(" ")
+    .map((word, index) =>
+      index === 0 ? word : (index - 1 === gap ? NBSP : " ") + word,
+    )
+    .join("");
+}
+
+// Paragraphs and leads: ties the last two words.
 export function tieLast(text: string): string {
-  return text;
+  const count = text.split(" ").length;
+  return count < 2 ? text : tieGap(text, count - 2);
 }
 
+// Headings, card titles, quotes: a three-word label is tied after its first
+// word, a longer one before its last, a shorter one is left alone.
 export function tieLabel(text: string): string {
-  return text;
+  const count = text.split(" ").length;
+  if (count < 3) return text;
+  return tieGap(text, count === 3 ? 0 : count - 2);
 }
 
+// List items and rows: tieLabel's rule, counting the parts of a slash between
+// words as words. A slash that is not tied gets a ZWSP after it, a tied one
+// stays as it is.
 export function tieItem(text: string): string {
-  return text;
+  const pieces = text.split(/( |(?<=\S)\/(?=\S))/);
+  const count = (pieces.length + 1) / 2;
+  const tied = count < 3 ? -1 : count === 3 ? 0 : count - 2;
+  let out = pieces[0] ?? "";
+  for (let part = 1; part < count; part += 1) {
+    const separator = pieces[part * 2 - 1] ?? " ";
+    const isTied = part - 1 === tied;
+    if (separator === "/") {
+      out += isTied ? "/" : `/${ZWSP}`;
+    } else {
+      out += isTied ? NBSP : " ";
+    }
+    out += pieces[part * 2] ?? "";
+  }
+  return out;
 }

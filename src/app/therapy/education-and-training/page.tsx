@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Stack } from "../../_components/layout/components";
 
 export const metadata: Metadata = {
   title: "Education and Training",
@@ -26,30 +27,30 @@ export default function EducationPage() {
     "Food and Mood: A Therapist's Guide to the Role of Nutrition in Mental Health (Kathleen Zamperini)",
   ];
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <Stack space="block" className="w-full max-w-3xl self-center">
       <h1 className="font-serif text-4xl text-heading">
         Education and Training
       </h1>
-      <section>
-        <h2 className="font-serif text-2xl text-heading mb-3">
+      <Stack space="tight" as="section">
+        <h2 className="font-serif text-2xl text-heading">
           Education &amp; Credentials
         </h2>
-        <ul className="list-disc pl-6 space-y-1">
+        <Stack space="tight" as="ul" className="list-disc list-inside">
           {education.map((e) => (
             <li key={e}>{e}</li>
           ))}
-        </ul>
-      </section>
-      <section>
-        <h2 className="font-serif text-2xl text-heading mb-3">
+        </Stack>
+      </Stack>
+      <Stack space="tight" as="section">
+        <h2 className="font-serif text-2xl text-heading">
           Specialized Training
         </h2>
-        <ul className="list-disc pl-6 space-y-1">
+        <Stack space="tight" as="ul" className="list-disc list-inside">
           {training.map((t) => (
             <li key={t}>{t}</li>
           ))}
-        </ul>
-      </section>
-    </div>
+        </Stack>
+      </Stack>
+    </Stack>
   );
 }

@@ -70,7 +70,7 @@ export function UpcomingStrip({
   return (
     <section
       aria-labelledby="upcoming-heading"
-      className="mx-auto mt-12 max-w-5xl"
+      className="w-full max-w-5xl self-center"
     >
       <h2 id="upcoming-heading" className="mb-4 text-2xl">
         Upcoming

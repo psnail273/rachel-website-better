@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import localFont from "next/font/local";
+import { PageShell } from "./_components/layout/components";
 import { SiteFooter } from "./_components/site-footer";
 import { SiteHeader } from "./_components/site-header";
 import "./globals.css";
@@ -26,7 +27,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     <html lang="en" className={`${fraunces.variable} antialiased`}>
       <body className="flex min-h-screen flex-col">
         <SiteHeader />
-        <main className="flex-1 px-6 py-8">{children}</main>
+        <main>
+          <PageShell>{children}</PageShell>
+        </main>
         <SiteFooter />
       </body>
     </html>

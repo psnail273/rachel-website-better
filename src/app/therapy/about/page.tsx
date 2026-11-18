@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 
 import { images } from "../../../lib/images";
+import { Stack } from "../../_components/layout/components";
 
 export const metadata: Metadata = {
   title: "About Me",
@@ -12,9 +13,9 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   const headshot = images["headshot-therapist"];
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <Stack space="block" className="w-full max-w-3xl self-center">
       <h1 className="font-serif text-4xl text-heading">About Me</h1>
-      <div className="flex flex-col gap-6 md:flex-row md:items-start">
+      <Stack space="heading" className="md:flex-row md:items-start">
         <Image
           src={headshot.src}
           alt={headshot.alt}
@@ -22,7 +23,7 @@ export default function AboutPage() {
           height={headshot.height}
           className="w-40 md:w-56 h-auto shrink-0 rounded-lg"
         />
-        <div className="space-y-4">
+        <Stack space="flow">
           <p>
             I believe every person holds the power to transform their life. It
             is my honor to be a part of that journey, helping empower my clients
@@ -42,7 +43,7 @@ export default function AboutPage() {
             struggling with maladaptive perfectionism. I also specialize in
             several related concerns, including:
           </p>
-          <ul className="list-disc pl-6 space-y-1">
+          <Stack space="tight" as="ul" className="list-disc list-inside">
             <li>
               Anxiety, chronic stress, and feeling constantly &quot;on&quot;
             </li>
@@ -51,7 +52,7 @@ export default function AboutPage() {
             <li>Depression and burnout</li>
             <li>Work life balance/relationship issues</li>
             <li>Eating and body image concerns</li>
-          </ul>
+          </Stack>
           <p>
             In my sessions, I combine a warm, empathetic approach with
             evidence-based strategies. I draw especially upon ACT (Acceptance
@@ -62,9 +63,9 @@ export default function AboutPage() {
             the root of healing, and I look forward to providing that space for
             you.
           </p>
-        </div>
-      </div>
-      <figure className="border-l-4 border-accent pl-4">
+        </Stack>
+      </Stack>
+      <figure>
         <blockquote className="font-serif text-2xl italic">
           Let everything happen to you: beauty and terror. Just keep going. No
           feeling is final.
@@ -73,6 +74,6 @@ export default function AboutPage() {
           — Rainer Maria Rilke, <cite>Letters to a Young Poet</cite>
         </figcaption>
       </figure>
-    </div>
+    </Stack>
   );
 }

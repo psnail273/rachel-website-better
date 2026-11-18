@@ -1,0 +1,239 @@
+[data-shell] {
+  inline-size: 100%;
+  max-inline-size: var(--content-max);
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+main {
+  container-type: inline-size;
+  padding-block-start: var(--space-heading);
+  padding-block-end: var(--space-section);
+  flex: none;
+}
+
+main:has([data-bleed]) {
+  padding-block-start: 0;
+}
+
+main > [data-shell] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-section);
+}
+
+body > footer {
+  flex: 1 0 auto;
+}
+
+[data-heading] {
+  margin-block-end: var(--space-heading);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+[data-stack] {
+  display: flex;
+  flex-direction: column;
+}
+
+[data-stack="block"] {
+  gap: var(--space-block);
+}
+
+[data-stack="heading"] {
+  gap: var(--space-heading);
+}
+
+[data-stack="flow"] {
+  gap: var(--space-flow);
+}
+
+[data-stack="tight"] {
+  gap: var(--space-tight);
+}
+
+[data-cluster] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-flow);
+}
+
+[data-cluster="center"] {
+  justify-content: center;
+}
+
+@media (width < 40rem) {
+  [data-sidebar="lead"] > [data-sidebar-aside] {
+    margin-block-end: var(--space-heading);
+  }
+
+  [data-sidebar="trail"] > [data-sidebar-aside] {
+    margin-block-start: var(--space-block);
+  }
+}
+
+@media (width >= 40rem) {
+  [data-sidebar] {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--aside);
+    grid-template-rows: auto 1fr;
+    column-gap: var(--space-block);
+  }
+
+  [data-sidebar-head] {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  [data-sidebar-body] {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  [data-sidebar-aside] {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+
+  [data-sidebar-aside] > * {
+    position: sticky;
+    top: calc(var(--header) + var(--space-flow));
+  }
+}
+
+[data-switcher] {
+  display: grid;
+  /* prettier-ignore */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--switch-min)), 1fr));
+  column-gap: var(--space-block);
+}
+
+[data-switcher="pair"] {
+  row-gap: var(--space-block);
+}
+
+[data-switcher="run"] {
+  row-gap: var(--space-flow);
+}
+
+[data-center] {
+  inline-size: 100%;
+  max-inline-size: var(--measure);
+  margin-inline: auto;
+  text-align: center;
+}
+
+[data-prose] {
+  max-inline-size: var(--measure);
+}
+
+[data-prose] > * + * {
+  margin-block-start: var(--space-flow);
+}
+
+[data-prose] p {
+  text-wrap: wrap;
+}
+
+[data-prose="center"] {
+  inline-size: 100%;
+  margin-inline: auto;
+  text-align: center;
+}
+
+[data-lead] {
+  color: var(--heading);
+  text-wrap: wrap;
+}
+
+[data-lead] a {
+  font-weight: inherit;
+  white-space: nowrap;
+}
+
+[data-quote] {
+  container-type: inline-size;
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: var(--space-block) var(--space-heading);
+  text-align: center;
+}
+
+[data-quote] blockquote {
+  max-inline-size: 22ch;
+  margin-inline: auto;
+  color: var(--heading);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+[data-quote] figcaption {
+  margin-block-start: var(--space-flow);
+  color: var(--muted);
+  text-wrap: balance;
+}
+
+[data-photo] {
+  padding: var(--space-tight);
+  border: 1.5px solid var(--ornament);
+  border-radius: calc(var(--radius) + var(--space-tight));
+}
+
+[data-photo] img {
+  inline-size: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  object-position: 50% 20%;
+  border-radius: var(--radius);
+}
+
+[data-list] {
+  display: grid;
+  gap: var(--space-tight);
+}
+
+[data-list] li {
+  position: relative;
+  padding-inline-start: var(--space-flow);
+  text-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+
+[data-list] li::before {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 0.42em;
+  inline-size: 0.625rem;
+  block-size: 0.625rem;
+  border: 1.5px solid var(--accent);
+  border-radius: 50%;
+}
+
+[data-list="panel"] {
+  background: var(--tint);
+  padding: var(--space-heading);
+  border-radius: var(--radius);
+  color: var(--heading);
+}
+
+[data-rows] li {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  column-gap: var(--space-flow);
+  padding-block: var(--space-tight);
+  border-block-start: 1px solid var(--line);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}
+
+[data-rows] li:last-child {
+  border-block-end: 1px solid var(--line);
+}
+
+[data-rows] [data-status] {
+  color: var(--muted);
+  white-space: nowrap;
+}

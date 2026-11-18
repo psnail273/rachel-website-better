@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./_components/layout/styles.css" layer(components);
 
 :root {
   color-scheme: light dark;

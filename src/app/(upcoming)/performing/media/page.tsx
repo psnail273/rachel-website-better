@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { images } from "@/lib/images";
 import { siteConfig } from "@/lib/site-config";
+import { Stack } from "../../../_components/layout/components";
 import { VideoCard } from "./video-card";
 
 export const metadata: Metadata = {
@@ -25,9 +26,9 @@ export default function MediaPage() {
   ];
   const image = images["headshot-recorder"];
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <Stack space="block" className="w-full max-w-5xl self-center">
       <h1 className="font-serif text-4xl text-heading">Media</h1>
-      <div className="flex flex-col gap-8 md:flex-row md:items-start">
+      <Stack space="block" className="md:flex-row md:items-start">
         <div className="md:w-1/3">
           <Image
             src={image.src}
@@ -37,30 +38,33 @@ export default function MediaPage() {
             className="w-full h-auto rounded-lg"
           />
         </div>
-        <div className="md:w-2/3 space-y-10">
-          <section className="space-y-4">
+        <Stack space="block" className="md:w-2/3">
+          <Stack space="flow" as="section">
             <h2 className="font-serif text-2xl text-heading">Video</h2>
             {videos.map((video) => (
               <VideoCard key={video.id} id={video.id} title={video.title} />
             ))}
-          </section>
-          <section className="space-y-4">
+          </Stack>
+          <Stack space="flow" as="section">
             <h2 className="font-serif text-2xl text-heading">Audio</h2>
-            <ul className="space-y-2">
+            <Stack space="tight" as="ul">
               {recordings.map((title) => (
-                <li key={title} className="flex flex-wrap items-center gap-3">
+                <li
+                  key={title}
+                  className="flex flex-wrap items-center justify-between"
+                >
                   <span>{title}</span>
                   <span className="text-muted">Coming soon</span>
                 </li>
               ))}
-            </ul>
+            </Stack>
             <p>
               For access to the full Brahms Quintet performance, contact Rachel
               via <a href={`mailto:${siteConfig.email}`}>email</a>.
             </p>
-          </section>
-        </div>
-      </div>
-    </div>
+          </Stack>
+        </Stack>
+      </Stack>
+    </Stack>
   );
 }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Stack } from "../../_components/layout/components";
 
 export const metadata: Metadata = {
   title: "Services",
@@ -40,22 +41,21 @@ const perfectionism = [
   "Frequent and intense anxiety of being perceived negatively.",
 ];
 
-const listClass = "list-disc pl-6 space-y-1";
-const h2Class = "font-serif text-2xl text-heading mb-3";
+const h2Class = "font-serif text-2xl text-heading";
 
 function Items({ items }: { items: string[] }) {
   return (
-    <ul className={listClass}>
+    <Stack space="tight" as="ul" className="list-disc list-inside">
       {items.map((item) => (
         <li key={item}>{item}</li>
       ))}
-    </ul>
+    </Stack>
   );
 }
 
 export default function ServicesPage() {
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
+    <Stack space="block" className="w-full max-w-3xl self-center">
       <h1 className="font-serif text-4xl text-heading">Services</h1>
       <p>
         I provide individual therapy to adults and adolescents (aged 14 and up)
@@ -63,21 +63,21 @@ export default function ServicesPage() {
         Psychotherapy. In-person therapy takes place at our office in Clayton,
         MO. For telehealth, clients must be in Missouri or Illinois.
       </p>
-      <figure className="border-l-4 border-accent pl-4">
+      <Stack space="tight" as="figure">
         <blockquote className="font-serif text-2xl italic">
           {'And you may ask yourself, "Well, how did I get here?"'}
         </blockquote>
-        <figcaption className="mt-2 text-muted">— Talking Heads</figcaption>
-      </figure>
-      <section>
+        <figcaption className="text-muted">— Talking Heads</figcaption>
+      </Stack>
+      <Stack space="tight" as="section">
         <h2 className={h2Class}>You might be struggling with…</h2>
         <Items items={struggling} />
-      </section>
-      <section>
+      </Stack>
+      <Stack space="tight" as="section">
         <h2 className={h2Class}>Therapy may help you…</h2>
         <Items items={help} />
-      </section>
-      <section className="space-y-3">
+      </Stack>
+      <Stack space="tight" as="section">
         <h2 className={h2Class}>A note on perfectionism…</h2>
         <p>
           {
@@ -89,7 +89,7 @@ export default function ServicesPage() {
           What if you could let that all go, and still be successful, loved and
           accepted as you are?
         </p>
-      </section>
-    </div>
+      </Stack>
+    </Stack>
   );
 }

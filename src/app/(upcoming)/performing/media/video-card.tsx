@@ -22,7 +22,7 @@ export function VideoCard({ id, title }: { id: string; title: string }) {
       onClick={() => {
         setPlaying(true);
       }}
-      className="aspect-video w-full rounded-lg bg-poster text-on-image flex flex-col items-center justify-center gap-3 p-4 hover:opacity-90"
+      className="aspect-video w-full rounded-lg bg-poster text-on-image flex flex-col items-center justify-evenly hover:opacity-90"
     >
       <svg
         aria-hidden="true"
@@ -41,7 +41,7 @@ export function VideoCard({ id, title }: { id: string; title: string }) {
         />
         <path d="M20 16l14 8-14 8z" fill="currentColor" />
       </svg>
-      <span className="font-serif text-lg text-center">{title}</span>
+      <span className="font-serif text-lg text-center w-11/12">{title}</span>
     </button>
   );
 }

@@ -3,6 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 
 import { images } from "../../../../lib/images";
+import { Stack } from "../../../_components/layout/components";
 
 export const metadata: Metadata = {
   title: "Bio",
@@ -13,10 +14,10 @@ export const metadata: Metadata = {
 export default function BioPage() {
   const headshot = images["headshot-clarinet"];
   return (
-    <div className="max-w-5xl mx-auto space-y-8">
+    <Stack space="block" className="w-full max-w-5xl self-center">
       <h1 className="font-serif text-4xl text-heading">Bio</h1>
-      <div className="flex flex-col gap-6 md:flex-row md:items-start">
-        <div className="space-y-4 md:w-3/5">
+      <Stack space="heading" className="md:flex-row md:items-start">
+        <Stack space="flow" className="md:w-3/5">
           <p>
             As a performer of modern and historical wind instruments, Rachel
             Siegel defies conventional classifications. Across 34 states and for
@@ -66,7 +67,7 @@ export default function BioPage() {
             </Link>
             .
           </p>
-        </div>
+        </Stack>
         <Image
           src={headshot.src}
           alt={headshot.alt}
@@ -74,7 +75,7 @@ export default function BioPage() {
           height={headshot.height}
           className="w-48 md:w-2/5 h-auto shrink-0 rounded-lg"
         />
-      </div>
-    </div>
+      </Stack>
+    </Stack>
   );
 }
