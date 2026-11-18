@@ -23,7 +23,7 @@ const ARROW_CLASS =
   "flex size-13 cursor-pointer items-center justify-center rounded-full border border-heading bg-heading text-bg disabled:cursor-default disabled:bg-transparent disabled:text-heading disabled:opacity-30";
 
 const CARD_CLASS =
-  "relative flex flex-[0_0_calc(100%_-_2_*_var(--space-flow))] snap-start flex-col items-start bg-surface p-heading min-h-48 sm:max-w-md sm:flex-[1_0_15.5rem]";
+  "relative flex flex-[0_0_calc(100%_-_2_*_var(--space-flow))] snap-start flex-col items-start bg-surface p-heading min-h-48 max-w-md sm:flex-[1_0_15.5rem]";
 const LINKED_CARD_CLASS =
   "transition-colors duration-150 ease-[cubic-bezier(0.2,0.7,0.2,1)] hover:bg-tint";
 
