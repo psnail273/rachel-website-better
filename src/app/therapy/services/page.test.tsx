@@ -73,7 +73,7 @@ describe("ServicesPage", () => {
     expect(attrs(head)).toEqual({ "data-sidebar-head": "" });
     expect(attrs(body)).toEqual({ "data-sidebar-body": "" });
     expect(attrs(slot)).toEqual({ "data-sidebar-aside": "" });
-    expect(head?.children).toHaveLength(1);
+    expect(head.children).toHaveLength(1);
     expect(h1?.tagName).toBe("H1");
     expect(attrs(h1)).toEqual({
       "data-heading": "1",
