@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function BioPage() {
   const headshot = images["headshot-clarinet"];
   return (
-    <Stack space="block" className="w-full max-w-5xl self-center">
+    <Stack space="block" className="w-full max-w-5xl">
       <h1 className="font-serif text-4xl text-heading">Bio</h1>
       <Stack space="heading" className="md:flex-row md:items-start">
         <Stack space="flow" className="md:w-3/5">

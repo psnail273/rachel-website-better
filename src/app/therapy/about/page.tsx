@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   const headshot = images["headshot-therapist"];
   return (
-    <Stack space="block" className="w-full max-w-3xl self-center">
+    <Stack space="block" className="w-full max-w-3xl">
       <h1 className="font-serif text-4xl text-heading">About Me</h1>
       <Stack space="heading" className="md:flex-row md:items-start">
         <Image
