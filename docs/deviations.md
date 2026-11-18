@@ -124,3 +124,10 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: these are false survivors from the per-test coverage artefact in `docs/agents/facts.md` (the page module loads lazily inside a test, so its constants count as covered by one test only). `page.test.tsx:172` asserts the list items exactly, so it would kill every one of them.
 - Ruling: driver's call: out of reach.
 - Reasoning: the green Verifier judged all seven false survivors. The fix belongs to the test harness: load the page at the test file's top level. That is a follow-up, not this slice's work.
+## #37 9328cdf: "self-confidence" breaks at its hyphen at 390 px
+
+- Issue: #37 (Services). Commit: 9328cdf.
+- What deviated: at 390 px wide, the "Therapy may help you…" item "Develop greater self worth and self-confidence" breaks after "self-", which leaves "confidence" alone on the last line. The green Verifier failed design 8 (Layout) on it.
+- Reason: `tieItem` in `src/lib/tie.ts` ties "and" to "self-confidence" with a no-break space, but the browser can still break at the hyphen inside the tied word. tie.ts is outside #37's scope. The page can't put a U+2011 into the text itself, because the locked tests compare the item's text with an ordinary hyphen.
+- Ruling: driver's call: out of reach; a follow-up bug.
+- Reasoning: the defect is in shared tie.ts, and any list item that ends in a hyphenated word can hit it. Fixing it there serves every page. The main session files the follow-up `Kind: bug` slice in this milestone. Every other Verifier line passed, including the Driver's Chromium check (24/24).
