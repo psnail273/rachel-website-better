@@ -18,18 +18,18 @@ export type EventCard = {
 const CHICAGO = "America/Chicago";
 const DAY_MS = 86_400_000;
 const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
+  "January",
+  "February",
+  "March",
+  "April",
   "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
 ];
 
 type Fields = {
@@ -332,13 +332,14 @@ function formatDay(day: number): { month: number; d: number; year: number } {
 
 function formatRange(first: number, last: number): string {
   const a = formatDay(first);
-  const startText = `${MONTHS[a.month] ?? ""} ${String(a.d)}`;
-  if (last <= first) return startText;
+  const monthA = MONTHS[a.month] ?? "";
+  if (last <= first) return `${String(a.d)} ${monthA}`;
   const b = formatDay(last);
+  const monthB = MONTHS[b.month] ?? "";
   if (a.month === b.month && a.year === b.year) {
-    return `${startText}–${String(b.d)}`;
+    return `${String(a.d)}–${String(b.d)} ${monthA}`;
   }
-  return `${startText}–${MONTHS[b.month] ?? ""} ${String(b.d)}`;
+  return `${String(a.d)} ${monthA} – ${String(b.d)} ${monthB}`;
 }
 
 function toCardLocation(location: string | null): CardLocation | null {
