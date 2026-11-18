@@ -131,3 +131,10 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: `tieItem` in `src/lib/tie.ts` ties "and" to "self-confidence" with a no-break space, but the browser can still break at the hyphen inside the tied word. tie.ts is outside #37's scope. The page can't put a U+2011 into the text itself, because the locked tests compare the item's text with an ordinary hyphen.
 - Ruling: driver's call: out of reach; a follow-up bug.
 - Reasoning: the defect is in shared tie.ts, and any list item that ends in a hyphenated word can hit it. Fixing it there serves every page. The main session files the follow-up `Kind: bug` slice in this milestone. Every other Verifier line passed, including the Driver's Chromium check (24/24).
+## #63 5e2a4f0: the Lock lifted over the tie invariants
+
+- Issue: #63 (a hyphenated last word breaks at its hyphen). Commit: 5e2a4f0.
+- What deviated: the locked test `src/lib/tie.invariants.test.ts > tie invariants > gives back the input once tieItem's ZWSPs are removed and its NBSPs turned back into spaces` must change in the green phase. Once tieItem puts a word joiner after a tied pair's hyphens, it fails as written. The file was locked only because an uncounted red round (5e2a4f0) added the brief's 30 s timeout there after the Lock failed twice on the 5 s timeout at load 26 to 28.
+- Reason: the test contradicts the sealed brief (6ad92a2), whose Existing tests and Constraints say the green phase rewrites this property as the tieItem round-trip invariant that also removes word joiners.
+- Ruling: driver's call: lock lift.
+- Reasoning: the test is wrong and the brief is right. The green round may change only `src/lib/tie.invariants.test.ts`, and only as the brief says (that property rewritten, the four `invariants` properties added, the 30 s timeouts kept); every other locked test stays as at 5e2a4f0. The Lock is recorded again after the round, on a full fresh verify, and a fresh Verifier checks it.
