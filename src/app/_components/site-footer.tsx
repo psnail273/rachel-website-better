@@ -9,7 +9,7 @@ import { siteConfig } from "@/lib/site-config";
 import { PageShell } from "./layout/components";
 
 const linkClass =
-  "flex min-h-[2.25rem] items-center whitespace-nowrap text-on-band no-underline hover:underline hover:decoration-1 [&:focus-visible]:outline-on-image";
+  "flex min-h-[2.25rem] items-center whitespace-nowrap text-on-band no-underline hover:underline hover:decoration-1";
 const labelClass = "type-label text-band-accent";
 
 function Column({ menu }: { menu: NavMenu }) {
@@ -32,7 +32,7 @@ function Column({ menu }: { menu: NavMenu }) {
 export async function SiteFooter() {
   "use cache";
   return Promise.resolve(
-    <footer className="bg-band py-block text-on-band type-small">
+    <footer className="[--accent:var(--on-image)] bg-band py-block text-on-band type-small">
       <PageShell className="grid gap-block lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
         <div>
           <p className="type-footer-name">Rachel Siegel</p>
