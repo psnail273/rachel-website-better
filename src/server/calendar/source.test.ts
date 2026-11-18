@@ -78,7 +78,7 @@ const CACHED: CalendarEvent[] = [
 
 type Answer = Response | "network";
 
-function fakeFetch(answers: Record<string, Answer>): {
+function fakeFetch(answers: Partial<Record<string, Answer>>): {
   fetchFeed: FetchFeed;
   calls: string[][];
 } {

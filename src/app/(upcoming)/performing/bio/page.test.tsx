@@ -14,7 +14,7 @@ vi.mock("next/cache", () => ({ cacheLife: vi.fn() }));
 type PageModule = { default: () => ReactElement; metadata: Metadata };
 
 const pages = import.meta.glob<PageModule>("./page.tsx");
-const page = await pages["./page.tsx"]?.();
+const page = await pages["./page.tsx"]();
 
 let folder = "";
 
@@ -128,7 +128,7 @@ describe("BioPage", () => {
       "SECTION",
     ]);
     const page = doc.body.children[0];
-    expect(texts(page?.querySelectorAll("h1") ?? [])).toEqual(["Bio"]);
+    expect(texts(page.querySelectorAll("h1"))).toEqual(["Bio"]);
     expect(texts(doc.querySelectorAll("section h2"))).toEqual(["Upcoming"]);
     expect(texts(doc.querySelectorAll("section p"))).toEqual([
       "Events are unavailable right now.",

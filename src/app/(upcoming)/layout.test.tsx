@@ -121,7 +121,7 @@ describe("UpcomingLayout", () => {
       "P",
       "SECTION",
     ]);
-    expect(doc.body.children[0]?.textContent).toBe("Page body");
+    expect(doc.body.children[0].textContent).toBe("Page body");
     expect(cardsOf(doc)).toEqual(THREE_CARDS);
     expect(fetchFake).toHaveBeenCalledTimes(1);
     const [calledUrl, calledInit] = fetchFake.mock.calls[0] ?? [];

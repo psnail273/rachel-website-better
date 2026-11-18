@@ -28,7 +28,7 @@ function texts(nodes: Iterable<Element>): string[] {
 
 function sectionOf(doc: Document, index: number): Element | null {
   const h2 = doc.querySelectorAll("h2")[index];
-  return h2?.parentElement ?? null;
+  return h2.parentElement;
 }
 
 describe("ServicesPage", () => {
