@@ -45,7 +45,7 @@ async function toDoc(element: ReactElement): Promise<Document> {
   return new DOMParser().parseFromString(html, "text/html");
 }
 
-async function renderPage(): Promise<Document> {
+function renderPage(): Promise<Document> {
   const { default: BioPage } = loadPage();
   return toDoc(<BioPage />);
 }
