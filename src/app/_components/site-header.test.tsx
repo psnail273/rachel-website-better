@@ -379,8 +379,15 @@ describe("SiteHeader", () => {
 
   it("marks no tab current on Home", () => {
     renderAt("/");
+    const tabs = Array.from(document.querySelectorAll("[data-nav-tab]")).map(
+      (tab) => [tab.textContent, tab.getAttribute("aria-current")],
+    );
 
-    expect(currentOfTabs()).toEqual([null, null, null]);
+    expect(tabs).toEqual([
+      ["Therapy", null],
+      ["Performing", null],
+      ["Contact", null],
+    ]);
   });
 
   it("marks the Contact tab as the current page on /contact", () => {
