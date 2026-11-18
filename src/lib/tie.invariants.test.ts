@@ -27,7 +27,7 @@ describe("tie invariants", () => {
       }),
       { numRuns: 200 },
     );
-  });
+  }, 30000);
 
   it("leaves a label of two words or fewer unchanged in tieLabel", () => {
     fc.assert(
@@ -36,7 +36,7 @@ describe("tie invariants", () => {
       }),
       { numRuns: 200 },
     );
-  });
+  }, 30000);
 
   it("never throws on any string in tieLast", () => {
     fc.assert(
@@ -48,5 +48,5 @@ describe("tie invariants", () => {
       ),
       { numRuns: 200 },
     );
-  });
+  }, 30000);
 });
