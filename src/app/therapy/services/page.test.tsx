@@ -22,8 +22,8 @@ async function renderPage(): Promise<Document> {
   return new DOMParser().parseFromString(html, "text/html");
 }
 
-function texts(nodes: Iterable<Element>): string[] {
-  return Array.from(nodes, (node) => node.textContent);
+function texts(nodes: Iterable<Element> | undefined): string[] {
+  return Array.from(nodes ?? [], (node) => node.textContent);
 }
 
 const NBSP = "\u00a0";
@@ -36,12 +36,20 @@ function attrs(node: Element | null | undefined): Record<string, string> {
   );
 }
 
-function tags(nodes: Iterable<Element>): string[] {
-  return Array.from(nodes, (node) => node.tagName);
+function tags(nodes: Iterable<Element> | undefined): string[] {
+  return Array.from(nodes ?? [], (node) => node.tagName);
+}
+
+function at(list: Element[], index: number): Element | undefined {
+  return list.at(index);
+}
+
+function kid(node: Element | undefined, index: number): Element | undefined {
+  return node ? Array.from(node.children).at(index) : undefined;
 }
 
 function section(doc: Document, index: number): Element | undefined {
-  return doc.body.children[index];
+  return kid(doc.body, index);
 }
 
 describe("ServicesPage", () => {
@@ -50,9 +58,9 @@ describe("ServicesPage", () => {
     const first = section(doc, 0);
     const sidebar = first?.children[0];
     const [head, body, slot] = Array.from(sidebar?.children ?? []);
-    const h1 = head.children[0];
-    const prose = body.children[0];
-    const figure = slot.children[0];
+    const h1 = kid(head, 0);
+    const prose = kid(body, 0);
+    const figure = kid(slot, 0);
 
     expect(tags(doc.body.children)).toEqual(["SECTION", "SECTION", "SECTION"]);
     expect(attrs(first)).toEqual({
@@ -66,31 +74,31 @@ describe("ServicesPage", () => {
     expect(attrs(body)).toEqual({ "data-sidebar-body": "" });
     expect(attrs(slot)).toEqual({ "data-sidebar-aside": "" });
     expect(head.children).toHaveLength(1);
-    expect(h1.tagName).toBe("H1");
+    expect(h1?.tagName).toBe("H1");
     expect(attrs(h1)).toEqual({
       "data-heading": "1",
       id: "services-heading",
       class: "type-h1",
     });
-    expect(h1.textContent).toBe("Services");
+    expect(h1?.textContent).toBe("Services");
     expect(doc.querySelectorAll("h1")).toHaveLength(1);
     expect(body.children).toHaveLength(1);
-    expect(prose.tagName).toBe("DIV");
+    expect(prose?.tagName).toBe("DIV");
     expect(attrs(prose)).toEqual({ "data-prose": "start" });
-    expect(tags(prose.children)).toEqual(["P"]);
-    expect(prose.children[0].textContent).toBe(
+    expect(tags(prose?.children)).toEqual(["P"]);
+    expect(kid(prose, 0)?.textContent).toBe(
       `I provide individual therapy to adults and adolescents (aged 14 and up) through a group practice, Wellness Alliance Counseling and${NBSP}Psychotherapy. In-person therapy takes place at our office in Clayton, MO. For telehealth, clients must be in Missouri or${NBSP}Illinois.`,
     );
     expect(slot.children).toHaveLength(1);
-    expect(figure.tagName).toBe("FIGURE");
+    expect(figure?.tagName).toBe("FIGURE");
     expect(attrs(figure)).toEqual({ "data-quote": "" });
-    expect(tags(figure.children)).toEqual(["BLOCKQUOTE", "FIGCAPTION"]);
-    expect(attrs(figure.children[0])).toEqual({ class: "type-quote" });
-    expect(figure.children[0].textContent).toBe(
+    expect(tags(figure?.children)).toEqual(["BLOCKQUOTE", "FIGCAPTION"]);
+    expect(attrs(kid(figure, 0))).toEqual({ class: "type-quote" });
+    expect(kid(figure, 0)?.textContent).toBe(
       `And you may ask yourself, \u201cWell, how did I get${NBSP}here?\u201d`,
     );
-    expect(attrs(figure.children[1])).toEqual({ class: "type-small" });
-    expect(figure.children[1].textContent).toBe("Talking Heads");
+    expect(attrs(kid(figure, 1))).toEqual({ class: "type-small" });
+    expect(kid(figure, 1)?.textContent).toBe("Talking Heads");
     expect(doc.querySelectorAll("figure")).toHaveLength(1);
     expect(doc.querySelectorAll("blockquote")).toHaveLength(1);
   });
@@ -118,18 +126,18 @@ describe("ServicesPage", () => {
       ["H2", "UL"],
       ["H2", "UL"],
     ]);
-    expect(halves.map((half) => attrs(half.children[0]))).toEqual([
+    expect(halves.map((half) => attrs(kid(half, 0)))).toEqual([
       { "data-heading": "2", class: "type-h2" },
       { "data-heading": "2", class: "type-h2" },
     ]);
-    expect(halves.map((half) => attrs(half.children[1]))).toEqual([
+    expect(halves.map((half) => attrs(kid(half, 1)))).toEqual([
       { "data-list": "plain", class: "type-list" },
       { "data-list": "plain", class: "type-list" },
     ]);
-    expect(halves[0]?.children[0]?.textContent).toBe(
+    expect(at(halves, 0)?.children[0]?.textContent).toBe(
       "You might be struggling with…",
     );
-    expect(texts(halves[0]?.querySelectorAll("li") ?? [])).toEqual([
+    expect(texts(at(halves, 0)?.querySelectorAll("li") ?? [])).toEqual([
       "Identity development",
       "Anxiety and stress management",
       "Maladaptive perfectionism",
@@ -139,8 +147,10 @@ describe("ServicesPage", () => {
       "Work-life balance",
       `Relationship issues/${ZWSP}setting boundaries`,
     ]);
-    expect(halves[1]?.children[0]?.textContent).toBe("Therapy may help you…");
-    expect(texts(halves[1]?.querySelectorAll("li") ?? [])).toEqual([
+    expect(at(halves, 1)?.children[0]?.textContent).toBe(
+      "Therapy may help you…",
+    );
+    expect(texts(at(halves, 1)?.querySelectorAll("li") ?? [])).toEqual([
       "Manage stress and anxiety",
       "Reframe unhelpful beliefs",
       "Develop greater self worth and self-confidence",
@@ -157,12 +167,14 @@ describe("ServicesPage", () => {
   it("shows the note on perfectionism with its list", async () => {
     const doc = await renderPage();
     const third = section(doc, 2);
-    const [h2, stack] = Array.from(third?.children ?? []);
-    const [run, center] = Array.from(stack.children);
-    const halves = Array.from(run.children);
-    const prose = halves[0]?.children[0];
-    const list = halves[1]?.children[0];
-    const lead = center.children[0];
+    const h2 = kid(third, 0);
+    const stack = kid(third, 1);
+    const run = kid(stack, 0);
+    const center = kid(stack, 1);
+    const halves = Array.from(run?.children ?? []);
+    const prose = at(halves, 0)?.children[0];
+    const list = at(halves, 1)?.children[0];
+    const lead = kid(center, 0);
 
     expect(attrs(third)).toEqual({
       "data-section": "",
@@ -174,23 +186,23 @@ describe("ServicesPage", () => {
       id: "perfectionism-heading",
       class: "type-h2",
     });
-    expect(h2.textContent).toBe("A note on perfectionism…");
+    expect(h2?.textContent).toBe("A note on perfectionism…");
     expect(attrs(stack)).toEqual({ "data-stack": "block" });
-    expect(tags(stack.children)).toEqual(["DIV", "DIV"]);
+    expect(tags(stack?.children)).toEqual(["DIV", "DIV"]);
     expect(attrs(run)).toEqual({ "data-switcher": "run" });
     expect(attrs(center)).toEqual({ "data-prose": "center" });
     expect(tags(halves)).toEqual(["DIV", "DIV"]);
     expect(halves.map((half) => attrs(half))).toEqual([{}, {}]);
-    expect(halves[0]?.children).toHaveLength(1);
+    expect(at(halves, 0)?.children).toHaveLength(1);
     expect(attrs(prose)).toEqual({ "data-prose": "start" });
-    expect(tags(prose.children)).toEqual(["P"]);
-    expect(prose.children[0].textContent).toBe(
+    expect(tags(prose?.children)).toEqual(["P"]);
+    expect(kid(prose, 0)?.textContent).toBe(
       `Contrary to common belief, perfectionism usually doesn\u2019t help us achieve our goals. More often, it keeps us small, distracted by the fear of making a mistake or seeming${NBSP}messy. Perfectionism can${NBSP}cause:`,
     );
-    expect(halves[1]?.children).toHaveLength(1);
-    expect(list.tagName).toBe("UL");
+    expect(at(halves, 1)?.children).toHaveLength(1);
+    expect(list?.tagName).toBe("UL");
     expect(attrs(list)).toEqual({ "data-list": "plain", class: "type-list" });
-    expect(texts(list.querySelectorAll("li"))).toEqual([
+    expect(texts(list?.querySelectorAll("li"))).toEqual([
       "Procrastination",
       "Shame",
       `Shutting down when${NBSP}emotional`,
@@ -199,12 +211,12 @@ describe("ServicesPage", () => {
       `Chronic stress and${NBSP}burnout`,
       `Frequent and intense anxiety of being perceived${NBSP}negatively.`,
     ]);
-    expect(center.children).toHaveLength(1);
+    expect(center?.children).toHaveLength(1);
     expect(attrs(lead)).toEqual({ "data-lead": "", class: "type-lead" });
-    expect(lead.textContent).toBe(
+    expect(lead?.textContent).toBe(
       `What if you could let that all go, and still be successful, loved and accepted as you${NBSP}are?`,
     );
-    expect(lead.querySelector("svg")).toBeNull();
+    expect(lead?.querySelector("svg")).toBeNull();
   });
 
   it("styles nothing as a callout box", async () => {
@@ -230,8 +242,8 @@ describe("ServicesPage", () => {
   it("centres the closing question in its column", async () => {
     const doc = await renderPage();
     const leads = doc.querySelectorAll("[data-lead]");
-    const lead = leads[0];
-    const parent = lead.parentElement;
+    const lead = at(Array.from(leads), 0);
+    const parent = lead?.parentElement;
     const stack = section(doc, 2)?.querySelector('[data-stack="block"]');
     const inSection = Array.from(
       section(doc, 2)?.querySelectorAll(EVERY) ?? [],
@@ -241,7 +253,7 @@ describe("ServicesPage", () => {
     expect(attrs(parent)).toEqual({ "data-prose": "center" });
     expect(stack?.lastElementChild).toBe(parent);
     expect(inSection.at(-1)).toBe(lead);
-    expect(lead.textContent).toBe(
+    expect(lead?.textContent).toBe(
       `What if you could let that all go, and still be successful, loved and accepted as you${NBSP}are?`,
     );
   });
