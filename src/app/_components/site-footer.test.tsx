@@ -15,7 +15,7 @@ function column(el: Element | null | undefined) {
     label: [el?.children[0]?.tagName, el?.children[0]?.textContent],
     listTag: list?.tagName,
     links: Array.from(list?.children ?? []).map((item) => {
-      const a = item.children[0];
+      const a = item.children.item(0);
       return [
         item.tagName,
         item.children.length,
