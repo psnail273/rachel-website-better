@@ -444,7 +444,8 @@ describe("design tokens", () => {
   });
 
   it("uses no colour token that no longer exists", () => {
-    const removed = /[a-z]+-(?:background|foreground|accent-soft)\b/g;
+    const removed =
+      /[a-z]+-(?:background|foreground|accent-soft|accent-text)\b/g;
     const matches = sourceFiles(srcDir, [".ts", ".tsx"]).flatMap((file) =>
       Array.from(
         readFileSync(join(srcDir, file), "utf8").matchAll(removed),
@@ -453,7 +454,12 @@ describe("design tokens", () => {
     );
     const removedNames = allBlocks.flatMap((entry) =>
       Object.keys(entry.decls).filter((name) =>
-        ["--background", "--foreground", "--accent-soft"].includes(name),
+        [
+          "--background",
+          "--foreground",
+          "--accent-soft",
+          "--accent-text",
+        ].includes(name),
       ),
     );
 
