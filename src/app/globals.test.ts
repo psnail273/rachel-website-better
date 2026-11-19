@@ -235,8 +235,8 @@ const ROLES: Role[] = [
     name: "display",
     size: "clamp(3.75rem, 1.5rem + 9.4vw, 9.5rem)",
     style: "italic",
-    weight: "300",
-    axes: SOFT_100,
+    weight: "380",
+    axes: '"SOFT" 0, "WONK" 0',
     line: "0.92",
     tracking: "-0.035em",
   },
@@ -252,9 +252,9 @@ const ROLES: Role[] = [
   {
     name: "h2",
     size: "clamp(1.75rem, 1.3rem + 1.9vw, 2.5rem)",
-    style: "italic",
-    weight: "300",
-    axes: SOFT_100,
+    style: "normal",
+    weight: "350",
+    axes: '"SOFT" 0, "WONK" 0',
     line: "1.1",
     tracking: "-0.02em",
   },
@@ -262,8 +262,8 @@ const ROLES: Role[] = [
     name: "lead",
     size: "clamp(1.375rem, 1.15rem + 1vw, 2rem)",
     style: "italic",
-    weight: "300",
-    axes: SOFT_100,
+    weight: "380",
+    axes: '"SOFT" 0, "WONK" 0',
     line: "1.3",
     tracking: "0",
   },
@@ -271,8 +271,8 @@ const ROLES: Role[] = [
     name: "quote",
     size: "clamp(1.5rem, 1.1rem + 3.2cqi, 3rem)",
     style: "italic",
-    weight: "300",
-    axes: SOFT_100,
+    weight: "380",
+    axes: '"SOFT" 0, "WONK" 0',
     line: "1.14",
     tracking: "-0.02em",
   },
@@ -336,7 +336,7 @@ const ROLES: Role[] = [
     size: "1.375rem",
     style: "italic",
     weight: "500",
-    axes: SOFT_100,
+    axes: '"SOFT" 0, "WONK" 0',
     line: "1",
     tracking: "0",
   },
@@ -370,9 +370,9 @@ const ROLES: Role[] = [
   {
     name: "label",
     size: "1.0625rem",
-    style: "italic",
+    style: "normal",
     weight: "500",
-    axes: SOFT_60,
+    axes: '"SOFT" 60, "WONK" 0',
     line: "1.3",
     tracking: "0",
   },
@@ -380,8 +380,8 @@ const ROLES: Role[] = [
     name: "footer-name",
     size: "clamp(2.5rem, 1.8rem + 3vw, 4rem)",
     style: "italic",
-    weight: "300",
-    axes: SOFT_100,
+    weight: "380",
+    axes: '"SOFT" 0, "WONK" 0',
     line: "1",
     tracking: "-0.03em",
   },
@@ -566,6 +566,28 @@ describe("design tokens", () => {
     expect(utilityPaths).toEqual(
       ROLES.map((role) => [`@utility type-${role.name}`]),
     );
+  });
+
+  it('sets "WONK" 0 on every italic type role', () => {
+    const italics = allBlocks
+      .filter(
+        (entry) =>
+          entry.path.length === 1 &&
+          entry.path[0]?.startsWith("@utility type-") &&
+          entry.decls["font-style"] === "italic",
+      )
+      .map((entry) => [
+        entry.path[0]?.replace("@utility type-", ""),
+        entry.decls["font-variation-settings"],
+      ]);
+
+    expect(italics).toEqual([
+      ["display", '"SOFT" 0, "WONK" 0'],
+      ["lead", '"SOFT" 0, "WONK" 0'],
+      ["quote", '"SOFT" 0, "WONK" 0'],
+      ["brand", '"SOFT" 0, "WONK" 0'],
+      ["footer-name", '"SOFT" 0, "WONK" 0'],
+    ]);
   });
 
   it("defines the layout and space tokens and no other spacing scale", () => {

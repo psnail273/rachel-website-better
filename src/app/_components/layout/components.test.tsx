@@ -287,12 +287,11 @@ describe("layout components", () => {
     expect(lead?.textContent).toBe("For therapy, please reach out.");
   });
 
-  it("renders Lead with the dotted rule under its statement", () => {
+  it("renders Lead with the hairline under its statement", () => {
     const withRule = render(<Lead rule>Some words here.</Lead>);
     const bare = render(<Lead>Some words here.</Lead>);
     const lead = withRule?.children.item(0);
-    const svg = withRule?.children.item(1);
-    const circles = Array.from(svg?.children ?? []);
+    const rule = withRule?.children.item(1);
 
     expect(withRule?.tagName).toBe("DIV");
     expect(attrs(withRule)).toEqual({});
@@ -300,39 +299,15 @@ describe("layout components", () => {
     expect(lead?.tagName).toBe("P");
     expect(attrs(lead)).toEqual({ "data-lead": "", class: "type-lead" });
     expect(lead?.textContent).toBe("Some words here.");
-    expect(svg?.tagName).toBe("svg");
-    expect(attrs(svg)).toEqual({
-      "data-rule": "",
-      "aria-hidden": "true",
-      width: "132",
-      height: "12",
-      viewBox: "0 0 132 12",
-    });
-    expect(
-      circles.map((c) => [
-        c.tagName,
-        c.getAttribute("cx"),
-        c.getAttribute("cy"),
-        c.getAttribute("r"),
-        c.hasAttribute("fill"),
-      ]),
-    ).toEqual([
-      ["circle", "6", "6", "4.25", false],
-      ["circle", "24", "6", "4.25", false],
-      ["circle", "42", "6", "4.25", false],
-      ["circle", "62", "6", "4.25", false],
-      ["circle", "80", "6", "4.25", false],
-      ["circle", "98.5", "6", "2.6", false],
-      ["circle", "105.5", "6", "2.6", false],
-      ["circle", "119.5", "6", "2.6", false],
-      ["circle", "126.5", "6", "2.6", false],
-    ]);
+    expect(rule?.tagName).toBe("DIV");
+    expect(attrs(rule)).toEqual({ "data-rule": "", "aria-hidden": "true" });
+    expect(rule?.children).toHaveLength(0);
+    expect(rule?.textContent).toBe("");
+    expect(withRule?.querySelector("svg")).toBeNull();
+    expect(withRule?.querySelector("circle")).toBeNull();
     expect(bare?.tagName).toBe("P");
     expect(attrs(bare)).toEqual({ "data-lead": "", class: "type-lead" });
-    expect(bare?.querySelector("svg")).toBeNull();
-    expect(renderToStaticMarkup(<Lead>Some words here.</Lead>)).not.toContain(
-      "<svg",
-    );
+    expect(bare?.querySelector("[data-rule]")).toBeNull();
   });
 
   it("renders PullQuote, Photo, List and Rows with their attributes and tied text", () => {

@@ -60,24 +60,6 @@ const specialisations = [
   "Work life balance/\u200brelationship\u00a0issues",
   "Eating and body image\u00a0concerns",
 ];
-const RULE_ATTRS = {
-  "data-rule": "",
-  "aria-hidden": "true",
-  width: "132",
-  height: "12",
-  viewBox: "0 0 132 12",
-};
-const RULE_CIRCLES = [
-  ["6", "6", "4.25"],
-  ["24", "6", "4.25"],
-  ["42", "6", "4.25"],
-  ["62", "6", "4.25"],
-  ["80", "6", "4.25"],
-  ["98.5", "6", "2.6"],
-  ["105.5", "6", "2.6"],
-  ["119.5", "6", "2.6"],
-  ["126.5", "6", "2.6"],
-];
 
 describe("AboutPage", () => {
   it("shows the About Me heading first in the photo page, with no label above it", async () => {
@@ -119,12 +101,12 @@ describe("AboutPage", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("shows the lead once, followed by the dotted rule", async () => {
+  it("shows the lead once, followed by the hairline", async () => {
     const doc = await renderPage();
     const body = doc.querySelector("[data-sidebar-body]");
     const stack = child(body, 0);
     const leadBox = child(stack, 0);
-    const svg = child(leadBox, 1);
+    const rule = child(leadBox, 1);
 
     expect(doc.querySelectorAll("[data-lead]")).toHaveLength(1);
     const lead = doc.querySelector("[data-lead]");
@@ -144,17 +126,11 @@ describe("AboutPage", () => {
     expect(child(leadBox, 0)).toBe(lead);
     expect(child(stack, 1)?.tagName).toBe("DIV");
     expect(attrs(child(stack, 1))).toEqual({ "data-prose": "start" });
-    expect(svg?.tagName).toBe("svg");
-    expect(attrs(svg)).toEqual(RULE_ATTRS);
-    expect(
-      Array.from(svg?.children ?? [], (c) => [
-        c.tagName,
-        c.getAttribute("cx"),
-        c.getAttribute("cy"),
-        c.getAttribute("r"),
-        c.hasAttribute("fill"),
-      ]),
-    ).toEqual(RULE_CIRCLES.map((c) => ["circle", ...c, false]));
+    expect(rule?.tagName).toBe("DIV");
+    expect(attrs(rule)).toEqual({ "data-rule": "", "aria-hidden": "true" });
+    expect(rule?.children).toHaveLength(0);
+    expect(doc.querySelectorAll("[data-rule]")).toHaveLength(1);
+    expect(doc.querySelectorAll("svg circle")).toHaveLength(0);
   });
 
   it("sets the three paragraphs, the specialisations panel and the closing paragraph in one Prose", async () => {
