@@ -35,7 +35,7 @@ afterEach(() => {
 
 function must<T>(value: T | null | undefined): T {
   if (value === null || value === undefined) {
-    throw new Error("expected a value, got " + String(value));
+    expect.fail("expected a value, got " + String(value));
   }
   return value;
 }
