@@ -11,10 +11,7 @@ export function createRateLimiter(now: () => number): RateLimiter {
       const recent = (takes.get(key) ?? []).filter(
         (earlier) => time - earlier < WINDOW_MS,
       );
-      if (recent.length >= LIMIT) {
-        takes.set(key, recent);
-        return false;
-      }
+      if (recent.length >= LIMIT) return false;
       takes.set(key, [...recent, time]);
       return true;
     },
