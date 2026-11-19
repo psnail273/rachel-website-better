@@ -1,13 +1,13 @@
 # Design reference
 
-The design of Spec #26, "Blossom, one layout": chosen by the human from live prototypes, built by the Editor, and checked by the Verifier. Each Build Brief cites the sections its slice builds, and its values are exact. A slice that needs a value this file doesn't give asks the Driver, who adds it here, rather than inventing one. The Board in `docs/design/board/` shows Home and About Me at 390 and 1280 px, light and dark.
+The design of Spec #26, "Blossom, one layout", with the palette, italics and separator the human chose in Playtest #62 ("Mauve and wine"): chosen by the human from live prototypes, built by the Editor, and checked by the Verifier. Each Build Brief cites the sections its slice builds, and its values are exact. A slice that needs a value this file doesn't give asks the Driver, who adds it here, rather than inventing one. The Board in `docs/design/board/` shows Home and About Me at 390 and 1280 px, light and dark.
 
 Principles, in order:
 
 1. **One layout.** Every page is built only from the layout contract (§3): one column, five spacing values, a fixed set of components. No page sets a margin, a padding or a gap of its own. Text never shifts sideways between pages.
 2. **Nothing sits in half a page alone.** The human's rule: "No reason to only be half the page if there isn't another half of the page." A block with nothing beside it fills its column or is centred.
 3. **Readable.** WCAG 2.2 AA in both palettes, a 65ch measure, no one-word lines in labels.
-4. **Soft type, quiet surfaces.** Fraunces alone, soft and partly italic; one evergreen band (the footer); cards that "stand out, but don't pop too much".
+4. **Soft type, quiet surfaces.** Fraunces alone, soft, italic only for the name, the leads and the pull quote; one wine band (the footer); cards that "stand out, but don't pop too much".
 5. **Honest.** No decoration that carries no information: no eyebrows, no arrows on links, no scroll reveals.
 
 ## 1. Colour tokens
@@ -16,72 +16,72 @@ CSS custom properties on `:root`, each written with `light-dark(<light>, <dark>)
 
 | Token | Light | Dark | Use |
 |---|---|---|---|
-| `bg` | `#f6e4e6` | `#17302a` | page background |
-| `surface` | `#fbf3f3` | `#1e3b33` | Upcoming cards, pull quote, dropdown panel, form fields |
-| `tint` | `#eed3d7` | `#27483f` | list panel, hover fill of cards and dropdown items |
+| `bg` | `#f6e4e6` | `#24131c` | page background |
+| `surface` | `#fbf3f3` | `#2f1b26` | Upcoming cards, pull quote, dropdown panel, form fields |
+| `tint` | `#eed3d7` | `#3d2431` | list panel, hover fill of cards and dropdown items |
 | `ink` | `#3b2530` | `#eadfd9` | body text |
 | `heading` | `#2a1420` | `#f7eee9` | headings, leads, the page-ground button |
-| `muted` | `#6a525d` | `#b9c4bc` | captions, "Coming soon", "(required)" |
-| `link` | `#1f4a3a` | `#f7eee9` | links in copy |
-| `accent` | `#2b6044` | `#f2abbe` | current-nav underline, focus ring, list bullets, mobile-menu group labels |
+| `muted` | `#6a525d` | `#c6b3ba` | captions, "Coming soon", "(required)" |
+| `link` | `#75203f` | `#f7dce4` | links in copy |
+| `accent` | `#853a62` | `#f2abbe` | current-nav underline, focus ring (outside the hero and the footer), list bullets, mobile-menu group labels |
 | `error` | `#8f1836` | `#ffb4c0` | form error text and invalid-field border |
-| `ornament` | `#d98fa3` | `#5e8a6f` | the dotted rule, the photo frame's line (decorative, never text) |
-| `line` | `#e3c9ce` | `#2c4a41` | hairlines: rows, the scrolled header's edge (decorative) |
-| `line-strong` | `#8f7480` | `#7fa091` | outlines of controls: form fields, dropdown panel (needs 3:1) |
-| `band` | `#1f3a30` | `#0f231d` | the footer band |
-| `on-band` | `#f8eee9` | `#f8eee9` | text on `band` |
-| `on-band-muted` | `#c5d3c9` | `#c5d3c9` | secondary text on `band` |
+| `ornament` | `#c98aa6` | `#8b5a72` | the hairline under a lead, the photo frame's line (decorative, never text) |
+| `line` | `#e3c9ce` | `#42293a` | hairlines: rows, the scrolled header's edge (decorative) |
+| `line-strong` | `#8f7480` | `#a78895` | outlines of controls: form fields, dropdown panel (needs 3:1) |
+| `band` | `#47172f` | `#47172f` | the footer band: wine, the same in both schemes |
+| `on-band` | `#f8eee9` | `#f8eee9` | text on `band`, and the focus ring in the footer |
+| `on-band-muted` | `#dcc5cd` | `#dcc5cd` | secondary text on `band` |
 | `band-accent` | `#f2abbe` | `#f2abbe` | footer column labels |
 | `plum` | `#24121c` | `#24121c` | the hero's ground and scrim colour, hover text of hero buttons |
 | `on-image` | `#f8eee9` | `#f8eee9` | text and outlines over the hero image and video stills |
-| `poster` | `#1f3a30` | `#1f3a30` | ground behind a video still while it loads |
+| `poster` | `#47172f` | `#47172f` | ground behind a video still while it loads |
 
 Measured WCAG 2.x ratios (each must stay at or above "Needs"):
 
 | Pair | Light | Dark | Needs |
 |---|---|---|---|
-| `ink` on `bg` / `surface` / `tint` | 11.5 / 12.9 / 10.0 | 10.8 / 9.3 / 7.7 | 4.5 |
-| `heading` on `bg` / `surface` / `tint` | 14.1 / 15.8 / 12.2 | 12.3 / 10.6 / 8.8 | 4.5 |
-| `muted` on `bg` / `surface` | 5.8 / 6.5 | 7.8 / 6.8 | 4.5 |
-| `link` on `bg` / `surface` | 8.2 / 9.2 | 12.3 / 10.6 | 4.5 |
-| `accent` on `bg` / `surface` / `tint` | 6.0 / 6.7 / 5.2 | 7.6 / 6.6 / 5.4 | 4.5 (text), 3 (ring, bullets) |
-| `error` on `bg` / `surface` | 7.3 / 8.2 | 8.4 / 7.3 | 4.5 |
-| `bg` on `heading` (button hover, carousel arrows) | 14.1 | 12.3 | 4.5 |
-| `on-band` / `on-band-muted` / `band-accent` on `band` | 10.8 / 7.9 / 6.6 | 14.4 / 10.6 / 8.9 | 4.5 |
+| `ink` on `bg` / `surface` / `tint` | 11.5 / 12.9 / 10.0 | 13.5 / 12.3 / 10.7 | 4.5 |
+| `heading` on `bg` / `surface` / `tint` | 14.1 / 15.8 / 12.2 | 15.5 / 14.1 / 12.3 | 4.5 |
+| `muted` on `bg` / `surface` | 5.8 / 6.5 | 8.9 / 8.1 | 4.5 |
+| `link` on `bg` / `surface` | 8.4 / 9.4 | 13.8 / 12.5 | 4.5 |
+| `accent` on `bg` / `surface` / `tint` | 6.2 / 6.9 / 5.4 | 9.6 / 8.7 / 7.6 | 4.5 (text), 3 (ring, bullets) |
+| `error` on `bg` / `surface` | 7.3 / 8.2 | 10.6 / 9.6 | 4.5 |
+| `bg` on `heading` (button hover, carousel arrows) | 14.1 | 15.5 | 4.5 |
+| `on-band` / `on-band-muted` / `band-accent` on `band` | 12.9 / 9.0 / 7.9 | 12.9 / 9.0 / 7.9 | 4.5 |
 | `on-image` on `plum` | 15.6 | 15.6 | 4.5 |
-| `line-strong` on `bg` / `surface` | 3.4 / 3.9 | 4.9 / 4.2 | 3 |
+| `line-strong` on `bg` / `surface` | 3.4 / 3.9 | 5.6 / 5.1 | 3 |
 
 Rules:
 - Text uses only `ink`, `heading`, `muted`, `link`, `accent` or `error` on `bg`, `surface` or `tint`; `on-band`, `on-band-muted` or `band-accent` on `band`; `on-image` over the hero and video stills. No other pairing, and no opacity on text.
-- `ornament` and `line` are decorative only (`ornament` on `bg` is 2.0:1 in light): never text, never the only sign of a state.
+- `ornament` and `line` are decorative only (`ornament` on `bg` is 2.2:1 in light, 3.2:1 in dark): never text, never the only sign of a state.
 - **Hero scrim.** Two layers over the image, both in `plum` (`rgb(36 18 28)`): `radial-gradient(ellipse 75% 55% at 50% 52%, rgb(36 18 28 / 0.42), transparent 100%)` above `linear-gradient(to bottom, rgb(36 18 28 / 0.6) 0%, rgb(36 18 28 / 0.3) 24%, rgb(36 18 28 / 0.3) 100%)`. Every piece of text and every control over the image (brand, nav labels, menu button, name, tagline, both buttons) must reach 4.5:1 against the lightest pixel behind its box, scrim included, at 390×844, 768×1024, 1280×900 and 1920×1080. Measured on the placeholder: lowest 5.49 (a nav label at 1920), the name 7.89–8.58, the tagline 7.48–13.87, the buttons 7.03–8.22. A new hero photo is re-measured; if it fails, the scrim darkens, the text does not change.
 - The token test (#27) computes every pair above from the CSS and fails under its minimum.
 
 ## 2. Typography
 
-One family: **Fraunces**, variable on `opsz`, `wght`, `SOFT` (0–100) and `WONK`, upright and italic, from `src/app/fonts`. `font-optical-sizing: auto` (no `opsz` set by hand). Copy is set at `"SOFT" 60`; display type at `"SOFT" 100`. Source Sans 3 is not used. Fallback stack: `Georgia, serif`.
+One family: **Fraunces**, variable on `opsz`, `wght`, `SOFT` (0–100) and `WONK`, upright and italic, from `src/app/fonts`. `font-optical-sizing: auto` (no `opsz` set by hand). Copy is set at `"SOFT" 60`; upright display type (`h1`, `event-date`, `sheet-link`) at `"SOFT" 100`; the italic roles and `h2` at `"SOFT" 0, "WONK" 0`. Every italic sets `"WONK" 0`, so none shows the font's swashed forms (the curled "h"). Italic is kept for the name (`display`, `brand`, `footer-name`), the lead, the pull quote and a `cite`; nothing else is italic. Source Sans 3 is not used. Fallback stack: `Georgia, serif`.
 
 | Role | Size | Style, weight, axes | Line height | Tracking | Colour |
 |---|---|---|---|---|---|
-| `display` (Home `h1`) | `clamp(3.75rem, 1.5rem + 9.4vw, 9.5rem)` | italic 300, `"SOFT" 100` | 0.92 | -0.035em | `on-image` |
+| `display` (Home `h1`) | `clamp(3.75rem, 1.5rem + 9.4vw, 9.5rem)` | italic 380, `"SOFT" 0, "WONK" 0` | 0.92 | -0.035em | `on-image` |
 | `h1` (page title) | `clamp(3rem, 1.7rem + 5.4vw, 6rem)` | upright 300, `"SOFT" 100, "WONK" 1` | 1 | -0.03em | `heading` |
-| `h2` (section heading) | `clamp(1.75rem, 1.3rem + 1.9vw, 2.5rem)` | italic 300, `"SOFT" 100` | 1.1 | -0.02em | `heading` |
-| `lead` (statement) | `clamp(1.375rem, 1.15rem + 1vw, 2rem)` | italic 300, `"SOFT" 100` | 1.3 | 0 | `heading` |
-| `quote` (pull quote) | `clamp(1.5rem, 1.1rem + 3.2cqi, 3rem)`, `cqi` of the quote's own box | italic 300, `"SOFT" 100` | 1.14 | -0.02em | `heading` |
+| `h2` (section heading) | `clamp(1.75rem, 1.3rem + 1.9vw, 2.5rem)` | upright 350, `"SOFT" 0, "WONK" 0` | 1.1 | -0.02em | `heading` |
+| `lead` (statement) | `clamp(1.375rem, 1.15rem + 1vw, 2rem)` | italic 380, `"SOFT" 0, "WONK" 0` | 1.3 | 0 | `heading` |
+| `quote` (pull quote) | `clamp(1.5rem, 1.1rem + 3.2cqi, 3rem)`, `cqi` of the quote's own box | italic 380, `"SOFT" 0, "WONK" 0` | 1.14 | -0.02em | `heading` |
 | `body` | `clamp(1.0625rem, 1rem + 0.3vw, 1.1875rem)` | upright 400, `"SOFT" 60` | 1.7 | 0 | `ink` |
 | `list`, `rows` | body size | upright 400, `"SOFT" 60` | 1.4 | 0 | `ink` (`heading` in the panel) |
 | `card-title` (event and video titles) | `1.25rem` | upright 500, `"SOFT" 60` | 1.25 | 0 | `ink` in an event card, `heading` under a video |
 | `event-date` | `1.875rem` | upright 300, `"SOFT" 100`, `font-variant-numeric: lining-nums` | 1.1 | 0 | `heading` |
 | `hero-tag` | `clamp(1.1875rem, 1.05rem + 0.6vw, 1.5rem)` | upright 400, `"SOFT" 60` | 1.4 | 0 | `on-image` |
 | `button` (hero buttons, Send) | `1.25rem` | upright 500, `"SOFT" 60` | 1 | 0 | see §5 |
-| `brand` (header) | `1.375rem` | italic 500, `"SOFT" 100` | 1 | 0 | `heading`, `on-image` over the hero |
+| `brand` (header) | `1.375rem` | italic 500, `"SOFT" 0, "WONK" 0` | 1 | 0 | `heading`, `on-image` over the hero |
 | `nav` (tabs), dropdown items | `1rem` | upright 500 (tabs), 400 (items), `"SOFT" 60` | 1 | 0 | `heading` (tabs), `ink` (items) |
 | `sheet-link` (mobile menu) | `2rem` | upright 300, `"SOFT" 100` | 1.1 | 0 | `heading` |
-| `label` (footer column, mobile-menu group) | `1.0625rem` | italic 500, `"SOFT" 60` | 1.3 | 0 | `band-accent` in the footer, `accent` in the menu |
-| `footer-name` | `clamp(2.5rem, 1.8rem + 3vw, 4rem)` | italic 300, `"SOFT" 100` | 1 | -0.03em | `on-band` |
+| `label` (footer column, mobile-menu group) | `1.0625rem` | upright 500, `"SOFT" 60, "WONK" 0` | 1.3 | 0 | `band-accent` in the footer, `accent` in the menu |
+| `footer-name` | `clamp(2.5rem, 1.8rem + 3vw, 4rem)` | italic 380, `"SOFT" 0, "WONK" 0` | 1 | -0.03em | `on-band` |
 | `small` (footer text, captions, event place, error text, Details link) | `1rem` | upright 400 (error text 500) | 1.4 | 0 | per context |
 
-Links in copy: `link` colour, weight 500, `text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.3em`; hover thickness 2px. A link inside a lead keeps the lead's weight (300).
+Links in copy: `link` colour, weight 500, `text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 0.3em`; hover thickness 2px. A link inside a lead keeps the lead's weight (380).
 
 **Wrapping rules** (the human called wrapping out; each is checked, §3):
 
@@ -140,7 +140,7 @@ Every page is built only from these. Each carries its data attribute, which the 
 | **Switcher** | `data-switcher="pair"` / `"label"` / `"run"` | Exactly two children, each in a `div`: `display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--switch-min)), 1fr)); column-gap: var(--space-block)`. Two equal halves or one column, never a half-empty row. `pair`: two blocks, `row-gap: var(--space-block)` when stacked. `label`: a SectionHeading beside its content, no row gap (stacked, the heading's own space is the gap). `run`: one passage of copy in two halves, `row-gap: var(--space-flow)` when stacked. |
 | **Center** | `data-center` | One centred column: `inline-size: 100%; max-inline-size: var(--measure); margin-inline: auto; text-align: center`. For a page with nothing to set beside its copy. |
 | **Prose** | `data-prose="start"` / `"center"` | Running copy: `max-inline-size: var(--measure)`; children separated by `margin-block-start: var(--space-flow)`; paragraphs `text-wrap: wrap`, last two words tied. `center` adds `inline-size: 100%; margin-inline: auto; text-align: center`, for copy with nothing beside it. |
-| **Lead** | `data-lead` | A statement in `lead` type, last two words tied; optionally the dotted rule under it (§5). |
+| **Lead** | `data-lead` | A statement in `lead` type, last two words tied; optionally the hairline under it (§5). |
 | **PullQuote** | `data-quote` | The site's one quote style (§5). |
 | **Photo** | `data-photo` | The one photo slot (§5). It fills the Sidebar's slot and stays inside the column. |
 | **List** | `data-list="plain"` / `"panel"` | Bulleted list (§5). |
@@ -185,7 +185,7 @@ There is very little, and none of it is triggered by scrolling into view.
 
 ## 5. Components
 
-**Focus ring.** `outline: 2px solid var(--accent); outline-offset: 3px`, on `:focus-visible` only. Over the hero (including the header while it is transparent) and in the footer the ring is `on-image`. Inside the dropdown panel it is `accent` with `outline-offset: -3px`, so it is never clipped and never overlaps the next item; on the Upcoming row, `outline-offset: -2px`.
+**Focus ring.** `outline: 2px solid var(--accent); outline-offset: 3px`, on `:focus-visible` only. Over the hero (including the header while it is transparent) the ring is `on-image`; in the footer it is `on-band`. Inside the dropdown panel it is `accent` with `outline-offset: -3px`, so it is never clipped and never overlaps the next item; on the Upcoming row, `outline-offset: -2px`.
 
 **Buttons.** Square, `1px` outline, transparent fill, `button` type, `block-size: 3.5rem`, text centred, no padding (fixed width).
 - *Hero button* (on the image): outline and text `on-image`; hover fills `on-image` with `plum` text. Width: `flex: 0 0 12.5rem` from 30rem (480 px); below, `flex: 1 1 0; max-inline-size: 12.5rem`, so the two share the row.
@@ -194,9 +194,9 @@ There is very little, and none of it is triggered by scrolling into view.
 - *Carousel arrow:* see §8.
 - No "→" or "↗" on any link or button.
 
-**Lead and the dotted rule.** A `p` in `lead` type. With the rule (About Me only): under the text, `margin-block-start: var(--space-flow)`, an inline SVG `132 × 12`, `aria-hidden`, filled `ornament`: the recorder's finger holes as circles, five of radius 4.25 at x = 6, 24, 42, 62, 80 and four of radius 2.6 at x = 98.5, 105.5, 119.5, 126.5, all at y = 6. Left-aligned with the text.
+**Lead and the hairline.** A `p` in `lead` type. With the hairline (About Me only): under the text, `margin-block-start: var(--space-flow)`, one `aria-hidden` block `3.5rem` wide and `1px` tall, filled `ornament`, square ends. Left-aligned with the text. It is a separator and nothing else: no dots, no motif.
 
-**Pull quote.** A `figure`, `container-type: inline-size`, `surface` fill, `--radius`, `padding: var(--space-block) var(--space-heading)`, `text-align: center`. The `blockquote` is in `quote` type, `max-inline-size: 22ch`, centred, balanced, its last two words tied. The `figcaption` follows at `margin-block-start: var(--space-flow)`: `small`, `muted`, balanced; a work's title is in `cite`, italic. No quotation-mark ornament, no dash before the name. It is one component at two widths: across the column (About Me) or in the Sidebar's slot (Services).
+**Pull quote.** A `figure`, `container-type: inline-size`, `surface` fill, `--radius`, `padding: var(--space-block) var(--space-heading)`, `text-align: center`. The `blockquote` is in `quote` type, `max-inline-size: 22ch`, centred, balanced, its last two words tied. The `figcaption` follows at `margin-block-start: var(--space-flow)`: `small`, `muted`, balanced; a work's title is in `cite`, italic, `"SOFT" 60, "WONK" 0`. No quotation-mark ornament, no dash before the name. It is one component at two widths: across the column (About Me) or in the Sidebar's slot (Services).
 
 **Photo.** A `figure`: `padding: var(--space-tight)`, `border: 1.5px solid var(--ornament)`, `border-radius: calc(var(--radius) + var(--space-tight))`. The image inside: `inline-size: 100%`, `aspect-ratio: 3 / 4`, `object-fit: cover`, `object-position: 50% 20%`, `border-radius: var(--radius)`. One ratio and one focal point for every portrait, so swapping a photo is swapping a file; nothing in the design depends on a photo's colours or crop. `sizes="(min-width: 640px) 24rem, 100vw"`.
 
@@ -244,7 +244,7 @@ The page is `skip link, header, main, footer` in a flex column of `min-height: 1
 
 **Mobile menu** (below 48rem). The nav is replaced by an icon button, "Menu" (two horizontal lines). It opens a modal `dialog` filling the window, `bg` fill: a head row the header's height holding the brand and a "Close" icon button, then the links. Both rows sit on the same column as the page (`max-inline-size: var(--content-max); padding-inline: var(--gutter)`); the links block has `padding-block: var(--space-heading) var(--space-block)`. Links, left-aligned, `sheet-link` type, `min-height: 3.5rem`: Home; a group "Therapy" (About Me, Services, Education and Training); a group "Performing" (Bio, Media); Contact. Group names are `label` type in `accent`, groups have `margin-block: var(--space-flow)`. The current page is underlined `2px` in `accent`, offset `0.2em`. Choosing a link closes it; the page behind does not scroll; focus stays in the dialog.
 
-**Footer.** The one evergreen band: `band` fill, `on-band` text, `small` type, `padding-block: var(--space-block)`. In its PageShell, a grid with `gap: var(--space-block)`:
+**Footer.** The one wine band: `band` fill, `on-band` text, `small` type, `padding-block: var(--space-block)`. In its PageShell, a grid with `gap: var(--space-block)`:
 - **Brand:** "Rachel Siegel" in `footer-name`; the tagline "Licensed psychotherapist, clarinetist, recorder player" `var(--space-tight)` below; then "St. Louis, MO" in `on-band-muted`, directly under. Both lines balanced.
 - **Three columns**, each a label in `label` type and `band-accent`, then a plain vertical list of links:
   - Therapy: About Me, Services, Education and Training
@@ -290,7 +290,7 @@ A Section (`aria-labelledby` its heading) on Home, Bio and Media, always the las
 **No eyebrows anywhere**: no small label above any `h1` or `h2`. Each inner page starts with its `h1` as a SectionHeading, `--space-heading` under the header. `h1`s are left-aligned, except Contact's.
 
 - **About Me** (`/therapy/about`). Two Sections.
-  1. PhotoPage: `h1` "About Me"; Photo of the therapist headshot; body a Stack (`heading`) of: a Lead **with the dotted rule**, "I believe every person holds the power to transform their life."; then a Prose of the three paragraphs before the list, the specialisations as a List *panel* (six items, one column), and the closing paragraph. The lead is not repeated in the body.
+  1. PhotoPage: `h1` "About Me"; Photo of the therapist headshot; body a Stack (`heading`) of: a Lead **with the hairline**, "I believe every person holds the power to transform their life."; then a Prose of the three paragraphs before the list, the specialisations as a List *panel* (six items, one column), and the closing paragraph. The lead is not repeated in the body.
   2. A Section (`aria-label="A line from Rilke"`) holding the PullQuote across the column, its text set without quotation marks: Let everything happen to you: beauty and terror. Just keep going. No feeling is final. Caption: Rainer Maria Rilke, *Letters to a Young Poet*.
 - **Services** (`/therapy/services`). Three Sections.
   1. Sidebar `trail`: head the `h1` "Services"; body a Prose with the services paragraph, at body size; slot the PullQuote, whose text is: And you may ask yourself, “Well, how did I get here?” (only the inner question is in quotation marks), caption "Talking Heads". On a phone the quote follows the paragraph.
@@ -365,3 +365,32 @@ A Section (`aria-labelledby` its heading) on Home, Bio and Media, always the las
 - Bio: no lead; all paragraphs plain.
 - Media: "Video" (was "Videos") with real YouTube stills; the photo is in the Sidebar slot beside both blocks; "Coming soon" is plain text.
 - Contact: a centred single column with two statements and a new contact form (was two cards). The form's sending needs its own slice.
+
+## Changes in the Playtest #62 tuning
+
+The human kept the layout and asked for a new palette, calmer italics and a plainer separator; they chose "Mauve and wine" from three live directions. No layout, spacing, size or content value changed. The section above is the history of Spec #26 and still names the evergreen palette it introduced; this section replaces it.
+
+**Principles.** Principle 4: "partly italic; one evergreen band" is now "italic only for the name, the leads and the pull quote; one wine band".
+
+**§1 Colour tokens.**
+- No green is left. Changed in light: `link` (`#1f4a3a` → `#75203f`), `accent` (`#2b6044` → `#853a62`), `ornament` (`#d98fa3` → `#c98aa6`), `band` (`#1f3a30` → `#47172f`), `on-band-muted` (`#c5d3c9` → `#dcc5cd`), `poster` (`#1f3a30` → `#47172f`).
+- The dark scheme is a wine dusk, not forest green: `bg`, `surface`, `tint`, `muted`, `link`, `ornament`, `line`, `line-strong`, `band`, `on-band-muted` and `poster` all changed; `ink`, `heading`, `accent`, `error`, `on-band`, `band-accent`, `plum` and `on-image` did not.
+- `link` in dark is its own value (`#f7dce4`), no longer the same as `heading`.
+- `band` is one value in both schemes; in dark it sits a little lighter than `bg` (1.2:1), a raised band rather than a darker one.
+- The footer's focus ring is `on-band` (was `on-image`; the two hold the same value today).
+- Every pair in the contrast table was re-measured.
+
+**§2 Typography.**
+- Every italic sets `"WONK" 0`.
+- `display` and `footer-name`: italic 380, `"SOFT" 0` (were 300, `"SOFT" 100`). `brand`: italic 500, `"SOFT" 0` (was `"SOFT" 100`).
+- `lead` and `quote`: italic 380, `"SOFT" 0` (were 300, `"SOFT" 100`). A link in a lead is 380.
+- `h2`: upright 350, `"SOFT" 0, "WONK" 0` (was italic 300, `"SOFT" 100`).
+- `label`: upright 500 (was italic 500).
+- A `cite` stays italic, at `"SOFT" 60, "WONK" 0`.
+- Unchanged: `h1` (upright 300, `"SOFT" 100, "WONK" 1`) and every other upright role.
+
+**§5 Components.**
+- The dotted rule under About Me's lead (five large and four small dots) is replaced by a hairline, `3.5rem` by `1px`, in `ornament`.
+
+**§6 Shell.**
+- Footer and mobile-menu group labels are upright; the footer band is wine.
