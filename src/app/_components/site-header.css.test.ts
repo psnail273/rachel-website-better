@@ -65,8 +65,7 @@ const WIDE = "@media (width >= 48rem)";
 const PHONE = "@media (width < 48rem)";
 const FADE = "@keyframes menu-fade";
 const EASE = "200ms cubic-bezier(0.2, 0.7, 0.2, 1)";
-const HERO_HEADER =
-  "body:has(> main [data-bleed]) > header:not([data-scrolled])";
+const HERO_HEADER = "body > header[data-over-hero]:not([data-scrolled])";
 
 function rule(selector: string, decls: Record<string, string>): Block {
   return { path: [selector], decls };

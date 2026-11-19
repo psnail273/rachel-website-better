@@ -91,7 +91,9 @@ const EXPECTED_RULES: Block[] = [
     "padding-block-end": "var(--space-section)",
     flex: "none",
   }),
-  rule("main:has([data-bleed])", { "padding-block-start": "0" }),
+  rule("body:has(> header[data-over-hero]) > main", {
+    "padding-block-start": "0",
+  }),
   rule("main > [data-shell]", {
     display: "flex",
     "flex-direction": "column",
