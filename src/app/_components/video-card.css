@@ -1,0 +1,47 @@
+[data-video-frame] {
+  position: relative;
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  aspect-ratio: 16 / 9;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--poster);
+  cursor: pointer;
+}
+
+[data-video-frame] > img {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+[data-play] {
+  position: relative;
+  inline-size: 3.5rem;
+  block-size: 3.5rem;
+  transition: transform 150ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+[data-video-frame]:hover [data-play] {
+  transform: scale(1.08);
+}
+
+[data-play] circle {
+  fill: rgb(36 18 28 / 0.72);
+}
+
+[data-play] path {
+  fill: var(--on-image);
+}
+
+[data-video] figcaption {
+  margin-block-start: var(--space-tight);
+  color: var(--heading);
+  text-wrap: balance;
+  overflow-wrap: anywhere;
+}

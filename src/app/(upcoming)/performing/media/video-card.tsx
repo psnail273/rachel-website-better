@@ -1,47 +1,55 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
+import { tieLabel } from "../../../../lib/tie";
+
+const ALLOW =
+  "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
 
 export function VideoCard({ id, title }: { id: string; title: string }) {
   const [playing, setPlaying] = useState(false);
-  if (playing) {
-    return (
-      <iframe
-        src={`https://www.youtube-nocookie.com/embed/${id}?autoplay=1`}
-        title={title}
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-        allowFullScreen
-        className="aspect-video w-full rounded-lg border-0"
-      />
-    );
-  }
   return (
-    <button
-      type="button"
-      aria-label={`Play ${title}`}
-      onClick={() => {
-        setPlaying(true);
-      }}
-      className="aspect-video w-full rounded-lg bg-poster text-on-image flex flex-col items-center justify-evenly hover:opacity-90"
-    >
-      <svg
-        aria-hidden="true"
-        viewBox="0 0 48 48"
-        className="size-14"
-        fill="none"
-      >
-        <circle
-          cx="24"
-          cy="24"
-          r="23"
-          fill="currentColor"
-          fillOpacity="0.25"
-          stroke="currentColor"
-          strokeWidth="2"
+    <figure data-video="">
+      {playing ? (
+        <iframe
+          data-video-frame=""
+          src={`https://www.youtube-nocookie.com/embed/${id}?autoplay=1`}
+          title={title}
+          allow={ALLOW}
+          allowFullScreen
         />
-        <path d="M20 16l14 8-14 8z" fill="currentColor" />
-      </svg>
-      <span className="font-serif text-lg text-center w-11/12">{title}</span>
-    </button>
+      ) : (
+        <button
+          type="button"
+          data-video-frame=""
+          aria-label={`Play ${title}`}
+          onClick={() => {
+            setPlaying(true);
+          }}
+        >
+          <Image
+            src={`https://i.ytimg.com/vi/${id}/hqdefault.jpg`}
+            alt={`Still from the video of ${title}`}
+            width={480}
+            height={360}
+            unoptimized
+          />
+          <svg
+            data-play=""
+            aria-hidden="true"
+            width="56"
+            height="56"
+            viewBox="0 0 56 56"
+          >
+            <circle cx="28" cy="28" r="28" />
+            <path d="M22 17v22l18-11z" />
+          </svg>
+        </button>
+      )}
+      <figcaption data-card-title="" className="type-card-title">
+        {tieLabel(title)}
+      </figcaption>
+    </figure>
   );
 }
