@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
+import { useState, type ReactNode, type SyntheticEvent } from "react";
 import { tieLast } from "../../lib/tie";
 
 type Errors = { email?: string; message?: string };
@@ -18,6 +18,10 @@ const SUCCESS_TEXT = tieLast("Thanks — Rachel will get back to you.");
 
 function focusOnMount(element: HTMLElement | null): void {
   element?.focus();
+}
+
+function text(value: FormDataEntryValue | null): string {
+  return typeof value === "string" ? value : "";
 }
 
 function validate(email: string, message: string): Errors {
@@ -51,12 +55,14 @@ export function ContactForm({
     );
   }
 
-  async function onSubmit(event: FormEvent<HTMLFormElement>): Promise<void> {
+  async function onSubmit(
+    event: SyntheticEvent<HTMLFormElement, SubmitEvent>,
+  ): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const email = String(formData.get("email") ?? "");
-    const message = String(formData.get("message") ?? "");
+    const email = text(formData.get("email"));
+    const message = text(formData.get("message"));
     const next = validate(email, message);
     setErrors(next);
     if (next.email !== undefined) {

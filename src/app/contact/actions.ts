@@ -1,7 +1,8 @@
 "use server";
 
 export async function sendMessage(
-  _formData: FormData,
+  formData: FormData,
 ): Promise<{ ok: boolean }> {
+  void formData;
   return await Promise.resolve({ ok: false });
 }
