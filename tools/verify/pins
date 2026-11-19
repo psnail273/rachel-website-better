@@ -11,7 +11,8 @@ pnpm 12.18.0
 # Playwright's version also pins the three builds bootstrap installs for smoke
 # (Chromium's headless shell, Firefox and WebKit);
 # dependency-cruiser is the arch step's; axe is @axe-core/playwright, smoke's
-# accessibility check.
+# accessibility check; knip (unused files, exports and dependencies) and
+# secretlint (committed secrets) are the lint step's, beside ESLint.
 next 16.4.6
 typescript 6.0.3
 eslint 10.14.0
@@ -21,3 +22,5 @@ stryker 10.1.1
 playwright 1.65.0
 dependency-cruiser 18.7.2
 axe 4.14.0
+knip 6.45.1
+secretlint 14.0.1

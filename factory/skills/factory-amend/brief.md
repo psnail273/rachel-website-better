@@ -37,7 +37,7 @@ A test for each new behaviour, in the suite of the script it changes (`factory/c
 
 No test's outcome may hang on a fixed sleep or on elapsed time: write no raw `sleep`, `timeout` or `$SECONDS` in a `*_test.sh` file (test.sh's raw-waits step refuses them). Wait for a condition with `wait_until`, and make a stand-in that must keep running with `blocking_stand_in` (both in `factory/core/tests/lib.sh`); a limit or an age in the code under test is set through a setting or a stand-in clock.
 
-<When the amend adds or changes a test that starts a real tool or a background process:> don't run `stress.sh`: I run it once for the batch, on the landing branch. Name each such test in your report.
+<When the amend adds or changes a test that starts a real tool or a background process:> don't run `stress.sh` (I run it only on the human's request or for a suspected flake). Name each such test in your report.
 
 <When the amend adds a check or makes one stricter:> run its step over the real tree before your change and after it, and report both outputs. If the code on dev fails it, add those findings in your commit with `bash factory/core/baseline.sh add <rule>`, and say so. Then, for each paused or in-flight issue branch (<branches>), make a detached scratch worktree of it, merge your branch in, run the step there, report what it flags, and remove the scratch worktree.
 

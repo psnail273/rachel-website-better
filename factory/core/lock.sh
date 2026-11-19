@@ -19,7 +19,7 @@
 #
 # lift moves the Lock when a locked test is wrong, in any lane: the Driver's own
 # call when the test contradicts the sealed brief, else on the human's yes
-# (factory-run's SKILL.md, Driver's calls). A permission check may refuse it; the
+# (the build skill's SKILL.md, Driver's calls). A permission check may refuse it; the
 # Driver then escalates and never moves the Lock another way. It needs the run
 # state's phase green, a Lock, and lifts below FACTORY_LOCK_LIFTS (1): once per
 # issue. It clears the Lock and counts a lift; after the fix round the Driver

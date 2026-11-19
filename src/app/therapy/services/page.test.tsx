@@ -12,6 +12,7 @@ const pages = import.meta.glob<PageModule>("./page.tsx");
 async function loadPage(): Promise<PageModule> {
   const load = pages["./page.tsx"];
   expect(load).toBeDefined();
+  if (load === undefined) throw new Error("no ./page.tsx beside this test");
   return load();
 }
 
@@ -74,7 +75,7 @@ describe("ServicesPage", () => {
     expect(attrs(head)).toEqual({ "data-sidebar-head": "" });
     expect(attrs(body)).toEqual({ "data-sidebar-body": "" });
     expect(attrs(slot)).toEqual({ "data-sidebar-aside": "" });
-    expect(head.children).toHaveLength(1);
+    expect(head?.children).toHaveLength(1);
     expect(h1?.tagName).toBe("H1");
     expect(attrs(h1)).toEqual({
       "data-heading": "1",
@@ -83,14 +84,14 @@ describe("ServicesPage", () => {
     });
     expect(h1?.textContent).toBe("Services");
     expect(doc.querySelectorAll("h1")).toHaveLength(1);
-    expect(body.children).toHaveLength(1);
+    expect(body?.children).toHaveLength(1);
     expect(prose?.tagName).toBe("DIV");
     expect(attrs(prose)).toEqual({ "data-prose": "start" });
     expect(tags(prose?.children)).toEqual(["P"]);
     expect(kid(prose, 0)?.textContent).toBe(
       `I provide individual therapy to adults and adolescents (aged 14 and up) through a group practice, Wellness Alliance Counseling and Psychotherapy. In-person therapy takes place at our office in Clayton, MO. For telehealth, clients must be in Missouri or${NBSP}Illinois.`,
     );
-    expect(slot.children).toHaveLength(1);
+    expect(slot?.children).toHaveLength(1);
     expect(figure?.tagName).toBe("FIGURE");
     expect(attrs(figure)).toEqual({ "data-quote": "" });
     expect(tags(figure?.children)).toEqual(["BLOCKQUOTE", "FIGCAPTION"]);

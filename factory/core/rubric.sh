@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # The Verifier's rubrics. Run from the project root:
-#   bash factory/core/rubric.sh [ARCHITECTURE.md]   factory-run's verify-rubric.md with
+#   bash factory/core/rubric.sh [ARCHITECTURE.md]   the build skill's verify-rubric.md with
 #                                                   its review-rules marker line replaced by
 #                                                   ARCHITECTURE.md's `review`-tagged rules
 #                                                   (lib/architecture.sh)
-#   bash factory/core/rubric.sh --brief             the brief review's rubric: factory-run's
+#   bash factory/core/rubric.sh --brief             the brief review's rubric: the build skill's
 #                                                   brief-rubric.md as it is
 #
 # The output depends only on the files, so two runs on one tree are identical.
@@ -25,7 +25,7 @@ usage() {
 # The brief review's rubric fills nothing in, so it reads no ARCHITECTURE.md.
 if [ "${1:-}" = --brief ]; then
 	[ "$#" -eq 1 ] || usage
-	template="$core/../skills/factory-run/brief-rubric.md"
+	template="$core/../skills/build/brief-rubric.md"
 	[ -f "$template" ] || {
 		echo "rubric: no template $template" >&2
 		exit 1
@@ -36,7 +36,7 @@ if [ "${1:-}" = --brief ]; then
 	exit 0
 fi
 
-template="${FACTORY_RUBRIC_TEMPLATE:-$core/../skills/factory-run/verify-rubric.md}"
+template="${FACTORY_RUBRIC_TEMPLATE:-$core/../skills/build/verify-rubric.md}"
 marker='<!-- review-rules -->'
 
 [ "$#" -le 1 ] || usage

@@ -65,12 +65,14 @@ describe("images", () => {
   });
 
   it("sizes each placeholder SVG to its slot", () => {
-    const expected = [
-      ["hero-mountain-lake", "1920", "1280"],
-      ["headshot-therapist", "874", "1184"],
-      ["headshot-clarinet", "768", "1024"],
-      ["headshot-recorder", "1471", "2048"],
-    ].map(([key, w, h]) => ({
+    const expected = (
+      [
+        ["hero-mountain-lake", "1920", "1280"],
+        ["headshot-therapist", "874", "1184"],
+        ["headshot-clarinet", "768", "1024"],
+        ["headshot-recorder", "1471", "2048"],
+      ] as const
+    ).map(([key, w, h]) => ({
       key,
       tagName: "svg",
       width: w,

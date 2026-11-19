@@ -408,7 +408,7 @@ SH
 	done
 }
 
-# A suite that lists its tests from git at load time (shell_lint does) finds them
+# A suite that lists its tests from git at load time (shell_lint did) finds them
 # whatever the runner's git config (pass 1's review: core.abbrev = garbage hid
 # every per-script lint test).
 test_tests_are_listed_with_no_global_git_config() {

@@ -1,0 +1,7 @@
+import { z } from "zod";
+
+const Query = z.object({ q: z.string() });
+
+export function readQuery(params: URLSearchParams): { q: string } {
+  return Query.parse(Object.fromEntries(params));
+}

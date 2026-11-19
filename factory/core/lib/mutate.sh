@@ -36,7 +36,7 @@
 # own word for a mutant the code marked to skip), the change, and the tests that
 # didn't catch it. A mutant that doesn't compile or crashes the run is errored,
 # not a survivor. The Verifier needs each line killed or justified
-# (factory-run's verify-rubric.md). The gate stamp keeps a copy beside the
+# (the build skill's verify-rubric.md). The gate stamp keeps a copy beside the
 # verdict, so `verify.sh --reuse` puts back the file that verdict came with
 # (lib/stamp.sh).
 

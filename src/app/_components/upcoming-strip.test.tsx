@@ -9,7 +9,7 @@ import { UpcomingStrip, type Upcoming } from "./upcoming-strip";
 const CALENDAR_URL = "https://calendar.example/rachel";
 const CARD_COUNT = 3;
 const ELEMENT_NODE = 1;
-const CARD_OFFSETS = [40, 320, 600, 880];
+const CARD_OFFSETS = [40, 320, 600, 880] as const;
 const STEP = 280;
 const CLIENT_WIDTH = 600;
 const SCROLL_WIDTH = 1180;
@@ -68,13 +68,17 @@ function links(doc: Document) {
 function rowOf(): HTMLElement {
   const rows = screen.queryAllByRole("list", { name: "Upcoming events" });
   expect(rows).toHaveLength(1);
-  return rows[0];
+  const [row] = rows;
+  if (row === undefined) throw new Error("no Upcoming events list");
+  return row;
 }
 
 function buttonOf(name: string): HTMLElement {
   const found = screen.queryAllByRole("button", { name });
   expect(found).toHaveLength(1);
-  return found[0];
+  const [button] = found;
+  if (button === undefined) throw new Error(`no ${name} button`);
+  return button;
 }
 
 function isDisabled(name: string): boolean {

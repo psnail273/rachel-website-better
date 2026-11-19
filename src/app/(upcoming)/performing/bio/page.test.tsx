@@ -14,7 +14,9 @@ vi.mock("next/cache", () => ({ cacheLife: vi.fn() }));
 type PageModule = { default: () => ReactElement; metadata: Metadata };
 
 const pages = import.meta.glob<PageModule>("./page.tsx");
-const page = await pages["./page.tsx"]();
+const importPage = pages["./page.tsx"];
+if (importPage === undefined) throw new Error("no ./page.tsx beside this test");
+const page = await importPage();
 
 let folder = "";
 

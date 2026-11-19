@@ -1,0 +1,10 @@
+import type { NextRequest } from "next/server";
+
+import { helper, readQuery } from "@/lib/ring/a";
+
+// Finds readQuery through a cycle of export * (lib/ring/), after a lookup of
+// helper, a const and no function, has gone round all of it.
+export function GET(request: NextRequest): Response {
+  const q = helper(request.nextUrl.searchParams);
+  return Response.json(readQuery(new URLSearchParams(q)));
+}

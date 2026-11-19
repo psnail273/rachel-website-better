@@ -5,23 +5,37 @@
 #
 # tsconfig.json must turn `strict` on, itself or through its extends, and turn
 # none of the checks strict brings back off (noImplicitAny, strictNullChecks and
-# the rest): tsc --showConfig tells what it resolves to. It reads the route types
+# the rest); and it must turn on three checks strict leaves off (REQUIRED_FLAGS):
+# noUncheckedIndexedAccess (an index read may be undefined), noImplicitOverride (an
+# overriding member says `override`) and noFallthroughCasesInSwitch. tsc
+# --showConfig tells what it resolves to. It reads the route types
 # prepare's next typegen writes, so it needs prepare first.
 #
 # Findings, on stdout (tsc's own output goes to stderr):
 #   <file>:<line> TS<n> <message>                  a tsc error (tsconfig.json:1 for one
 #                                                  that names no file)
 #   tsconfig.json:<line> typecheck-strict <message>   strict off, or a strict check off
+#   tsconfig.json:<line> typecheck-flags <message>    a REQUIRED_FLAGS check not on
 #   tsconfig.json:1 typecheck-config <message>     no tsconfig.json, or tsc can't read it
 #   tools/verify/typecheck:1 typecheck-error <message>   tsc failed with no error to show
 #   (and node-missing or tool-missing, as _nextjs.sh has them)
 # Exits 1 on any finding.
+#
+# Porting this step into a project made before REQUIRED_FLAGS: turn each on in
+# tsconfig.json's compilerOptions, as the skeleton's tsconfig.json has them, then
+# record what they find in old code: bash factory/core/baseline.sh add with each
+# TS<n> rule the step now reports beyond the Baseline (baseline.sh gate names
+# them): an index read possibly undefined is TS18048, TS2532, TS2322 or TS2345
+# by where it lands, an override without `override` TS4114, a case falling
+# through TS7029.
 set -u
 
 . "$(dirname "${BASH_SOURCE[0]}")/_nextjs.sh"
 
 # The checks `strict` turns on, each of which tsconfig.json may turn back off.
 STRICT_FLAGS="alwaysStrict noImplicitAny noImplicitThis strictBindCallApply strictBuiltinIteratorReturn strictFunctionTypes strictNullChecks strictPropertyInitialization useUnknownInCatchVariables"
+# The checks strict leaves off that the gate needs on all the same.
+REQUIRED_FLAGS="noUncheckedIndexedAccess noImplicitOverride noFallthroughCasesInSwitch"
 
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
@@ -34,8 +48,9 @@ tool_ready tsc || exit 1
 
 found=0
 
-# The resolved config: strict on, and none of its checks off. (With strict off,
-# --showConfig lists each of them off, so strict's finding stands alone.)
+# The resolved config: strict on, and none of its checks off (with strict off,
+# --showConfig lists each of them off, so strict's finding stands alone); and each
+# of REQUIRED_FLAGS on, whatever strict says.
 tool tsc --showConfig -p tsconfig.json > "$tmp/config" 2> "$tmp/config.err"
 status=$?
 if [ "$status" -ne 0 ]; then
@@ -47,17 +62,28 @@ fi
 	const options = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8")).compilerOptions || {};
 	if (options.strict !== true) console.log("strict");
 	else for (const flag of process.argv[2].split(" ")) if (options[flag] === false) console.log(flag);
-' "$tmp/config" "$STRICT_FLAGS" > "$tmp/strict" 2>&1 || {
+	for (const flag of process.argv[3].split(" ")) if (options[flag] !== true) console.log("required " + flag);
+' "$tmp/config" "$STRICT_FLAGS" "$REQUIRED_FLAGS" > "$tmp/strict" 2>&1 || {
 	cat "$tmp/strict" >&2
 	echo "tools/verify/typecheck:1 typecheck-error could not read tsc --showConfig's output (see stderr)"
 	exit 1
 }
 while IFS= read -r flag; do
-	if [ "$flag" = strict ]; then
-		echo "tsconfig.json:$(json_line tsconfig.json strict) typecheck-strict strict is not on; the gate needs \"strict\": true"
-	else
-		echo "tsconfig.json:$(json_line tsconfig.json "$flag") typecheck-strict $flag is off, which strict turns on; remove it"
-	fi
+	case "$flag" in
+		strict)
+			echo "tsconfig.json:$(json_line tsconfig.json strict) typecheck-strict strict is not on; the gate needs \"strict\": true"
+			;;
+		"required "*)
+			flag="${flag#required }"
+			# At the flag's line when tsconfig.json names it, else at compilerOptions.
+			at="$(json_line tsconfig.json "$flag")"
+			[ "$at" = 1 ] && at="$(json_line tsconfig.json compilerOptions)"
+			echo "tsconfig.json:$at typecheck-flags $flag is not on; the gate needs \"$flag\": true"
+			;;
+		*)
+			echo "tsconfig.json:$(json_line tsconfig.json "$flag") typecheck-strict $flag is off, which strict turns on; remove it"
+			;;
+	esac
 	found=1
 done < "$tmp/strict"
 

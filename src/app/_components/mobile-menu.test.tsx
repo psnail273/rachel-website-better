@@ -33,7 +33,9 @@ const OTHER_KEYS = ["Enter", " ", "Tab", "ArrowDown", "a"];
 function menuButton(): HTMLElement {
   const buttons = screen.queryAllByRole("button", { name: "Menu" });
   expect(buttons).toHaveLength(1);
-  return buttons[0];
+  const [button] = buttons;
+  if (button === undefined) throw new Error("no Menu button");
+  return button;
 }
 
 function panelOf(button: HTMLElement): HTMLElement | null {
@@ -52,7 +54,9 @@ function panelLink(button: HTMLElement, name: string): HTMLElement {
   if (!(panel instanceof HTMLElement)) throw new Error("panel is missing");
   const links = within(panel).queryAllByRole("link", { name });
   expect(links).toHaveLength(1);
-  return links[0];
+  const [link] = links;
+  if (link === undefined) throw new Error(`no ${name} link in the panel`);
+  return link;
 }
 
 function panelLinks(button: HTMLElement) {
@@ -74,7 +78,9 @@ function renderAt(pathname: string) {
 // that compares it fails instead of the lookup throwing.
 function only(root: ParentNode, selector: string): HTMLElement {
   const found = root.querySelectorAll<HTMLElement>(selector);
-  return found.length === 1 ? found[0] : document.createElement("div");
+  return (
+    (found.length === 1 ? found[0] : undefined) ?? document.createElement("div")
+  );
 }
 
 function childAt(parent: Element, index: number): Element {
@@ -116,7 +122,9 @@ function linkNamed(dialog: HTMLElement, name: string): HTMLElement {
   const links = Array.from(dialog.querySelectorAll("a")).filter(
     (a) => a.textContent === name,
   );
-  return links.length === 1 ? links[0] : document.createElement("a");
+  return (
+    (links.length === 1 ? links[0] : undefined) ?? document.createElement("a")
+  );
 }
 
 function accessibleName(element: Element | null): string | null {
@@ -213,7 +221,8 @@ describe("MobileMenu", () => {
         "link",
         { name },
       );
-      if (links.length === 1) fireEvent.click(links[0]);
+      const [link] = links;
+      if (links.length === 1 && link !== undefined) fireEvent.click(link);
       return {
         name,
         found: links.length,

@@ -1,0 +1,9 @@
+import { useState } from "react";
+
+export function Counter({ on }: { on: boolean }) {
+  if (on) {
+    const [count] = useState(0);
+    return <p>{count}</p>;
+  }
+  return null;
+}

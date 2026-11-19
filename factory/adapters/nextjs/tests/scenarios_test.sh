@@ -536,7 +536,7 @@ test_the_driver_refuses_an_unknown_argument_and_a_record_without_the_folder() {
 	stderr_has "usage: bash tools/verify/scenarios [record]"
 	run_cmd bash tools/verify/scenarios record
 	assert_status 2
-	stderr_has "scenarios: record: this checkout has no scenarios/ (an issue's worktree leaves it out): record from a checkout of dev (factory-run's playtest.md)"
+	stderr_has "scenarios: record: this checkout has no scenarios/ (an issue's worktree leaves it out): record from a checkout of dev (the build skill's playtest.md)"
 	[ ! -e scenarios ] || fail "record made the Scenario folder"
 	rm tools/verify/scenario-folder
 	run_cmd bash tools/verify/scenarios record

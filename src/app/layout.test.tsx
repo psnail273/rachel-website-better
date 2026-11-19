@@ -38,7 +38,7 @@ function sortedAttributes(element: Element | null | undefined) {
   return Array.from(element?.attributes ?? [], (attribute) => [
     attribute.name,
     attribute.value,
-  ]).sort(([a], [b]) => (a < b ? -1 : 1));
+  ]).sort(([a = ""], [b = ""]) => (a < b ? -1 : 1));
 }
 
 describe("RootLayout", () => {

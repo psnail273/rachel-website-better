@@ -1,0 +1,5 @@
+import { readQuery } from "@/lib/validate";
+
+export function GET(request: Request): Response {
+  return Response.json(readQuery(new URL(request.url).searchParams));
+}

@@ -44,6 +44,13 @@
 # config, and (from _nextjs.sh) node-missing or tool-missing.
 # dependency-cruiser's and ESLint's own output go to stderr. Exits 1 on any
 # finding.
+#
+# Porting this step into a project made before input-zod: its sync check names
+# the id no rule cites (arch-sync); copy the adapter's rule that cites it
+# (factory/adapters/nextjs/ARCHITECTURE.md, the one whose Enforced by: names
+# arch:input-zod) into the project's ARCHITECTURE.md under the next free number,
+# add zod to package.json as the lint step's header says, then record what the
+# check finds in old code: bash factory/core/baseline.sh add R<n>.
 set -u
 
 : "${FACTORY_CORE:?the arch step runs under the Core runner (factory/core/verify.sh)}"
@@ -96,6 +103,7 @@ imports_check() {
 check_client_server() { imports_check client-server; }
 check_next_in_app() { imports_check next-in-app; }
 check_fonts_local() { imports_check fonts-local; }
+check_input_zod() { imports_check input-zod; }
 
 # lint_tags_file: the file the lint-tags check asks ESLint about (see the
 # header), or nothing.
@@ -135,6 +143,7 @@ check_lint_tags() {
 factory_arch_check client-server check_client_server runtime
 factory_arch_check next-in-app check_next_in_app runtime
 factory_arch_check fonts-local check_fonts_local runtime
+factory_arch_check input-zod check_input_zod runtime
 
 bad=0
 factory_arch_main "$ARCH_DOC" || bad=1

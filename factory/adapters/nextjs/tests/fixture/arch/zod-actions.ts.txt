@@ -1,0 +1,18 @@
+"use server";
+
+import { z } from "zod";
+
+const Name = z.string().min(1);
+
+export async function rename(formData: FormData): Promise<string> {
+  const name = formData.get("name");
+  return Promise.resolve(String(name));
+}
+
+export async function renameChecked(formData: FormData): Promise<string> {
+  return Promise.resolve(Name.parse(formData.get("name")));
+}
+
+export async function ping(): Promise<string> {
+  return Promise.resolve("pong");
+}

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 # The stress run: the suites a batch can affect (or the full suite), repeated on a
-# loaded machine, so a test whose outcome hangs on timing fails when it is written
-# rather than at a release's land. Run from anywhere, on demand (never by land):
+# loaded machine, so a test whose outcome hangs on timing fails here, where it
+# can be seen, rather than now and then. Run from anywhere, on demand only: when
+# the human asks, or for a suspected flake (a test that failed, then passed on
+# rerun), narrowed to its suites; never as a step of a batch, never by land:
 #   bash factory/core/stress.sh [runs] [--since <rev>] [<suite>...]
 #   bash factory/core/stress.sh                 3 runs of the full suite
 #   bash factory/core/stress.sh 5               5 runs of it

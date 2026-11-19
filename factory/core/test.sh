@@ -303,7 +303,7 @@ for file in "${files[@]}"; do
 	tests="$(
 		exec 2> "$run/load-err"
 		. "$core/tests/lib.sh"
-		# A suite may list its tests from git (shell_lint does): not from the runner's
+		# A suite may list its tests from git: not from the runner's
 		# config either.
 		TEST_TMP="$run" isolate_git
 		# shellcheck disable=SC1090 # each test file, by path

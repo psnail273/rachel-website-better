@@ -1,0 +1,7 @@
+import leftPad from "left-pad";
+
+import { used } from "@/lib/util";
+
+export default function Page() {
+  return <p>{leftPad(String(used()), 2)}</p>;
+}

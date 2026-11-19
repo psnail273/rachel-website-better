@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # claude-usage: the Claude tokens a project's Claude Code sessions used, per issue,
 # per amend and per session, from their transcripts; the retro reads them
-# (factory-run's retro.md), and the factory's Driver its amends' (factory-amend).
+# (the build skill's retro.md), and the factory's Driver its amends' (factory-amend).
 #
 #   claude-usage issues   [--project <dir>] [--since <time>] [--until <time>]
 #   claude-usage amends   [--project <dir>] [--since <time>] [--until <time>]
@@ -20,7 +20,7 @@
 #
 # issues: one line per issue, by number. A subagent is an issue's driver when the
 # first user message of its transcript, its prompt, has the line
-# `factory-issue: <n>` (factory-run dispatches every driver so). An issue totals
+# `factory-issue: <n>` (the build skill dispatches every driver so). An issue totals
 # its drivers' transcripts:
 #   issue=<n> transcripts=<k> calls=<c> input=<n> cache-write=<n> cache-read=<n> output=<n> cost=<n>
 # amends: one line per amend, by its slug: a subagent whose prompt has no

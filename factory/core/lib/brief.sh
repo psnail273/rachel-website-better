@@ -49,7 +49,7 @@
 #
 # Add a key by adding it to FACTORY_BRIEF_KEYS and a case in factory_brief_parse.
 #
-# The prose around the block follows the template in factory-run's
+# The prose around the block follows the template in the build skill's
 # build-brief.md; factory_brief_lint checks the parts of it the gates rely on.
 # The Driver seals the brief once it passes (brief.sh seal): its hash goes in the
 # run state, and factory_brief_seal_check fails the Editor's gate and the
@@ -63,7 +63,7 @@ FACTORY_BRIEF_PHASES="red partial green"
 
 # The Driver's docs: the files the Driver commits on an issue's branch, in any
 # phase. docs/deviations.md holds every ruling, docs/agents/facts.md the engine
-# and tool facts each brief probes (factory-run's build-brief.md). The red gate
+# and tool facts each brief probes (the build skill's build-brief.md). The red gate
 # lets them through as it does tests (lib/red.sh), a test-only brief may scope
 # them, and neither the small lane's file count nor the seal's overlap check
 # counts them.

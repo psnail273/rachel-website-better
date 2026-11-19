@@ -97,6 +97,7 @@
 # a checkout or a worktree of it, the same commands work on the repo itself:
 #   record: installs and refreshes the workspace's copies (factory_repo_copies:
 #     .claude/skills/factory-amend/ from factory/skills/factory-amend/,
+#     .claude/skills/new-project/ from factory/workspace-skills/new-project/,
 #     .claude/skills/frontend-design/ from factory/third-party/frontend-design/,
 #     which the Verifier preloads, and the amend-builder and verifier subagents
 #     in .claude/agents/), and removes a
@@ -166,7 +167,7 @@
 #     lib/localenv.sh); a variable the environment sets, non-empty, keeps its value.
 #   - The budget: when test.sh's last line (`test.sh: wall time <s> s, ...`)
 #     gives a wall time over FACTORY_SUITE_BUDGET seconds (from the environment,
-#     else the env file; default 180), land warns on stderr with
+#     else the env file; default 1200), land warns on stderr with
 #     the machine's load average, so a slow suite can be told from a busy
 #     machine. It never fails the land.
 #
@@ -287,10 +288,14 @@ installs() {
 # <dir>: each file unchanged since, from factory/; each one changed or missing
 # since (<edits>, factory_vendor_edits' lines), read back from git by its
 # recorded blob. A blob git doesn't have leaves an empty file: what that file
-# installed can't be told, and $unread counts it.
+# installed can't be told, and $unread counts it. It starts a few processes, not
+# one per file: one mkdir for every folder, one cp per folder for the unchanged
+# files (plain cp, so macOS and Git Bash run it too), and git cat-file only for
+# each changed one.
 recorded_factory() {
-	local -A edited=()
-	local line blob path dest
+	local -A edited=() sources=()
+	local -a dirs=() blobs=() dests=() srcs=()
+	local line blob path dest dir i
 	while IFS= read -r line; do
 		[ -n "$line" ] || continue
 		path="${line% *}"
@@ -299,14 +304,30 @@ recorded_factory() {
 	unread=0
 	while read -r blob path; do
 		dest="$2/${path#"$FACTORY_VENDOR_DIR"/}"
-		mkdir -p "$(dirname "$dest")" || return 1
+		dir="${dest%/*}"
+		if [ -z "${sources[$dir]+set}" ]; then
+			dirs+=("$dir")
+			sources[$dir]=""
+		fi
 		if [ -z "${edited[$path]+set}" ]; then
-			cp "$path" "$dest" || return 1
-		elif ! git cat-file blob "$blob" > "$dest" 2> /dev/null; then
-			: > "$dest"
-			unread=$((unread + 1))
+			sources[$dir]+="$path"$'\n'
+		else
+			blobs+=("$blob")
+			dests+=("$dest")
 		fi
 	done < <(tr -d '\r' < "$FACTORY_VERSION_FILE" | sed -n 's/^file //p')
+	[ "${#dirs[@]}" -eq 0 ] || mkdir -p -- "${dirs[@]}" || return 1
+	for dir in "${dirs[@]}"; do
+		[ -n "${sources[$dir]}" ] || continue
+		mapfile -t srcs <<< "${sources[$dir]%$'\n'}"
+		cp -- "${srcs[@]}" "$dir/" || return 1
+	done
+	for i in "${!blobs[@]}"; do
+		if ! git cat-file blob "${blobs[$i]}" > "${dests[$i]}" 2> /dev/null; then
+			: > "${dests[$i]}"
+			unread=$((unread + 1))
+		fi
+	done
 }
 
 # generates <how>: true for a factory_installed_copies entry of the generated
@@ -910,7 +931,7 @@ load_average() {
 
 # budget <env file>: warn when the suite's wall time (test.sh's last line, in
 # $tmp/suite) is over FACTORY_SUITE_BUDGET seconds, from the environment, else
-# <env file>, else 180. Never fails.
+# <env file>, else 1200. Never fails.
 budget() {
 	local wall limit
 	wall="$(sed -n 's/^test\.sh: wall time \([0-9][0-9]*\)\(\.[0-9]*\)\{0,1\} s, .*/\1\2/p' "$tmp/suite" | tail -n 1)"
@@ -918,10 +939,10 @@ budget() {
 	limit="${FACTORY_SUITE_BUDGET:-}"
 	[ -n "$limit" ] || limit="$(local_env "$1" FACTORY_SUITE_BUDGET)"
 	case "$limit" in
-		'') limit=180 ;;
+		'') limit=1200 ;;
 		*[!0-9]*)
-			say "FACTORY_SUITE_BUDGET is '$limit', not a number of seconds; the budget is 180 s"
-			limit=180
+			say "FACTORY_SUITE_BUDGET is '$limit', not a number of seconds; the budget is 1200 s"
+			limit=1200
 			;;
 	esac
 	limit=$((10#$limit))

@@ -1,7 +1,7 @@
-# The fixed prompts of an issue's rounds and checks: prompt.sh over factory-run's
+# The fixed prompts of an issue's rounds and checks: prompt.sh over the build skill's
 # prompts/ templates, which are the prompts editor.md held, with placeholders.
 
-PROMPTS="$FACTORY_CORE/../skills/factory-run/prompts"
+PROMPTS="$FACTORY_CORE/../skills/build/prompts"
 TITLE='Fix the <n> & <title> \1 bug'
 
 # The prompts as editor.md held them before they moved to prompts/, with the lines
@@ -191,7 +191,7 @@ test_templates_are_the_prompts_editor_md_held() {
 
 # editor.md points to the templates and no longer holds their text.
 test_editor_md_points_to_each_template() {
-	local name skill="$FACTORY_CORE/../skills/factory-run/editor.md"
+	local name skill="$FACTORY_CORE/../skills/build/editor.md"
 	for name in editor green footer verifier brief-review; do
 		grep -qF "](prompts/$name.md)" "$skill" || fail "editor.md doesn't link prompts/$name.md"
 	done
@@ -304,7 +304,7 @@ missing_prompts() {
 # Every phase SKILL.md, editor.md and the editor template name for an Editor or a
 # Verifier has its prompt, so a phase a doc gains without one fails here.
 test_every_phase_the_docs_name_has_a_prompt() {
-	local skill="$FACTORY_CORE/../skills/factory-run" found
+	local skill="$FACTORY_CORE/../skills/build" found
 	prompt_repo
 	found="$(doc_phases "$skill/SKILL.md" "$skill/editor.md" "$PROMPTS/editor.md")"
 	grep -qxF "editor green, amend" <<< "$found" || fail "the docs name no amend's first prompt:"$'\n'"$found"
@@ -496,18 +496,18 @@ test_an_unreadable_input_exits_1_and_prints_nothing() {
 # A template it can't read stops the prompt too: prompt.sh in a copy of the Core
 # and the templates.
 test_an_unreadable_template_exits_1_and_prints_nothing() {
-	local prompts=copy/skills/factory-run/prompts
-	mkdir -p copy/core copy/skills/factory-run
+	local prompts=copy/skills/build/prompts
+	mkdir -p copy/core copy/skills/build
 	cp "$FACTORY_CORE/prompt.sh" copy/core/
 	cp -R "$FACTORY_CORE/lib" copy/core/
-	cp -R "$FACTORY_CORE/../skills/factory-run/prompts" copy/skills/factory-run/
+	cp -R "$FACTORY_CORE/../skills/build/prompts" copy/skills/build/
 	run_cmd bash copy/core/prompt.sh green
 	assert_status 0
 	refusing_stand_in cat '*/footer.md'
 	run_cmd bash copy/core/prompt.sh green
 	assert_status 1
 	assert_eq "" "$out"
-	stderr_has "prompt: can't read $PWD/copy/core/../skills/factory-run/prompts/footer.md"
+	stderr_has "prompt: can't read $PWD/copy/core/../skills/build/prompts/footer.md"
 	rm -f "$prompts/footer.md"
 	run_cmd bash copy/core/prompt.sh footer
 	assert_status 1

@@ -13,6 +13,14 @@
 # one found at only one of axe's widths names it after that
 # (test_an_accessibility_fault_at_one_width_names_it). The layout check runs
 # on the pages of tests/fixture/layout/, under the layout contract's styles.
+#
+# A project's smoke step loads each page in all three engines; here most tests
+# load it in Chromium alone, a third of the browser work, as the Editor's loop
+# does (site_project sets FACTORY_GATE_LOOP=editor, which in this step does
+# nothing else: the step's header). A test whose assertion is about which
+# engines report, start or stop (the engine tokens, forced colours in Chromium
+# and Firefox alone, a missing engine, the Editor's loop itself) calls
+# all_engines, saying why, and loads all three, as a project's gate does.
 
 # shellcheck disable=SC2154 # out and status: set by run_cmd, in factory/core/tests/lib.sh
 NEXTJS_ADAPTER="$FACTORY_CORE/../adapters/nextjs"
@@ -20,13 +28,21 @@ NEXTJS_ADAPTER="$FACTORY_CORE/../adapters/nextjs"
 
 # site_project: skeleton_project with its packages installed (primed_project), and
 # next replaced by the stand-in serving $TEST_TMP/site; cd there. The stand-in
-# writes its pid to $TEST_TMP/server.pid.
+# writes its pid to $TEST_TMP/server.pid. The step loads the pages in Chromium
+# alone (the Editor's loop) until the test calls all_engines.
 site_project() {
 	primed_project
 	rm -f node_modules/.bin/next && cp "$NEXTJS_FIXTURES/smoke/next.mjs.txt" node_modules/.bin/next && chmod 755 node_modules/.bin/next ||
 		fail "could not stand in for next"
 	mkdir -p "$TEST_TMP/site/api"
 	export STAND_IN_SITE="$TEST_TMP/site" STAND_IN_PID="$TEST_TMP/server.pid"
+	export FACTORY_GATE_LOOP=editor
+}
+
+# all_engines: from here on the step runs outside the Editor's loop and starts
+# Chromium, Firefox and WebKit, as a project's gate does.
+all_engines() {
+	unset FACTORY_GATE_LOOP
 }
 
 # page <html> [route]: the site's page at <route> (default `/`), a page smoke
@@ -100,6 +116,7 @@ test_each_fault_on_the_page_is_a_finding_and_the_server_stops_with_node() {
 	assert_status 1
 	assert_eq "package.json:1 smoke-console /: console error: boom" "$out" "a console error"
 
+	all_engines # an uncaught error reads as one line from all three, and Firefox logs no console error for a 500 or a 503
 	page '<script>throw new Error("kaput")</script>'
 	smoke_and_server_gone "a page error"
 	assert_status 1
@@ -201,6 +218,7 @@ package.json:1 smoke-a11y / light label li.card > input.field: Form elements mus
 test_a_finding_some_engines_report_names_them_with_node() {
 	needs_browser
 	site_project
+	all_engines # the engine tokens, and the pages loaded in Firefox and WebKit
 	page '<script>console.error("everywhere")</script><script>if (!/Chrome\//.test(navigator.userAgent)) console.error("not in chromium")</script><script>if (/Firefox\//.test(navigator.userAgent)) document.querySelector("main").insertAdjacentHTML("beforeend", "<input type=text>")</script>'
 	smoke_and_server_gone "faults in some engines"
 	assert_status 1
@@ -258,6 +276,7 @@ test_a_focus_indicator_forced_colours_hide_is_a_finding_with_node() {
 	for i in $(seq 60); do
 		cards+="<a class=\"card\" href=\"#c$i\"><span class=\"x\">x</span><span class=\"y\">y</span><span class=\"t\">Card $i</span></a>"
 	done
+	all_engines # forced colours run in Chromium and Firefox, not WebKit: the finding names none
 	page '<style>a { display: inline-block; min-width: 24px; min-height: 24px } .bare:focus { outline: none; box-shadow: 0 0 0 3px blue } .clear:focus-visible { outline: 2px solid transparent } .box { position: absolute; opacity: 0 } .box:focus { outline: none } .box:focus-visible + span { outline: 2px solid } .deco, .thick { outline: none; text-decoration: underline } .deco:focus { text-decoration-style: double } .thick:focus { text-decoration-thickness: 5px } .flip { outline: none; forced-color-adjust: none; background: white; color: black } .flip:focus { background: black; color: white } .card { outline: none } .card:focus .t { outline: 3px solid } .vh { position: absolute; opacity: 0 } .vh:focus { outline: none } .vh:focus-visible + label .tick { outline: 2px solid } .tick { display: inline-block; width: 16px; height: 16px; border: 1px solid }</style><a class="bare" href="#a">bare</a> <a href="#b">plain</a> <a class="clear" href="#c">clear</a> <label class="check"><input class="box" type="checkbox"><span>agree</span></label> <a class="deco" href="#d">deco</a> <a class="thick" href="#e">thick</a> <button class="flip">flip</button><div class="field"><label for="s">Country</label><select id="s">'"$options"'</select><input id="v" class="vh" type="checkbox"><label for="v"><span class="tick"></span> Agree</label></div><div class="grid">'"$cards"'</div>'
 	smoke_and_server_gone "a focus style forced colours hide"
 	assert_status 1
@@ -297,9 +316,10 @@ layout_page() {
 }
 
 # The layout check, on each route whose page carries [data-shell], at 390, 768,
-# 1280 and 1920 px in each engine: the page that keeps the whole contract (a
-# bleeding hero, a Sidebar, a Switcher, a Center with a quote, a form, a strip
-# of events that scrolls in its own box) is no finding, and a page without
+# 1280 and 1920 px (in Chromium here, in each engine in a project): the page
+# that keeps the whole contract (a bleeding hero, a Sidebar, a Switcher, a
+# Center with a quote, a form, a strip of events that scrolls in its own box) is
+# no finding, and a page without
 # [data-shell] is skipped; on /faults each departure is one finding, naming no
 # width when it shows at all four (the header's edge, a box outside the column
 # beside a hero data-bleed lets out, a section and a heading gap, narrow prose
@@ -359,11 +379,11 @@ test_the_page_checks_run_on_their_own_with_a_cookie_with_node() {
 	trap 'kill "$server" 2> /dev/null; wait "$server"' EXIT
 	tether "$server"
 	wait_until "the stand-in server to listen" server_started
-	run_cmd node tools/verify/_smoke_page.mjs "http://127.0.0.1:$port" 60 --cookie direction=b /
+	run_cmd node tools/verify/_smoke_page.mjs "http://127.0.0.1:$port" 60 --engines chromium --cookie direction=b /
 	assert_status 0
 	assert_eq "package.json:1 smoke-a11y / dark label main > input: Form elements must have labels
 package.json:1 smoke-a11y / light label main > input: Form elements must have labels" "$out" "the findings with the cookie"
-	run_cmd node tools/verify/_smoke_page.mjs "http://127.0.0.1:$port/" 60 /
+	run_cmd node tools/verify/_smoke_page.mjs "http://127.0.0.1:$port/" 60 --engines chromium /
 	assert_status 0
 	assert_eq "" "$out" "the findings without it"
 
@@ -412,6 +432,7 @@ test_the_layout_check_runs_on_its_own_with_a_cookie_with_node() {
 	trap 'kill "$server" 2> /dev/null; wait "$server"' EXIT
 	tether "$server"
 	wait_until "the stand-in server to listen" server_started
+	# All three engines (it takes no --engines): the reported lines are Chromium's alone of the three.
 	run_cmd node tools/verify/_layout.mjs "http://127.0.0.1:$port" 60 --cookie direction=b / /plain /reported
 	assert_status 0
 	assert_eq "package.json:1 smoke-layout / outside div > div.photo: reaches 30px past the column's right edge (want inside the column, or in [data-bleed])" "$(grep '^package' <<< "$out")" "the findings with the cookie"
@@ -556,6 +577,7 @@ missing_line() {
 test_a_missing_browser_is_a_finding_and_the_server_stops_with_node() {
 	needs_store
 	site_project
+	all_engines # a browser-missing line for each engine
 	page ''
 	smoke_and_server_gone "a missing browser"
 	assert_status 1
@@ -576,6 +598,7 @@ test_a_missing_browser_is_a_finding_and_the_server_stops_with_node() {
 test_an_engine_that_doesnt_start_is_a_finding_naming_it_with_node() {
 	needs_browser
 	site_project
+	all_engines # Firefox, which won't start, is the one finding
 	page '<script>console.error("boom")</script>'
 	local d
 	mkdir -p "$TEST_TMP/two-browsers"
@@ -595,6 +618,7 @@ test_an_engine_that_doesnt_start_is_a_finding_naming_it_with_node() {
 test_the_editors_loop_misses_chromium_alone_with_node() {
 	needs_store
 	site_project
+	all_engines # the loop alone narrows the engines
 	page ''
 	export FACTORY_GATE_LOOP=editor
 	smoke_and_server_gone "a missing browser in the Editor's loop"
@@ -609,6 +633,7 @@ test_the_editors_loop_misses_chromium_alone_with_node() {
 test_the_editors_loop_loads_the_pages_in_chromium_alone_with_node() {
 	needs_browser
 	site_project
+	all_engines # the loop alone narrows the engines; outside it, all three start
 	page '<script>console.error("boom")</script>'
 	local d
 	mkdir -p "$TEST_TMP/chromium-only"
@@ -680,6 +705,24 @@ test_a_server_that_ignores_term_is_killed_at_the_limit_with_node() {
 	wait_until "the server to be killed" server_gone
 }
 
+# The browser script exits non-zero having written no finding (a stand-in for
+# it, which writes to stderr alone and exits 3): the step's own finding names
+# the script and its status, stderr keeps what the script wrote, and the server
+# stops. No browser is started.
+test_a_browser_script_that_fails_with_no_finding_is_a_finding_with_node() {
+	needs_node
+	skeleton_project
+	mkdir -p node_modules/.bin "$TEST_TMP/site"
+	cp "$NEXTJS_FIXTURES/smoke/next.mjs.txt" node_modules/.bin/next && chmod 755 node_modules/.bin/next || fail "could not stand in for next"
+	printf 'process.stderr.write("the browser script broke\\n");\nprocess.exit(3);\n' > tools/verify/_smoke_page.mjs ||
+		fail "could not stand in for the browser script"
+	export STAND_IN_SITE="$TEST_TMP/site" STAND_IN_PID="$TEST_TMP/server.pid"
+	smoke_and_server_gone "a browser script that failed"
+	assert_status 1
+	assert_eq "package.json:1 smoke-load the browser script (tools/verify/_smoke_page.mjs) exited 3 (see stderr)" "$out" "smoke's finding"
+	stderr_has "the browser script broke"
+}
+
 # A TERM while the step stops its server (one that ignores TERM, so the stop
 # waits out the limit) doesn't cut the stop short: the server is killed and
 # reaped before the step exits.
@@ -747,6 +790,7 @@ descendants() {
 test_a_signal_while_the_page_loads_leaves_no_process_with_node() {
 	needs_browser
 	site_project
+	all_engines # each engine's browser processes stop with the step
 	page ''
 	: > "$TEST_TMP/site/index.html.hang"
 	local pids p

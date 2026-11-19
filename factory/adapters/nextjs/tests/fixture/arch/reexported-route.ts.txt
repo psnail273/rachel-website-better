@@ -1,0 +1,13 @@
+import type { NextRequest } from "next/server";
+
+import readQuery from "@/lib/defaulted";
+import { checkQuery } from "@/lib/checks";
+
+// Parses through a default export, and through a renaming barrel.
+export function GET(request: Request): Response {
+  return Response.json(readQuery(new URL(request.url).searchParams));
+}
+
+export function POST(request: NextRequest): Response {
+  return Response.json(checkQuery(request.nextUrl.searchParams));
+}

@@ -412,9 +412,9 @@ small_red() {
 # instruction: the green round the Driver sends after any other Lock, from
 # prompts/green.md, then the footer.
 green_instruction() {
-	cat "$FACTORY_CORE/../skills/factory-run/prompts/green.md"
+	cat "$FACTORY_CORE/../skills/build/prompts/green.md"
 	echo
-	cat "$FACTORY_CORE/../skills/factory-run/prompts/footer.md"
+	cat "$FACTORY_CORE/../skills/build/prompts/footer.md"
 }
 
 test_gate_in_the_small_lane_locks_a_green_red_phase_and_goes_on_to_green() {
@@ -433,12 +433,12 @@ $(green_instruction)" "$out"
 	assert_eq 4000 "$(git config branch.work.factory-began-green)" "the move to green was not timed for the stats line's minutes"
 }
 
-# copy_core: a copy of the Core and of factory-run's prompts, outside the project,
+# copy_core: a copy of the Core and of the build skill's prompts, outside the project,
 # so a test can change a template; $COPY_GATE is its editor-gate.sh.
 copy_core() {
-	mkdir -p "$TEST_TMP/copy/skills/factory-run"
+	mkdir -p "$TEST_TMP/copy/skills/build"
 	cp -R "$FACTORY_CORE" "$TEST_TMP/copy/core" || fail "could not copy the Core"
-	cp -R "$FACTORY_CORE/../skills/factory-run/prompts" "$TEST_TMP/copy/skills/factory-run/" || fail "could not copy the prompts"
+	cp -R "$FACTORY_CORE/../skills/build/prompts" "$TEST_TMP/copy/skills/build/" || fail "could not copy the prompts"
 	COPY_GATE="$TEST_TMP/copy/core/hooks/editor-gate.sh"
 }
 
@@ -448,12 +448,12 @@ test_gate_in_the_small_lane_sends_the_green_text_of_prompts_green_md() {
 	fixture_git_project
 	small_red
 	copy_core
-	echo "Phase: green. A line the template changed to." > "$TEST_TMP/copy/skills/factory-run/prompts/green.md"
+	echo "Phase: green. A line the template changed to." > "$TEST_TMP/copy/skills/build/prompts/green.md"
 	run_cmd bash "$COPY_GATE"
 	assert_status 3
 	assert_eq "Phase: green. A line the template changed to.
 
-$(cat "$FACTORY_CORE/../skills/factory-run/prompts/footer.md")" "$(tail -n 3 <<< "$out")"
+$(cat "$FACTORY_CORE/../skills/build/prompts/footer.md")" "$(tail -n 3 <<< "$out")"
 	assert_eq green "$(git config branch.work.factory-phase)"
 }
 
@@ -462,7 +462,7 @@ test_gate_in_the_small_lane_locks_nothing_without_the_green_prompt() {
 	fixture_git_project
 	small_red
 	copy_core
-	rm "$TEST_TMP/copy/skills/factory-run/prompts/green.md"
+	rm "$TEST_TMP/copy/skills/build/prompts/green.md"
 	run_cmd bash "$COPY_GATE"
 	assert_status 1
 	printf '%s\n' "$out" | grep -q "^the small lane could not record the Lock: prompt.sh green failed, so there is no green instruction to send: prompt: no template " ||
@@ -528,8 +528,8 @@ test_stop_hook_blocks_with_the_green_instruction_in_the_small_lane() {
 	echo 3 > "$(git rev-parse --git-dir)/factory/subagent-stop/agent-1"
 	run_stop_hook
 	assert_status 2
-	stderr_has "$(cat "$FACTORY_CORE/../skills/factory-run/prompts/green.md")"
-	stderr_has "$(cat "$FACTORY_CORE/../skills/factory-run/prompts/footer.md")"
+	stderr_has "$(cat "$FACTORY_CORE/../skills/build/prompts/green.md")"
+	stderr_has "$(cat "$FACTORY_CORE/../skills/build/prompts/footer.md")"
 	grep -q "^gate: " "$TEST_TMP/stderr" && fail "the block carried the gate's name line:"$'\n'"$(cat "$TEST_TMP/stderr")"
 	assert_eq "" "$(counter)" "the move to green kept the block count"
 	assert_eq green "$(git config branch.work.factory-phase)"
@@ -552,7 +552,7 @@ test_handback_hook_blocks_with_the_green_instruction_in_the_small_lane() {
 	run_stop_hook
 	assert_status 2
 	stderr_has "The red gate passed, so the factory recorded the Lock at $(git rev-parse --short HEAD)"
-	stderr_has "$(cat "$FACTORY_CORE/../skills/factory-run/prompts/green.md")"
+	stderr_has "$(cat "$FACTORY_CORE/../skills/build/prompts/green.md")"
 	assert_eq green "$(git config branch.work.factory-phase)"
 	assert_eq "" "$(counter)" "the move to green kept the block count"
 }
@@ -843,7 +843,7 @@ test_stop_hook_waits_for_a_gate_in_flight_and_passes_on_its_green_instruction() 
 	wait "$second"
 	status=$?
 	assert_status 2
-	stderr_has "$(cat "$FACTORY_CORE/../skills/factory-run/prompts/green.md")"
+	stderr_has "$(cat "$FACTORY_CORE/../skills/build/prompts/green.md")"
 	assert_eq green "$(git config branch.work.factory-phase)"
 	assert_eq 1 "$(smoke_runs)" "the gate ran twice"
 	wait_until "the gate to free" gate_free
@@ -862,7 +862,7 @@ test_stop_hook_passes_on_a_stopped_hooks_green_instruction_once() {
 	wait_until "the gate to free" gate_free
 	run_stop_hook
 	assert_status 2
-	stderr_has "$(cat "$FACTORY_CORE/../skills/factory-run/prompts/green.md")"
+	stderr_has "$(cat "$FACTORY_CORE/../skills/build/prompts/green.md")"
 	assert_eq 1 "$(smoke_runs)" "the gate ran twice"
 	run_stop_hook
 	assert_status 2
@@ -884,7 +884,7 @@ test_stop_hook_stops_waiting_after_the_gate_wait() {
 	# shellcheck disable=SC2034 # read by assert_status
 	status=$?
 	assert_status 2
-	grep -qF "$(head -n 1 "$FACTORY_CORE/../skills/factory-run/prompts/green.md")" "$TEST_TMP/held.stderr" ||
+	grep -qF "$(head -n 1 "$FACTORY_CORE/../skills/build/prompts/green.md")" "$TEST_TMP/held.stderr" ||
 		fail "the held hook did not pass on the green instruction:"$'\n'"$(cat "$TEST_TMP/held.stderr")"
 	assert_eq 1 "$(smoke_runs)" "the gate ran twice"
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The retro's numbers: total the factory-stats lines of a Feature's issues
-# (factory-run's retro.md). It reads text on stdin, such as every comment of the
+# (the build skill's retro.md). It reads text on stdin, such as every comment of the
 # Feature's closed issues fetched with the tracker's own commands, so it knows no
 # tracker and needs no checkout:
 #   bash factory/core/retro.sh < comments.txt

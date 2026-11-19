@@ -23,14 +23,14 @@
 # and the counts the retro reads (factory_stats_line), each a whole number:
 #   fails-<phase>   the Verifier's FAILs in that phase
 #   fails-brief     the brief review's FAILs: the Verifier's check of a sealed
-#                   brief, before the Lock (factory-run's SKILL.md)
+#                   brief, before the Lock (the build skill's SKILL.md)
 #   rejected        Deviations the Driver rejected
 #   uncounted       uncounted rounds: clarifications, rebase conflicts, brief fixes
 #   escalations     times the issue went to the human
 #   self-ruled      the Driver's calls inside the brief, each decided, logged and
 #                   counted instead of escalated: an extra round, the Sonnet
 #                   Takeover, a finding accepted as out of reach, a Lock lift
-#                   (factory-run's SKILL.md, Driver's calls)
+#                   (the build skill's SKILL.md, Driver's calls)
 #   lifts           times the Lock moved (lock.sh lift), at most FACTORY_LOCK_LIFTS
 # and the gate's own, which verify.sh counts on an issue branch
 # (factory_gate_count) and the gate stamp's key leaves out:
@@ -45,7 +45,7 @@
 # else from EPOCHREALTIME (factory_clock_us).
 
 # The most counted fix rounds a phase may use: the cap of 2 plus the Driver's 2
-# extra rounds (factory-run's SKILL.md, Driver's calls).
+# extra rounds (the build skill's SKILL.md, Driver's calls).
 # shellcheck disable=SC2034 # read by the scripts that source this lib
 FACTORY_ROUNDS_CEILING=4
 

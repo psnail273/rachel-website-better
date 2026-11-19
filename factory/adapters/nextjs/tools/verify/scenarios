@@ -89,7 +89,7 @@
 #   ERROR    the page didn't load, or Playwright reported nothing on it
 # A normal run never records a baseline: it never passes --update-snapshots,
 # and the config says "none". Only the record mode does, which the Driver runs
-# once the human approves a Playtest (factory-run's playtest.md):
+# once the human approves a Playtest (the build skill's playtest.md):
 #   bash tools/verify/scenarios record
 # It reads tools/verify/local.env itself, runs the looks alone with
 # --update-snapshots=changed (a baseline that is missing or differs is
@@ -138,7 +138,7 @@ if [ -z "$NX_SCENARIOS" ]; then
 	exit 0
 fi
 [ "$record" -eq 0 ] || [ -d "$NX_SCENARIOS" ] ||
-	cannot "record: this checkout has no $NX_SCENARIOS/ (an issue's worktree leaves it out): record from a checkout of dev (factory-run's playtest.md)"
+	cannot "record: this checkout has no $NX_SCENARIOS/ (an issue's worktree leaves it out): record from a checkout of dev (the build skill's playtest.md)"
 
 tmp="$(mktemp -d)"
 trap 'nx_stop; rm -rf "$tmp"' EXIT

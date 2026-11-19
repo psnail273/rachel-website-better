@@ -137,20 +137,24 @@ test_a_listed_skill_has_its_word_budget() {
 }
 
 # A skill inside the factory that the words file doesn't list has the default,
-# 1000 words; so has an adapter's.
+# 1000 words; so has an adapter's, and a workspace skill's (workspace-skills/,
+# checked by default too).
 test_an_unlisted_skill_has_the_default_word_budget() {
 	mini_factory 'skills/other 5000\n'
 	wordy_skill factory/skills new 1000
 	wordy_skill factory/adapters/demo/skills write-tests-demo 1000
+	wordy_skill factory/workspace-skills start 1000
 	run_mini
 	assert_status 0
 	assert_eq "" "$out"
 	wordy_skill factory/skills new 1001
 	wordy_skill factory/adapters/demo/skills write-tests-demo 1001
+	wordy_skill factory/workspace-skills start 1001
 	run_mini
 	assert_status 1
 	assert_eq "factory/adapters/demo/skills/write-tests-demo/SKILL.md:1 skill-too-many-words 1001 words; the budget is 1000
-factory/skills/new/SKILL.md:1 skill-too-many-words 1001 words; the budget is 1000" "$out"
+factory/skills/new/SKILL.md:1 skill-too-many-words 1001 words; the budget is 1000
+factory/workspace-skills/start/SKILL.md:1 skill-too-many-words 1001 words; the budget is 1000" "$out"
 }
 
 # The words file's CRLF line endings don't hide a budget.
@@ -201,11 +205,11 @@ test_a_skill_outside_the_factory_has_no_word_budget() {
 # core/skill-words; named as arguments, they pass too.
 test_the_real_skills_are_within_budget() {
 	[ -f "$FACTORY_CORE/skill-words" ] || fail "no core/skill-words"
-	grep -qx 'skills/factory-run [0-9]*' "$FACTORY_CORE/skill-words" || fail "skill-words doesn't list skills/factory-run"
+	grep -qx 'skills/build [0-9]*' "$FACTORY_CORE/skill-words" || fail "skill-words doesn't list skills/build"
 	run_cmd bash "$FACTORY_CORE/skill-budget.sh"
 	assert_status 0
 	assert_eq "" "$out"
-	run_cmd bash "$FACTORY_CORE/skill-budget.sh" "$FACTORY_CORE/../skills" "$FACTORY_CORE"/../adapters/*/skills
+	run_cmd bash "$FACTORY_CORE/skill-budget.sh" "$FACTORY_CORE/../skills" "$FACTORY_CORE/../workspace-skills" "$FACTORY_CORE"/../adapters/*/skills
 	assert_status 0
 	assert_eq "" "$out"
 }

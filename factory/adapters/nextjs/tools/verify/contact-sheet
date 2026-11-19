@@ -4,7 +4,7 @@
 # the Design check (factory/CONTEXT.md). Not a gate step: the Editor of an issue
 # that changes what the pages render runs it at hand-back, and the Verifier
 # reads what it wrote beside the Board
-# (docs/design/board/) and docs/design.md (factory-run's verify-rubric.md).
+# (docs/design/board/) and docs/design.md (the build skill's verify-rubric.md).
 #   bash tools/verify/contact-sheet
 #
 # It builds and starts the app as the smoke step does: the page routes from

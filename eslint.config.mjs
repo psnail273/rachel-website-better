@@ -1,6 +1,8 @@
+import nextPlugin from "@next/eslint-plugin-next";
 import { defineConfig, globalIgnores } from "eslint/config";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
+import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 const eslintConfig = defineConfig([
@@ -9,6 +11,10 @@ const eslintConfig = defineConfig([
   // typescript-eslint's strict type-aware rules (ARCHITECTURE.md's lint: tags,
   // which the arch step checks are on), as the factory's skeleton has them.
   tseslint.configs.strictTypeChecked,
+  // React's Rules of Hooks with its React Compiler rules, and Next.js's
+  // core-web-vitals rules, as the factory's skeleton has them.
+  reactHooks.configs.flat.recommended,
+  nextPlugin.configs["core-web-vitals"],
   {
     languageOptions: {
       parserOptions: {

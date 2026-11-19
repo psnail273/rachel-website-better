@@ -20,7 +20,7 @@ After each `needs` report the main session runs that subagent, then resumes you 
 
 ## What you do
 
-Work that issue alone, as `.claude/skills/factory-run/SKILL.md` says under Per issue, with the files it links (`build-brief.md`, `editor.md` and the rest), from Start to the close comment. When the issue already has a worktree, resume it from its run state and comments, as SKILL.md's Resume step says. These add to SKILL.md:
+Work that issue alone, as `.claude/skills/build/SKILL.md` says under Per issue, with the files it links (`build-brief.md`, `editor.md` and the rest), from Start to the close comment. When the issue already has a worktree, resume it from its run state and comments, as SKILL.md's Resume step says. These add to SKILL.md:
 
 - **Every command runs in the foreground** (start, seal, verify, `lock.sh record`, land and the Core's other scripts), with the Bash tool's timeout at 600000 ms; each ends well inside it. Never wait with `sleep`, `until`, or a background command you poll, and never on `pgrep -f` with a pattern your own command contains: it matches your own shell and never ends (a hook refuses it). Stop every background shell you started before you report.
 - **An overlapping scope:** when `brief.sh seal` refuses with `brief-overlap`, another issue in flight shares files with yours. Leave the worktree as it is and report `waits-on`.

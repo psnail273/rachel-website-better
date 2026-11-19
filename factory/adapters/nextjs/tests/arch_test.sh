@@ -9,18 +9,19 @@
 NEXTJS_ADAPTER="$FACTORY_CORE/../adapters/nextjs"
 . "$NEXTJS_ADAPTER/tests/lib.sh"
 
-# arch_project: skeleton_project with its packages installed (prepare), or fail.
+# arch_project: primed_project, the skeleton with its packages installed (prepare).
 arch_project() {
 	needs_store
-	skeleton_project
-	step prepare
-	[ "$status" -eq 0 ] || fail "prepare failed on the skeleton: $out"$'\n'"$(tail -n 20 "$TEST_TMP/stderr")"
+	primed_project
 }
 
 # rule <id>: the number of the default rule citing arch:<id>, as R<n>.
 rule() {
 	grep -B1 "arch:$1" ARCHITECTURE.md | sed -n 's/^\*\*\(R[0-9]*\)\.\*\*.*/\1/p'
 }
+
+# The fix an input-zod finding names.
+zod="pass its input through a schema's .parse or .safeParse (here, or in a function this one calls) before using it"
 
 test_the_skeleton_passes_and_each_import_rule_finds_its_lines_with_node() {
 	arch_project
@@ -42,8 +43,8 @@ test_the_skeleton_passes_and_each_import_rule_finds_its_lines_with_node() {
 	add_fixture arch/fonts.ts.txt app/fonts.ts
 	step arch
 	assert_status 1
-	local r6 r9 r10 keep
-	r6="$(rule client-server)" r9="$(rule next-in-app)" r10="$(rule fonts-local)"
+	local r6 r9 r10 r11 keep
+	r6="$(rule client-server)" r9="$(rule next-in-app)" r10="$(rule fonts-local)" r11="$(rule input-zod)"
 	keep="keep it on the server and pass the client what it needs as props or through a server action"
 	assert_eq "app/_components/cart.tsx:12 $r6 imports @/server/db, which is server-only (server/db.ts: under server/), into client code (app/_components/cart.tsx is \"use client\"); $keep
 app/_components/cart.tsx:7 $r6 imports ../../server/db, which is server-only (server/db.ts: under server/), into client code (app/_components/cart.tsx is \"use client\"); $keep
@@ -51,7 +52,49 @@ app/_components/cart.tsx:8 $r6 imports ../api/health/route, which is server-only
 lib/format.ts:1 $r6 imports ./secrets, which is server-only (lib/secrets.ts: it imports \"server-only\"), into client code (lib/format.ts is reached from app/_components/cart.tsx, a \"use client\" file); $keep
 lib/link.ts:3 $r9 imports next/link outside app/; only app/ (its pages, layouts and route handlers) uses Next's runtime: move this code into app/, or pass it what it needs from there
 lib/link.ts:4 $r9 imports next/navigation outside app/; only app/ (its pages, layouts and route handlers) uses Next's runtime: move this code into app/, or pass it what it needs from there
-app/fonts.ts:1 $r10 imports next/font/google, which next build downloads, and the gates run offline; use next/font/local with the font files in the repo" "$out" "arch's findings"
+app/fonts.ts:1 $r10 imports next/font/google, which next build downloads, and the gates run offline; use next/font/local with the font files in the repo
+app/actions.ts:5 $r11 server action rename reads its argument id and parses none of it with zod; $zod" "$out" "arch's findings"
+}
+
+# Route handlers and server actions that read their input and parse none of it
+# with zod: one finding each. Those that parse it, here or in a function they
+# call, and those that read no input (a URL they build, a raw body they
+# forward, an action with no argument) are none.
+test_input_zod_finds_handlers_and_actions_that_parse_no_input_with_node() {
+	arch_project
+	add_fixture arch/items-route.ts.txt "app/api/items/[id]/route.ts"
+	add_fixture arch/search-route.ts.txt app/api/search/route.ts
+	add_fixture arch/parsed-route.ts.txt app/api/parsed/route.ts
+	add_fixture arch/validate.ts.txt lib/validate.ts
+	add_fixture arch/helper-route.ts.txt app/api/helper/route.ts
+	add_fixture arch/defaulted.ts.txt lib/defaulted.ts
+	add_fixture arch/barrel.ts.txt lib/checks/index.ts
+	add_fixture arch/reexported-route.ts.txt app/api/reexported/route.ts
+	add_fixture arch/zod-parse-route.ts.txt app/api/zod-parse/route.ts
+	# Four files that each export * from the other three: a lookup ends.
+	local f g
+	mkdir -p lib/ring
+	for f in a b c d; do
+		for g in a b c d; do
+			[ "$f" = "$g" ] || echo "export * from \"./$g\";"
+		done > "lib/ring/$f.ts"
+		echo "export const ${f}Value = 1;" >> "lib/ring/$f.ts"
+	done
+	echo "export const helper = String;" >> lib/ring/d.ts
+	printf 'export { readQuery } from "@/lib/validate";\n' >> lib/ring/c.ts
+	add_fixture arch/ring-route.ts.txt app/api/ring/route.ts
+	add_fixture arch/zod-actions.ts.txt app/form/actions.ts
+	add_fixture arch/form.tsx.txt app/form/page.tsx
+	add_fixture arch/items-route.ts.txt "tests/route.test.ts"
+	step arch
+	assert_status 1
+	local r11
+	r11="$(rule input-zod)"
+	assert_eq "app/api/items/[id]/route.ts:1 $r11 route handler GET reads route params and parses none of it with zod; $zod
+app/api/items/[id]/route.ts:9 $r11 route handler POST reads its body and parses none of it with zod; $zod
+app/api/search/route.ts:1 $r11 route handler GET reads search params and parses none of it with zod; $zod
+app/form/actions.ts:7 $r11 server action rename reads its argument formData and parses none of it with zod; $zod
+app/form/page.tsx:4 $r11 server action save reads its argument formData and parses none of it with zod; $zod" "$out" "arch's findings"
 }
 
 # A client file importing the server-only package itself, and a server-only
@@ -66,11 +109,11 @@ test_client_code_importing_server_only_itself_is_a_finding_with_node() {
 
 test_the_sync_check_fails_on_a_rule_without_a_check_and_a_check_without_a_rule_with_node() {
 	arch_project
-	printf '\n**R11.** Something new.\nEnforced by: `arch:made-up`\nSource: convention\n' >> ARCHITECTURE.md
+	printf '\n**R12.** Something new.\nEnforced by: `arch:made-up`\nSource: convention\n' >> ARCHITECTURE.md
 	sed -i 's/^Enforced by: `arch:next-in-app`$/Enforced by: `review`/' ARCHITECTURE.md
 	step arch
 	assert_status 1
-	assert_eq "ARCHITECTURE.md:$(grep -n 'arch:made-up' ARCHITECTURE.md | cut -d: -f1) arch-sync arch:made-up (R11) has no check
+	assert_eq "ARCHITECTURE.md:$(grep -n 'arch:made-up' ARCHITECTURE.md | cut -d: -f1) arch-sync arch:made-up (R12) has no check
 tools/verify/arch:1 arch-sync check next-in-app is cited by no rule" "$out" "the sync check's findings"
 }
 
@@ -100,10 +143,10 @@ test_the_pre_commit_hook_on_a_tree_without_node_modules_reports_no_tool_missing(
 test_static_only_arch_runs_the_sync_check_alone() {
 	skeleton_project
 	add_fixture arch/fonts.ts.txt app/fonts.ts
-	printf '\n**R11.** Something new.\nEnforced by: `arch:made-up`\nSource: convention\n' >> ARCHITECTURE.md
+	printf '\n**R12.** Something new.\nEnforced by: `arch:made-up`\nSource: convention\n' >> ARCHITECTURE.md
 	FACTORY_ARCH_STATIC_ONLY=1 NODE_BIN=/no/such/node step arch
 	assert_status 1
-	assert_eq "ARCHITECTURE.md:$(grep -n 'arch:made-up' ARCHITECTURE.md | cut -d: -f1) arch-sync arch:made-up (R11) has no check" "$out" "static-only arch's findings"
+	assert_eq "ARCHITECTURE.md:$(grep -n 'arch:made-up' ARCHITECTURE.md | cut -d: -f1) arch-sync arch:made-up (R12) has no check" "$out" "static-only arch's findings"
 }
 
 test_the_reader_refuses_what_isnt_dependency_cruisers_graph_with_node() {
@@ -237,7 +280,8 @@ test_no_lint_tags_and_no_rules_are_no_lint_tags_finding_with_node() {
 	assert_status 1
 	assert_eq "tools/verify/arch:1 arch-sync check client-server is cited by no rule
 tools/verify/arch:1 arch-sync check next-in-app is cited by no rule
-tools/verify/arch:1 arch-sync check fonts-local is cited by no rule" "$out" "arch's findings with no Rules section"
+tools/verify/arch:1 arch-sync check fonts-local is cited by no rule
+tools/verify/arch:1 arch-sync check input-zod is cited by no rule" "$out" "arch's findings with no Rules section"
 	assert_eq "(none)" "$(asked)" "the files ESLint was asked about"
 }
 

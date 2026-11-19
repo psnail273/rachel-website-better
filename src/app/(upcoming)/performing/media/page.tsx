@@ -24,7 +24,7 @@ export default function MediaPage() {
       id: "DZA9Wi6KzWY",
       title: "“Aria sopra La Bergamasca” by Marco Uccellini",
     },
-  ];
+  ] as const;
   const recordings = [
     "Brahms Clarinet Quintet, mvmt. 3",
     "Brahms Clarinet Quintet, mvmt. 4",

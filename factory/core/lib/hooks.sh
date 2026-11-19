@@ -53,7 +53,7 @@ FACTORY_MAIN_MODEL="claude-opus-5-5"
 FACTORY_MAIN_EFFORT="medium"
 # The highest effort any session or subagent may run at, as "maxEffortLevel".
 FACTORY_MAX_EFFORT="xhigh"
-# The Bash permission rule for a Driver's one Lock lift (factory-run's Driver's
+# The Bash permission rule for a Driver's one Lock lift (the build skill's Driver's
 # calls), in "permissions" "allow": a narrow allow rule is settled before a
 # permission prompt or the auto-mode classifier is asked, so a driver subagent's
 # `bash factory/core/lock.sh lift` runs. lock.sh still allows one lift per issue.

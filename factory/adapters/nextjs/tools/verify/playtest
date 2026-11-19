@@ -18,7 +18,7 @@
 # the wait.
 # Exits 0 with the app built, 1 otherwise (the reason on stderr).
 #
-# Run bare (factory-run's playtest.md), it reads tools/verify/local.env itself, as
+# Run bare (the build skill's playtest.md), it reads tools/verify/local.env itself, as
 # verify.sh does for the gate's steps, so its build meets theirs under the same
 # FACTORY_BUILD_LOCK.
 set -u

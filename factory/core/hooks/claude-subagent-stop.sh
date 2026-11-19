@@ -64,7 +64,7 @@
 # difference blocks with a `round-changed` finding for each, and the gate does
 # not run; each such block counts toward the limit too. At the limit with a
 # difference still there it lets the subagent stop, and writes the findings to
-# <git-dir>/factory/round-changed for the Driver (factory-run's editor.md). With
+# <git-dir>/factory/round-changed for the Driver (the build skill's editor.md). With
 # no snapshot (the start hook did not run) it says so and takes one now. When the
 # small lane moves the issue on to green it takes a fresh one, since the Lock and
 # the phase it sets are the gate's, not the round's.

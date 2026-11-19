@@ -61,14 +61,14 @@ describe("EducationPage", () => {
       "aria-labelledby": "education-heading",
     });
     expect(section?.children).toHaveLength(2);
-    expect(h1.tagName).toBe("H1");
+    expect(h1?.tagName).toBe("H1");
     expect(attrs(h1)).toEqual({
       "data-heading": "1",
       id: "education-heading",
       class: "type-h1",
     });
-    expect(h1.textContent).toBe(H1_TEXT);
-    expect(stack.tagName).toBe("DIV");
+    expect(h1?.textContent).toBe(H1_TEXT);
+    expect(stack?.tagName).toBe("DIV");
     expect(attrs(stack)).toEqual({ "data-stack": "block" });
     expect(doc.querySelectorAll("h1")).toHaveLength(1);
     expect(offenders).toEqual([]);

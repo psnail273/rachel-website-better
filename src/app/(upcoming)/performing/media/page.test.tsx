@@ -16,7 +16,9 @@ vi.mock("next/cache", () => ({ cacheLife: vi.fn() }));
 type PageModule = { default: () => ReactElement; metadata: Metadata };
 
 const pages = import.meta.glob<PageModule>("./page.tsx");
-const page = await pages["./page.tsx"]();
+const importPage = pages["./page.tsx"];
+if (importPage === undefined) throw new Error("no ./page.tsx beside this test");
+const page = await importPage();
 
 const ALLOW =
   "accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share";
@@ -155,19 +157,19 @@ describe("MediaPage", () => {
     expect(attrs(video)).toEqual({});
     expect(attrs(audio)).toEqual({});
     expect(tags(video)).toEqual(["H2", "DIV"]);
-    expect(video.children[0].textContent).toBe("Video");
-    expect(attrs(video.children[0])).toEqual({
+    expect(video?.children[0]?.textContent).toBe("Video");
+    expect(attrs(video?.children[0])).toEqual({
       "data-heading": "2",
       class: "type-h2",
     });
-    expect(attrs(video.children[1])).toEqual({ "data-switcher": "pair" });
+    expect(attrs(video?.children[1])).toEqual({ "data-switcher": "pair" });
     expect(tags(audio)).toEqual(["H2", "DIV"]);
-    expect(audio.children[0].textContent).toBe("Audio");
-    expect(attrs(audio.children[0])).toEqual({
+    expect(audio?.children[0]?.textContent).toBe("Audio");
+    expect(attrs(audio?.children[0])).toEqual({
       "data-heading": "2",
       class: "type-h2",
     });
-    expect(attrs(audio.children[1])).toEqual({ "data-prose": "start" });
+    expect(attrs(audio?.children[1])).toEqual({ "data-prose": "start" });
     expect(texts(doc.querySelectorAll("h2"))).toEqual(["Video", "Audio"]);
   });
 
@@ -212,7 +214,7 @@ describe("MediaPage", () => {
         decoding: "async",
         "data-nimg": "1",
         style: "color:transparent",
-        src: `https://i.ytimg.com/vi/${IDS[i]}/hqdefault.jpg`,
+        src: `https://i.ytimg.com/vi/${IDS[i] ?? ""}/hqdefault.jpg`,
       })),
     );
     expect(figures.map((f) => attrs(f.querySelector("svg")))).toEqual([
@@ -247,8 +249,8 @@ describe("MediaPage", () => {
       { "data-card-title": "", class: "type-card-title" },
       { "data-card-title": "", class: "type-card-title" },
     ]);
-    expect(figures.map((f) => f.children[1].textContent)).toEqual(tied);
-    expect(figures.map((f) => f.children[1].children.length)).toEqual([0, 0]);
+    expect(figures.map((f) => f.children[1]?.textContent)).toEqual(tied);
+    expect(figures.map((f) => f.children[1]?.children.length)).toEqual([0, 0]);
     expect(
       Array.from(doc.querySelectorAll("img"), (i) => i.getAttribute("src")),
     ).toEqual([
@@ -285,11 +287,11 @@ describe("MediaPage", () => {
     );
     const first = figures()[0];
     expect(tags(first)).toEqual(["IFRAME", "FIGCAPTION"]);
-    expect(attrs(first.children[0])).toEqual(
+    expect(attrs(first?.children[0])).toEqual(
       iframeAttrs(IDS[0] ?? "", PASSACAILLE),
     );
     expect(tags(figures()[1])).toEqual(["BUTTON", "FIGCAPTION"]);
-    expect(figures()[1]?.children[0].getAttribute("aria-label")).toBe(
+    expect(figures()[1]?.children[0]?.getAttribute("aria-label")).toBe(
       `Play ${BERGAMASCA}`,
     );
     expect(document.querySelectorAll("iframe")).toHaveLength(1);
@@ -306,7 +308,7 @@ describe("MediaPage", () => {
     expect(document.querySelectorAll("figure[data-video] button")).toHaveLength(
       0,
     );
-    expect(figures().map((f) => f.children[1].textContent)).toEqual([
+    expect(figures().map((f) => f.children[1]?.textContent)).toEqual([
       PASSACAILLE_TIED,
       BERGAMASCA_TIED,
     ]);
@@ -374,7 +376,7 @@ describe("MediaPage", () => {
       ["SPAN", "SPAN"],
     ]);
     expect(items.map((li) => attrs(li.children[0]))).toEqual([{}, {}, {}]);
-    expect(items.map((li) => li.children[0].textContent)).toEqual([
+    expect(items.map((li) => li.children[0]?.textContent)).toEqual([
       "Brahms Clarinet Quintet, mvmt.\u00A03",
       "Brahms Clarinet Quintet, mvmt.\u00A04",
       "Chamber Music St. Louis radio broadcast, September\u00A02025",
@@ -384,12 +386,12 @@ describe("MediaPage", () => {
       { "data-status": "" },
       { "data-status": "" },
     ]);
-    expect(items.map((li) => li.children[1].textContent)).toEqual([
+    expect(items.map((li) => li.children[1]?.textContent)).toEqual([
       "Coming soon",
       "Coming soon",
       "Coming soon",
     ]);
-    expect(items.map((li) => li.children[1].children.length)).toEqual([
+    expect(items.map((li) => li.children[1]?.children.length)).toEqual([
       0, 0, 0,
     ]);
     expect(doc.body.textContent.split("Coming soon")).toHaveLength(4);
@@ -439,6 +441,9 @@ describe("MediaPage", () => {
       "data-section": "",
       "aria-labelledby": "upcoming-heading",
     });
+    if (media === undefined || strip === undefined) {
+      throw new Error("the layout rendered fewer than two sections");
+    }
     expect(texts(media.querySelectorAll("h1"))).toEqual(["Media"]);
     expect(texts(media.querySelectorAll("h2"))).toEqual(["Video", "Audio"]);
     expect(texts(strip.querySelectorAll("h2"))).toEqual(["Upcoming"]);

@@ -272,7 +272,7 @@ MD
 
 # --- the prose: the template's Kind line and sections, against the block --------
 
-# template_brief: brief.md in the template's shape (factory-run's build-brief.md),
+# template_brief: brief.md in the template's shape (the build skill's build-brief.md),
 # Phase red, with two tests and one seam that its sections and block agree on.
 # Its Existing tests section comes last (lines 29 and 30), so the lines above it
 # keep their numbers.

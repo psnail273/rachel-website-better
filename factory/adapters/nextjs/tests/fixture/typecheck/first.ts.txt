@@ -1,0 +1,4 @@
+export function first(prices: number[]): number {
+  const head = prices[0];
+  return head + 1;
+}

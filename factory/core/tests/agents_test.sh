@@ -122,7 +122,7 @@ test_the_vendored_frontend_design_is_as_recorded() {
 # 0.0.0.0 by default, so the host is explicit, and the LAN address and port
 # 3100 are gone.
 test_the_design_step_serves_on_localhost_3000() {
-	local dd="$FACTORY_CORE/../skills/factory-spec/design-direction.md"
+	local dd="$FACTORY_CORE/../skills/spec/design-direction.md"
 	grep -qF 'pnpm exec next dev -H localhost -p 3000' "$dd" || fail "step 2 doesn't start next dev on localhost:3000"
 	grep -qxF 'factory-dev-server: http://localhost:3000/' "$dd" || fail "the designer's prompt doesn't name http://localhost:3000/"
 	grep -qF 'ssh -L 3000:localhost:3000' "$dd" || fail "step 2 doesn't say how to reach the server through a tunnel"
@@ -134,7 +134,7 @@ test_the_design_step_serves_on_localhost_3000() {
 # sees it (#55 item 4): its step comes before the human's, the iterate round
 # runs it, and the designer has a critique round to answer it.
 test_the_critique_comes_before_the_human_picks() {
-	local dd="$FACTORY_CORE/../skills/factory-spec/design-direction.md" critique human
+	local dd="$FACTORY_CORE/../skills/spec/design-direction.md" critique human
 	critique="$(grep -n '^## 4\. The critique$' "$dd" | cut -d: -f1)"
 	human="$(grep -n '^## 5\. The human picks$' "$dd" | cut -d: -f1)"
 	[ -n "$critique" ] && [ -n "$human" ] && [ "$critique" -lt "$human" ] || fail "the critique isn't the step before the human picks"

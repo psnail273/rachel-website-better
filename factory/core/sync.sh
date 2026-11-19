@@ -55,6 +55,7 @@ core="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$core/lib/vendor.sh"
 . "$core/lib/project.sh"
 . "$core/lib/bounded.sh"
+. "$core/lib/release.sh"
 
 say() { echo "sync: $*" >&2; }
 die() {
@@ -81,7 +82,7 @@ main() {
 	if [ "$tag" = check ] || [ "$tag" = latest ]; then
 		local mode="$tag" newest
 		[ -n "$upstream" ] || die "no upstream: $FACTORY_VERSION_FILE has no upstream line, and FACTORY_UPSTREAM is unset"
-		newest="$(latest_release "$upstream")" || exit 1
+		newest="$(factory_latest_release "$upstream")" || exit 1
 		factory_version_is "$old_version" || die "$FACTORY_VERSION_FILE records version '$old_version', not <major>.<minor>.<patch>, so it can't be compared with $newest"
 		if [ "$mode" = check ]; then
 			if factory_version_greater "${newest#v}" "$old_version"; then
@@ -189,58 +190,11 @@ main() {
 	say "synced; review and commit the result"
 }
 
-# latest_release <upstream>: print the upstream's highest v<major>.<minor>.<patch>
-# tag. False, the reason on stderr, when ls-remote fails or times out, or the
-# upstream has no such tag. The network is bounded: a limit on ls-remote
-# (factory_run_bounded, lib/bounded.sh: `timeout`, or a watchdog where there is
-# none, as on stock macOS), and ssh told to give up connecting after 5 seconds
-# and never to prompt (appended to the ssh command git would use), as git is
-# told for https.
-latest_release() {
-	local upstream="$1" limit="${FACTORY_SYNC_TIMEOUT:-10}" ssh refs best="" t err
-	ssh="${GIT_SSH_COMMAND:-$(git config --get core.sshCommand 2> /dev/null)}"
-	if [ -n "$ssh" ] || [ -z "${GIT_SSH:-}" ]; then
-		ssh="${ssh:-ssh} -o ConnectTimeout=5 -o BatchMode=yes"
-	else
-		ssh=""
-	fi
-	err="$(mktemp)"
-	refs="$(
-		export GIT_TERMINAL_PROMPT=0
-		[ -z "$ssh" ] || export GIT_SSH_COMMAND="$ssh"
-		factory_run_bounded "$limit" git ls-remote --tags --refs "$upstream" < /dev/null 2> "$err"
-	)"
-	case $? in
-		0) ;;
-		124)
-			rm -f "$err"
-			say "could not list the tags at $upstream: no answer in $limit seconds"
-			return 1
-			;;
-		*)
-			sed 's/^/  /' "$err" >&2
-			rm -f "$err"
-			say "could not list the tags at $upstream"
-			return 1
-			;;
-	esac
-	rm -f "$err"
-	while IFS= read -r t; do
-		t="${t##*refs/tags/}"
-		factory_version_is "${t#v}" && [ "${t#v}" != "$t" ] || continue
-		if [ -z "$best" ] || factory_version_greater "${t#v}" "${best#v}"; then best="$t"; fi
-	done <<< "$refs"
-	[ -n "$best" ] || {
-		say "no release at $upstream (no tag v<major>.<minor>.<patch>)"
-		return 1
-	}
-	printf '%s\n' "$best"
-}
-
 # refresh <old> <new> <copy>: update the project's copy of a factory file. A copy
 # that is missing while the old factory had the file was removed on purpose, and
 # stays removed; one equal to the old file follows the new (or goes, when the new
-# factory lacks it); any other copy is kept, and its old-to-new diff joins the port.
+# factory lacks it, and any folder it leaves empty with it); any other copy is
+# kept, and its old-to-new diff joins the port.
 refresh() {
 	local old="$1" new="$2" copy="$3"
 	if [ ! -f "$copy" ]; then
@@ -254,7 +208,8 @@ refresh() {
 		if [ -f "$new" ]; then
 			cp "$new" "$copy" || die "could not write $copy"
 		else
-			rm -f "$copy"
+			rm -f "$copy" || die "could not remove $copy"
+			rmdir -p "$(dirname "$copy")" 2> /dev/null
 		fi
 		return 0
 	fi

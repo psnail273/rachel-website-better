@@ -51,6 +51,18 @@ test_adoption_seeds_every_file_and_records_the_baseline() {
 	assert_eq "" "$(git status --porcelain | grep -v '^[AM] ')" "adoption left files unstaged"
 }
 
+# /audit is installed as the human's to run, and the cleanup doc it files with
+# is where its link leads.
+test_adoption_installs_the_audit_skill_for_the_human_to_run() {
+	adopt_project
+	adopt
+	assert_status 0
+	grep -qxF "name: audit" .claude/skills/audit/SKILL.md || fail "no audit skill"
+	grep -qxF "disable-model-invocation: true" .claude/skills/audit/SKILL.md || fail "the model may run the audit skill"
+	grep -qF "](../adopt/cleanup.md)" .claude/skills/audit/SKILL.md || fail "the audit skill doesn't link the cleanup doc"
+	[ -f .claude/skills/adopt/cleanup.md ] || fail "the audit skill's link to the cleanup doc leads nowhere"
+}
+
 test_the_adopted_project_verifies_through_tools_verify_sh() {
 	adopt_project
 	lint_finding

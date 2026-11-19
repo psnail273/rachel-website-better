@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Print an issue's fixed prompts, filled in, for the Driver to redirect to a
-# round's prompt file (factory-run's editor.md). Run in the issue's worktree, from
+# round's prompt file (the build skill's editor.md). Run in the issue's worktree, from
 # its root:
 #   bash factory/core/prompt.sh editor <phase>     the first Editor round; <phase> is
 #                                                  red, `red, small lane`, partial,
@@ -18,7 +18,7 @@
 #   bash factory/core/prompt.sh brief-review       the brief review's check
 # A phase of two words may be one argument or several: `editor red, small lane`.
 #
-# Each prints its template from factory-run's prompts/ folder (editor.md, green.md,
+# Each prints its template from the build skill's prompts/ folder (editor.md, green.md,
 # footer.md, verifier.md, brief-review.md) with these placeholders filled in, so
 # the Driver never retypes the brief, the issue or the fixed text:
 #   <n> <title>  from the issue's first line, `#<n>: <title>`
@@ -47,7 +47,7 @@ core="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$core/lib/brief.sh"
 . "$core/lib/diff.sh"
 
-prompts="$core/../skills/factory-run/prompts"
+prompts="$core/../skills/build/prompts"
 
 usage() {
 	echo "usage: bash factory/core/prompt.sh editor <red | red, small lane | partial | green, test-only | green, amend>" >&2

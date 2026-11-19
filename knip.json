@@ -1,0 +1,14 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "ignore": ["factory/**", "tools/**", "scenarios/**"],
+  "ignoreDependencies": [
+    "@axe-core/playwright",
+    "client-only",
+    "dependency-cruiser",
+    "fast-check",
+    "prettier",
+    "secretlint",
+    "server-only",
+    "zod"
+  ]
+}

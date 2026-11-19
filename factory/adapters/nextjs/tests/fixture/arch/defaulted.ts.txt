@@ -1,0 +1,9 @@
+import { z } from "zod";
+
+const Query = z.object({ q: z.string() });
+
+function readQuery(params: URLSearchParams): { q: string } {
+  return Query.parse(Object.fromEntries(params));
+}
+
+export default readQuery;

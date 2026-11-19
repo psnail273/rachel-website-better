@@ -36,7 +36,7 @@ A module may import only from folders to its right, and from packages. Route seg
 
 Each rule has a stable number that is never reused. `Enforced by:` is `arch:<id>` (a check in the arch step), `typecheck`, `lint:<rule>`, `deviation` or `review`. Findings print as `file:line R<n> message`.
 
-**R1.** The code typechecks under `strict`, and `tsconfig.json` turns none of strict's checks back off.
+**R1.** The code typechecks under `strict`, and `tsconfig.json` turns none of strict's checks back off; it turns on `noUncheckedIndexedAccess`, `noImplicitOverride` and `noFallthroughCasesInSwitch` as well.
 Enforced by: `typecheck`
 Source: convention
 
@@ -91,6 +91,10 @@ Source: Lauren Tan, All Code Is Slop (Except Mine)
 **R14.** Outside data (the calendar feed, environment variables, SQLite rows) is parsed into typed values in one place under `src/server/`, at the boundary; the rest of the code takes only the typed values.
 Enforced by: `review`
 Source: Lauren Tan, All Code Is Slop (Except Mine); pstack boundary-discipline
+
+**R15.** Input from outside is parsed with a zod schema (`.parse` or `.safeParse`) before use: a route handler's request body, search params and route params, and a server action's arguments. The parse is in the handler or action itself, or in a function it calls. The check sees a handler or action that reads its input and makes no parse call at all; review checks that the parse covers the input.
+Enforced by: `arch:input-zod`, `review`
+Source: convention (a request or an action's arguments come from whoever sends them; their types don't hold until a schema checks them)
 
 ## Ratchet files
 

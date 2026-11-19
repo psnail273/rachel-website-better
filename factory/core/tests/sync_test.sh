@@ -7,8 +7,8 @@ v2_release() {
 	echo "- **New:** from v2." >> core/templates/agents-section.md
 	sed -i 's/NotebookRead|LS|Skill)/NotebookRead|LS|Skill|Task)/' core/hooks/claude-hooks.json
 	echo "# v2 lint" >> adapters/fake/tools/verify/lint
-	echo "v2 line" >> skills/factory-run/SKILL.md
-	echo "v2 line" >> skills/factory-run/editor.md
+	echo "v2 line" >> skills/build/SKILL.md
+	echo "v2 line" >> skills/build/editor.md
 	mkdir -p skills/v2-skill && echo "a v2 skill" > skills/v2-skill/SKILL.md
 	echo "echo v2 entry point" >> core/templates/verify.sh
 	rm core/rubric.sh
@@ -119,18 +119,18 @@ test_sync_removes_the_retired_cursor_files() {
 
 test_sync_refreshes_the_installed_copies_the_project_left_alone() {
 	adopted
-	echo "the project's edit" >> .claude/skills/factory-run/editor.md
+	echo "the project's edit" >> .claude/skills/build/editor.md
 	echo "echo the project's entry point" >> tools/verify.sh
 	git commit -q -am "own edits" || fail "could not commit"
 	make_upstream
 	sync v2
 	assert_status 0
-	cmp -s factory/skills/factory-run/SKILL.md .claude/skills/factory-run/SKILL.md || fail "an untouched skill copy wasn't refreshed"
+	cmp -s factory/skills/build/SKILL.md .claude/skills/build/SKILL.md || fail "an untouched skill copy wasn't refreshed"
 	cmp -s factory/skills/v2-skill/SKILL.md .claude/skills/v2-skill/SKILL.md || fail "a new skill wasn't installed"
-	assert_eq "the project's edit" "$(tail -n 1 .claude/skills/factory-run/editor.md)" "an edited skill copy was overwritten"
+	assert_eq "the project's edit" "$(tail -n 1 .claude/skills/build/editor.md)" "an edited skill copy was overwritten"
 	assert_eq "echo the project's entry point" "$(tail -n 1 tools/verify.sh)" "an edited tools/verify.sh was overwritten"
-	stderr_has "kept .claude/skills/factory-run/editor.md, which the project changed"
-	assert_line "+++ now/.claude/skills/factory-run/editor.md"
+	stderr_has "kept .claude/skills/build/editor.md, which the project changed"
+	assert_line "+++ now/.claude/skills/build/editor.md"
 	assert_line "+++ now/tools/verify.sh"
 }
 
@@ -195,8 +195,8 @@ test_sync_keeps_a_copy_whose_template_the_release_renamed() {
 # skill the project removed stays removed.
 test_sync_keeps_the_copies_of_a_skills_folder_the_release_moved() {
 	adopted
-	[ -f .claude/skills/factory-spec/SKILL.md ] || fail "the adoption installed no factory-spec skill"
-	git rm -q -r .claude/skills/factory-spec && git commit -q -m "drop a skill" || fail "could not drop a skill"
+	[ -f .claude/skills/spec/SKILL.md ] || fail "the adoption installed no spec skill"
+	git rm -q -r .claude/skills/spec && git commit -q -m "drop a skill" || fail "could not drop a skill"
 	# shellcheck disable=SC2317 # v2_release calls it
 	v2_extra() {
 		mv skills core-skills
@@ -206,9 +206,77 @@ test_sync_keeps_the_copies_of_a_skills_folder_the_release_moved() {
 	make_upstream
 	sync v2
 	assert_status 0
-	assert_eq "v2 line" "$(tail -n 1 .claude/skills/factory-run/SKILL.md 2> /dev/null)" "the moved skill's copy wasn't refreshed"
+	assert_eq "v2 line" "$(tail -n 1 .claude/skills/build/SKILL.md 2> /dev/null)" "the moved skill's copy wasn't refreshed"
 	[ -f .claude/skills/v2-skill/SKILL.md ] || fail "the moved folder's new skill wasn't installed"
-	[ ! -e .claude/skills/factory-spec ] || fail "the skill the project removed came back"
+	[ ! -e .claude/skills/spec ] || fail "the skill the project removed came back"
+}
+
+# adopted_before_the_rename [edit]: adopt_project with the project skills under
+# their names before #20 (factory-adopt, factory-spec, factory-run), Adopted and
+# committed; with `edit`, the project then edits its copy of factory-run's
+# editor.md. v2_release is the release that renamed them, and nothing else.
+adopted_before_the_rename() {
+	local s
+	adopt_project
+	for s in adopt:factory-adopt spec:factory-spec build:factory-run; do
+		mv "factory/skills/${s%%:*}" "factory/skills/${s#*:}" &&
+			sed -i "s/^name: ${s%%:*}\$/name: ${s#*:}/" "factory/skills/${s#*:}/SKILL.md" || fail "could not rename the skill ${s%%:*}"
+	done
+	git add -A && git commit -q -m "the old skill names" || fail "could not commit the old names"
+	run_cmd bash factory/core/adopt.sh fake
+	assert_status 0
+	[ -f .claude/skills/factory-run/SKILL.md ] || fail "the adoption installed no factory-run skill"
+	if [ "${1:-}" = edit ]; then
+		echo "the project's edit" >> .claude/skills/factory-run/editor.md
+	fi
+	git add -A && git commit -q -m adopt || fail "could not commit the adoption"
+	# shellcheck disable=SC2317 # make_upstream calls it
+	v2_release() {
+		local s
+		echo 9.9.9 > VERSION
+		for s in adopt:factory-adopt spec:factory-spec build:factory-run; do
+			mv "skills/${s#*:}" "skills/${s%%:*}" && sed -i "s/^name: ${s#*:}\$/name: ${s%%:*}/" "skills/${s%%:*}/SKILL.md" || return 1
+		done
+	}
+}
+
+# The release that renamed the project skills: a project synced to it has the
+# new copies, and the old ones it left as they were are gone, folders and all.
+# This runs the new sync.sh; a project's first sync to the release runs its old
+# one (0.8.0 and before), which removes the old files but leaves their folders
+# in that checkout: empty, so git never holds them, and with no SKILL.md, so they
+# load no skill.
+test_sync_replaces_the_copies_of_the_renamed_project_skills() {
+	adopted_before_the_rename
+	make_upstream
+	sync v2
+	assert_status 0
+	local s
+	for s in adopt spec build; do
+		diff -r "factory/skills/$s" ".claude/skills/$s" > /dev/null || fail "the copy of the $s skill isn't the release's"
+	done
+	assert_eq "name: build" "$(grep '^name: ' .claude/skills/build/SKILL.md)" "the build skill's name"
+	for s in factory-adopt factory-spec factory-run; do
+		[ ! -e ".claude/skills/$s" ] || fail "the old skill $s is still installed: $(find ".claude/skills/$s")"
+	done
+	! grep -q 'kept \.claude/skills/' "$TEST_TMP/stderr" || fail "an untouched skill copy was taken for a tuned one:"$'\n'"$(cat "$TEST_TMP/stderr")"
+	assert_eq "" "$(git status --porcelain | grep -v '^[AMDR] ')" "the sync left files unstaged"
+}
+
+# An old copy the project edited stays, alone in its folder, and the factory's
+# change to it (the whole file gone) is on stdout for the project to port into
+# the new copy, which is installed beside it.
+test_sync_keeps_an_edited_copy_of_a_renamed_skill_and_prints_it() {
+	adopted_before_the_rename edit
+	make_upstream
+	sync v2
+	assert_status 0
+	cmp -s factory/skills/build/editor.md .claude/skills/build/editor.md || fail "the new skill's editor.md wasn't installed"
+	assert_eq "the project's edit" "$(tail -n 1 .claude/skills/factory-run/editor.md 2> /dev/null)" "the edited old copy was not kept"
+	assert_eq ".claude/skills/factory-run/editor.md" "$(find .claude/skills/factory-run -type f)" "the old skill's untouched copies are still there"
+	stderr_has "kept .claude/skills/factory-run/editor.md, which the project changed"
+	assert_line "--- was/.claude/skills/factory-run/editor.md"
+	assert_line "+++ now/.claude/skills/factory-run/editor.md"
 }
 
 # Where two trees install one path, the first one's file is the copy, as in
@@ -217,28 +285,28 @@ test_sync_keeps_the_first_tree_where_a_release_adds_a_clash() {
 	adopted
 	# shellcheck disable=SC2317 # v2_release calls it
 	v2_extra() {
-		mkdir -p adapters/fake/skills/factory-run && echo "the adapter's own" > adapters/fake/skills/factory-run/SKILL.md
+		mkdir -p adapters/fake/skills/build && echo "the adapter's own" > adapters/fake/skills/build/SKILL.md
 	}
 	make_upstream
 	sync v2
 	assert_status 0
-	assert_eq "v2 line" "$(tail -n 1 .claude/skills/factory-run/SKILL.md)" "the adapter's skill replaced the core one's copy"
+	assert_eq "v2 line" "$(tail -n 1 .claude/skills/build/SKILL.md)" "the adapter's skill replaced the core one's copy"
 }
 
 # With the clash in both releases, the untouched copy follows the first tree.
 test_sync_keeps_the_first_tree_where_both_releases_clash() {
 	adopt_project
-	mkdir -p factory/adapters/fake/skills/factory-run && echo "the adapter's own" > factory/adapters/fake/skills/factory-run/SKILL.md
+	mkdir -p factory/adapters/fake/skills/build && echo "the adapter's own" > factory/adapters/fake/skills/build/SKILL.md
 	git add -A && git commit -q -m clash || fail "could not commit the clash"
 	run_cmd bash factory/core/adopt.sh fake
 	assert_status 0
 	git add -A && git commit -q -m adopt || fail "could not commit the adoption"
-	[ "$(tail -n 1 .claude/skills/factory-run/SKILL.md)" != "the adapter's own" ] || fail "adopt.sh installed the adapter's skill"
+	[ "$(tail -n 1 .claude/skills/build/SKILL.md)" != "the adapter's own" ] || fail "adopt.sh installed the adapter's skill"
 	make_upstream
 	sync v2
 	assert_status 0
-	assert_eq "v2 line" "$(tail -n 1 .claude/skills/factory-run/SKILL.md)" "the core skill's copy wasn't refreshed"
-	! grep -qF "kept .claude/skills/factory-run/SKILL.md" "$TEST_TMP/stderr" || fail "the untouched copy was taken for a tuned one"
+	assert_eq "v2 line" "$(tail -n 1 .claude/skills/build/SKILL.md)" "the core skill's copy wasn't refreshed"
+	! grep -qF "kept .claude/skills/build/SKILL.md" "$TEST_TMP/stderr" || fail "the untouched copy was taken for a tuned one"
 }
 
 # A copy the project tuned is kept, and the factory's change to it is printed.

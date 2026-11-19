@@ -1,0 +1,16 @@
+import { NextResponse, type NextRequest } from "next/server";
+import { parse, z } from "zod";
+
+const Query = z.object({ q: z.string() });
+
+// Parses with zod's own parse(), and redirects to a copy of its URL it writes to.
+export function GET(request: Request): Response {
+  return Response.json(parse(Query, Object.fromEntries(new URL(request.url).searchParams)));
+}
+
+export function POST(request: NextRequest): Response {
+  const url = request.nextUrl.clone();
+  url.pathname = "/login";
+  url.searchParams.set("from", "/admin");
+  return NextResponse.redirect(url);
+}

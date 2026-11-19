@@ -9,12 +9,10 @@
 NEXTJS_ADAPTER="$FACTORY_CORE/../adapters/nextjs"
 . "$NEXTJS_ADAPTER/tests/lib.sh"
 
-# prepared_project: skeleton_project, prepared, or fail.
+# prepared_project: primed_project, the skeleton prepared.
 prepared_project() {
 	needs_store
-	skeleton_project
-	step prepare
-	[ "$status" -eq 0 ] || fail "prepare failed on the skeleton: $out"$'\n'"$(tail -n 20 "$TEST_TMP/stderr")"
+	primed_project
 }
 
 # run_test_step: the test step, as the runner runs it; its results in $TEST_TMP/results.

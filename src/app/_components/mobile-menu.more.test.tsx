@@ -43,6 +43,7 @@ describe("MobileMenu more", () => {
     const contact = Array.from(dialog.querySelectorAll("a")).filter(
       (a) => a.textContent === "Contact",
     )[0];
+    if (contact === undefined) throw new Error("no Contact link in the menu");
     const keys = ["Enter", "ArrowDown", "a"];
 
     const records = keys.flatMap((key) => {

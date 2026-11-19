@@ -14,7 +14,7 @@
 
 # The most times an issue's Lock may move (lock.sh lift), in any lane: once per
 # issue, whether the Driver lifts it on its own call or the main session on the
-# human's yes (factory-run's SKILL.md, Driver's calls).
+# human's yes (the build skill's SKILL.md, Driver's calls).
 # shellcheck disable=SC2034 # read by the scripts that source this lib
 FACTORY_LOCK_LIFTS=1
 

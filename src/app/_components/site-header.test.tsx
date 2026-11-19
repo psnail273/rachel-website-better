@@ -25,11 +25,11 @@ function attributesOf(element: Element | null | undefined) {
   return Array.from(element.attributes, (attribute) => [
     attribute.name,
     attribute.value,
-  ]).sort(([a], [b]) => (a < b ? -1 : 1));
+  ]).sort(([a = ""], [b = ""]) => (a < b ? -1 : 1));
 }
 
 function sorted(pairs: string[][]): string[][] {
-  return [...pairs].sort(([a], [b]) => (a < b ? -1 : 1));
+  return [...pairs].sort(([a = ""], [b = ""]) => (a < b ? -1 : 1));
 }
 
 function childAt(element: Element | null | undefined, index: number) {
@@ -60,13 +60,17 @@ function currentOfPanelLinks(tab: HTMLElement): (string | null)[] {
 function findTab(name: string): HTMLElement {
   const tabs = screen.queryAllByRole("button", { name });
   expect(tabs).toHaveLength(1);
-  return tabs[0];
+  const [tab] = tabs;
+  if (tab === undefined) throw new Error(`no ${name} tab`);
+  return tab;
 }
 
 function findLink(name: string): HTMLElement {
   const links = screen.queryAllByRole("link", { name });
   expect(links).toHaveLength(1);
-  return links[0];
+  const [link] = links;
+  if (link === undefined) throw new Error(`no ${name} link`);
+  return link;
 }
 
 function linksControlledBy(tab: HTMLElement) {

@@ -100,8 +100,9 @@ function unescapeText(value: string): string {
 function unfold(text: string): string[] {
   const lines: string[] = [];
   for (const raw of text.split(/\r\n|\n|\r/)) {
-    if ((raw.startsWith(" ") || raw.startsWith("\t")) && lines.length > 0) {
-      lines[lines.length - 1] += raw.slice(1);
+    const last = lines.at(-1);
+    if ((raw.startsWith(" ") || raw.startsWith("\t")) && last !== undefined) {
+      lines[lines.length - 1] = last + raw.slice(1);
     } else {
       lines.push(raw);
     }

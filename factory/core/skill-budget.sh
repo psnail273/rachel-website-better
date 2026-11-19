@@ -5,14 +5,15 @@
 # budget (LC_ALL=C wc -w).
 #   bash factory/core/skill-budget.sh [skills-dir...]
 # The word budgets are in core/skill-words, one `<skill folder> <max words>` line
-# each, the folder named from the factory folder (skills/factory-run,
+# each, the folder named from the factory folder (skills/build,
 # adapters/godot/skills/write-tests-godot) however the skills-dir is spelled; a
 # skill inside the factory that it doesn't list has the default, 1000 words.
 # Raising a budget is an edit to that file. A skill outside the factory folder
 # (a generated verify-<project> skill) has no word budget: its lines limit it.
-# Default: factory/skills plus every adapter's factory/adapters/*/skills; in a
+# Default: factory/skills, factory/workspace-skills (the skills only the
+# factory's own repo installs) and every adapter's factory/adapters/*/skills; in a
 # clone of the factory's repo (VERSION and core/ at the top of its checkout),
-# skills and adapters/*/skills there. Prints findings, sorted, and exits 1 on
+# skills, workspace-skills and adapters/*/skills there. Prints findings, sorted, and exits 1 on
 # any. No skills is a pass.
 set -u
 
@@ -31,11 +32,11 @@ if [ "$#" -ge 1 ]; then
 	dirs=("$@")
 elif cdup="$(git -C "$core/.." rev-parse --show-cdup 2> /dev/null)" && [ -z "$cdup" ] && [ -f "$core/../VERSION" ]; then
 	cd "$core/.." || exit 1
-	dirs=(skills adapters/*/skills)
+	dirs=(skills workspace-skills adapters/*/skills)
 else
 	# From the folder holding factory/, so findings name factory/skills/....
 	cd "$core/../.." || exit 1
-	dirs=(factory/skills factory/adapters/*/skills)
+	dirs=(factory/skills factory/workspace-skills factory/adapters/*/skills)
 fi
 
 # skill_key <SKILL.md>: its folder named from the factory folder; fails for a

@@ -15,7 +15,7 @@
 # self-ruled and lifts, and the gate's (gate-runs, caught-<step>, seconds-<step>),
 # which verify.sh keeps (lib/run.sh). A phase's counted rounds stop at the ceiling
 # of 4 (FACTORY_ROUNDS_CEILING): incr refuses a 5th and leaves the count as it was,
-# since past it comes the Sonnet Takeover or an escalation (factory-run's SKILL.md).
+# since past it comes the Sonnet Takeover or an escalation (the build skill's SKILL.md).
 # The lane is the sealed brief's: brief.sh seal sets it, not set.
 # set phase also records when the branch first entered that phase (began-<phase>),
 # which the stats line's minutes read; stats counts them up to now. Now is
@@ -109,7 +109,7 @@ case "$cmd" in
 			rounds-*)
 				n="$(factory_state_get "$branch" "$1")" || n=0
 				if [ "$n" -ge "$FACTORY_ROUNDS_CEILING" ]; then
-					echo "state: $1 is at $n, the ceiling of $FACTORY_ROUNDS_CEILING counted rounds in a phase; send no more counted rounds: the next step is the Sonnet Takeover or an escalation (factory-run's SKILL.md, Driver's calls)" >&2
+					echo "state: $1 is at $n, the ceiling of $FACTORY_ROUNDS_CEILING counted rounds in a phase; send no more counted rounds: the next step is the Sonnet Takeover or an escalation (the build skill's SKILL.md, Driver's calls)" >&2
 					exit 1
 				fi
 				;;

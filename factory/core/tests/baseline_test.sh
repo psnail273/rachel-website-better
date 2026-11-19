@@ -110,6 +110,25 @@ test_gate_fails_on_an_extra_copy_of_a_baseline_finding() {
 	assert_eq 1 "$(printf '%s\n' "$out" | grep -c 'unused-var x is unused$')" "expected one copy reported"
 }
 
+# The audit skill's run (factory/skills/audit): one keep-going verify, whose
+# verdict the gate then reuses, running no step again, to name what is new.
+test_the_audits_gate_reuses_its_keep_going_verify() {
+	fixture_git_project
+	seed_findings
+	run_baseline record
+	git commit -qm baseline || fail "could not commit the Baseline"
+	echo "src/d.txt:2 new-rule a new finding" >> .fixture/fail-lint
+	FACTORY_BASE=HEAD run_cmd bash "$FACTORY_CORE/verify.sh" --keep-going --reuse
+	assert_status 1
+	rm -f .fixture/ran
+	FACTORY_BASE=HEAD run_baseline --reuse gate
+	assert_status 1
+	assert_eq "" "$(ran_steps)" "the gate ran a step again"
+	assert_eq "new:
+  src/d.txt:2 new-rule a new finding
+baseline: FAILED" "$out" "the gate's verdict"
+}
+
 test_gate_fails_on_a_named_entry_still_present() {
 	fixture_project
 	seed_findings

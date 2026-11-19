@@ -28,7 +28,7 @@ assert_clean_check() {
 
 test_record_installs_and_refreshes_the_copies_and_records_factory() {
 	adopted
-	echo "an amended line" >> factory/skills/factory-run/drift.md
+	echo "an amended line" >> factory/skills/build/drift.md
 	mkdir -p factory/skills/new-skill && printf -- '---\nname: new-skill\ndescription: New.\n---\n' > factory/skills/new-skill/SKILL.md
 	echo "A new rule for <stack> in <project>." >> factory/agents/driver.md
 	echo "echo amended entry point" >> factory/core/templates/verify.sh
@@ -37,9 +37,9 @@ test_record_installs_and_refreshes_the_copies_and_records_factory() {
 	assert_eq "installed .claude/skills/new-skill/SKILL.md
 recorded tools/verify/factory-version
 refreshed .claude/agents/driver.md
-refreshed .claude/skills/factory-run/drift.md
+refreshed .claude/skills/build/drift.md
 refreshed tools/verify.sh" "$(printf '%s\n' "$out" | LC_ALL=C sort)" "what record printed"
-	cmp -s factory/skills/factory-run/drift.md .claude/skills/factory-run/drift.md || fail "the skill's copy wasn't refreshed"
+	cmp -s factory/skills/build/drift.md .claude/skills/build/drift.md || fail "the skill's copy wasn't refreshed"
 	cmp -s factory/skills/new-skill/SKILL.md .claude/skills/new-skill/SKILL.md || fail "the new skill wasn't installed"
 	cmp -s factory/core/templates/verify.sh tools/verify.sh || fail "tools/verify.sh wasn't refreshed"
 	assert_eq "A new rule for fake in my-game." "$(tail -n 1 .claude/agents/driver.md)" "the driver wasn't rendered"
@@ -79,15 +79,15 @@ test_record_keeps_the_version_adapter_and_tag_lines() {
 # seed's copy is the project's, written only when it is missing.
 test_record_overwrites_an_edited_copy_but_never_a_seed() {
 	adopted
-	echo "the project's edit" >> .claude/skills/factory-run/editor.md
+	echo "the project's edit" >> .claude/skills/build/editor.md
 	echo "# the project's ps1" >> tools/verify.ps1
 	git commit -q -am "own edits" || fail "could not commit"
 	echo "# an amended template" >> factory/core/templates/verify.ps1
 	amend record
 	assert_status 0
-	assert_line "refreshed .claude/skills/factory-run/editor.md"
+	assert_line "refreshed .claude/skills/build/editor.md"
 	assert_no_line "refreshed tools/verify.ps1"
-	cmp -s factory/skills/factory-run/editor.md .claude/skills/factory-run/editor.md || fail "the edited copy wasn't refreshed"
+	cmp -s factory/skills/build/editor.md .claude/skills/build/editor.md || fail "the edited copy wasn't refreshed"
 	assert_eq "# the project's ps1" "$(tail -n 1 tools/verify.ps1)" "the seed's copy was overwritten"
 	assert_clean_check
 	git rm -q tools/verify.ps1 || fail "could not remove the seed's copy"
@@ -107,19 +107,19 @@ test_record_overwrites_an_edited_copy_but_never_a_seed() {
 test_record_removes_the_copies_of_what_the_factory_dropped() {
 	adopted
 	[ -f .claude/agents/asset-fetcher.md ] || fail "the adoption installed no asset fetcher"
-	git rm -q -r factory/skills/factory-spec factory/skills/factory-run/editor.md factory/agents/asset-fetcher.md || fail "could not drop files"
+	git rm -q -r factory/skills/spec factory/skills/build/editor.md factory/agents/asset-fetcher.md || fail "could not drop files"
 	sed -i '/agents\/asset-fetcher.md/d; /core\/templates\/verify.ps1/d' factory/core/lib/vendor.sh
 	amend check
 	assert_status 1
-	assert_line "factory/skills/factory-spec/SKILL.md:1 factory-record missing since tools/verify/factory-version was recorded; $AGAIN"
-	assert_line ".claude/skills/factory-spec/SKILL.md:1 factory-copy factory/ no longer installs it; $AGAIN"
+	assert_line "factory/skills/spec/SKILL.md:1 factory-record missing since tools/verify/factory-version was recorded; $AGAIN"
+	assert_line ".claude/skills/spec/SKILL.md:1 factory-copy factory/ no longer installs it; $AGAIN"
 	amend record
 	assert_status 0
-	assert_line "removed .claude/skills/factory-spec/SKILL.md"
-	assert_line "removed .claude/skills/factory-run/editor.md"
+	assert_line "removed .claude/skills/spec/SKILL.md"
+	assert_line "removed .claude/skills/build/editor.md"
 	assert_line "removed .claude/agents/asset-fetcher.md"
-	[ ! -e .claude/skills/factory-spec ] || fail "the dropped skill's folder is still there"
-	[ -f .claude/skills/factory-run/SKILL.md ] || fail "a kept file's copy went too"
+	[ ! -e .claude/skills/spec ] || fail "the dropped skill's folder is still there"
+	[ -f .claude/skills/build/SKILL.md ] || fail "a kept file's copy went too"
 	[ -f tools/verify.ps1 ] || fail "the copy of a seed the factory dropped was removed"
 	assert_clean_check
 }
@@ -167,6 +167,98 @@ test_record_reads_back_an_uncommitted_record() {
 	assert_status 0
 	assert_line "removed .claude/agents/extra.md"
 	assert_clean_check
+}
+
+# old_recorded_factory <edits> <dir>: recorded_factory as it was before it
+# copied in batches, a mkdir and a cp per file: the reference the batched one
+# must match.
+old_recorded_factory() {
+	local -A edited=()
+	local line blob path dest
+	while IFS= read -r line; do
+		[ -n "$line" ] || continue
+		path="${line% *}"
+		edited[$path]=1
+	done <<< "$1"
+	unread=0
+	while read -r blob path; do
+		dest="$2/${path#"$FACTORY_VENDOR_DIR"/}"
+		mkdir -p "$(dirname "$dest")" || return 1
+		if [ -z "${edited[$path]+set}" ]; then
+			cp "$path" "$dest" || return 1
+		elif ! git cat-file blob "$blob" > "$dest" 2> /dev/null; then
+			: > "$dest"
+			unread=$((unread + 1))
+		fi
+	done < <(tr -d '\r' < "$FACTORY_VERSION_FILE" | sed -n 's/^file //p')
+}
+
+# tree_modes <dir>: every file under <dir> with whether it is executable, sorted.
+tree_modes() {
+	find "$1" -type f | LC_ALL=C sort | while IFS= read -r f; do
+		if [ -x "$f" ]; then echo "x $f"; else echo "- $f"; fi
+	done
+}
+
+# same_recorded_factory <label>: amend.sh's recorded_factory and the per-file
+# one write the same files, modes and unread count from this factory-version.
+same_recorded_factory() {
+	local edits new_unread status
+	# shellcheck disable=SC1091 # the project's vendored libs
+	edits="$(. factory/core/lib/steps.sh && . factory/core/lib/vendor.sh && factory_vendor_edits)" || fail "$1: could not list the edits"
+	[ -n "$edits" ] || fail "$1: no edits to read back"
+	rm -rf "$TEST_TMP/old" "$TEST_TMP/new"
+	(
+		# shellcheck disable=SC1091
+		. factory/core/lib/steps.sh && . factory/core/lib/vendor.sh || exit 9
+		eval "$(sed -n '/^recorded_factory() {$/,/^}$/p' factory/core/amend.sh)"
+		recorded_factory "$edits" "$TEST_TMP/new" || exit 1
+		echo "$unread" > "$TEST_TMP/new.unread"
+	)
+	status=$?
+	assert_eq 0 "$status" "$1: the batched recorded_factory's status"
+	new_unread="$(cat "$TEST_TMP/new.unread")"
+	(
+		# shellcheck disable=SC1091
+		. factory/core/lib/steps.sh && . factory/core/lib/vendor.sh || exit 9
+		old_recorded_factory "$edits" "$TEST_TMP/old" || exit 1
+		echo "$unread" > "$TEST_TMP/old.unread"
+	) || fail "$1: the per-file recorded_factory failed"
+	assert_eq "$(cat "$TEST_TMP/old.unread")" "$new_unread" "$1: the unread count"
+	assert_eq "$(cd "$TEST_TMP/old" && tree_sums .)" "$(cd "$TEST_TMP/new" && tree_sums .)" "$1: the files written"
+	assert_eq "$(cd "$TEST_TMP/old" && tree_modes .)" "$(cd "$TEST_TMP/new" && tree_modes .)" "$1: the files' modes"
+}
+
+# recorded_factory copies the factory's files in batches, with the same result
+# as a copy per file: unchanged files from factory/ (a path with a space too),
+# changed and missing ones read back from git, and an empty file counted unread
+# for a blob git lacks, from a factory-version with LF or CRLF lines.
+test_recorded_factory_writes_what_a_copy_per_file_wrote() {
+	adopted
+	mkdir -p "factory/skills/with space" || fail "could not make a folder"
+	echo "kept as it is" > "factory/skills/with space/kept file.md"
+	echo "edited later" > "factory/skills/with space/edited file.md"
+	echo "dropped later" > factory/skills/build/dropped.md
+	amend record
+	assert_status 0
+	git add -A && git commit -q -m "record files with spaces" || fail "could not commit"
+	echo "an amended line" >> "factory/skills/with space/edited file.md"
+	echo "an amended line" >> factory/skills/build/drift.md
+	rm factory/skills/build/dropped.md
+	local lost=0123456789abcdef0123456789abcdef01234567
+	sed -i "s#^file [0-9a-f]* factory/skills/build/SKILL.md\$#file $lost factory/skills/build/SKILL.md#" tools/verify/factory-version
+	grep -q "^file $lost " tools/verify/factory-version || fail "could not record a blob git lacks"
+	same_recorded_factory "LF"
+	[ -s "$TEST_TMP/new/skills/with space/kept file.md" ] || fail "the file with a space wasn't copied"
+	assert_eq "edited later" "$(cat "$TEST_TMP/new/skills/with space/edited file.md")" "the edited file read back from git"
+	assert_eq "dropped later" "$(cat "$TEST_TMP/new/skills/build/dropped.md")" "the missing file read back from git"
+	[ -f "$TEST_TMP/new/skills/build/SKILL.md" ] && [ ! -s "$TEST_TMP/new/skills/build/SKILL.md" ] || fail "the lost blob left no empty file"
+	assert_eq 1 "$(cat "$TEST_TMP/new.unread")" "the unread count"
+	sed -i 's/$/\r/' tools/verify/factory-version
+	same_recorded_factory "CRLF"
+	amend check
+	assert_status 1
+	grep -qF "amend: git has 1 of the recorded files no more" "$TEST_TMP/stderr" || fail "check didn't count the lost blob: $(cat "$TEST_TMP/stderr")"
 }
 
 # The step scripts are the project's: record writes none of them, and names each
@@ -287,21 +379,21 @@ test_record_removes_a_file_the_generator_no_longer_writes() {
 test_record_replaces_a_symlinked_copy_and_never_writes_its_target() {
 	adopted
 	cp tools/verify/lint "$TEST_TMP/lint.before"
-	rm .claude/skills/factory-run/editor.md
-	ln -s "$PWD/tools/verify/lint" .claude/skills/factory-run/editor.md
+	rm .claude/skills/build/editor.md
+	ln -s "$PWD/tools/verify/lint" .claude/skills/build/editor.md
 	rm .claude/skills/repro-first/SKILL.md
 	ln -s "$TEST_TMP/outside.md" .claude/skills/repro-first/SKILL.md
 	amend check
 	assert_status 1
-	assert_line ".claude/skills/factory-run/editor.md:1 factory-copy differs from what factory/ installs; $AGAIN"
+	assert_line ".claude/skills/build/editor.md:1 factory-copy differs from what factory/ installs; $AGAIN"
 	assert_line ".claude/skills/repro-first/SKILL.md:1 factory-copy differs from what factory/ installs; $AGAIN"
 	amend record
 	assert_status 0
-	assert_line "refreshed .claude/skills/factory-run/editor.md"
+	assert_line "refreshed .claude/skills/build/editor.md"
 	assert_line "refreshed .claude/skills/repro-first/SKILL.md"
 	cmp -s "$TEST_TMP/lint.before" tools/verify/lint || fail "record wrote through the symlink into tools/verify/lint"
 	[ ! -e "$TEST_TMP/outside.md" ] || fail "record wrote through the dangling symlink"
-	[ ! -L .claude/skills/factory-run/editor.md ] && cmp -s factory/skills/factory-run/editor.md .claude/skills/factory-run/editor.md ||
+	[ ! -L .claude/skills/build/editor.md ] && cmp -s factory/skills/build/editor.md .claude/skills/build/editor.md ||
 		fail "the symlink wasn't replaced by the factory's file"
 	assert_clean_check
 	rm .claude/agents/driver.md && mkdir .claude/agents/driver.md
@@ -342,15 +434,15 @@ test_check_passes_on_a_fresh_adoption_and_changes_nothing() {
 	adopted
 	before="$(tree_sums factory tools .claude)"
 	assert_clean_check
-	echo "an amended line" >> factory/skills/factory-run/drift.md
+	echo "an amended line" >> factory/skills/build/drift.md
 	rm .claude/skills/repro-first/SKILL.md
 	before="$(tree_sums factory tools .claude)"
 	amend check
 	assert_status 1
 	assert_eq "$before" "$(tree_sums factory tools .claude)" "check changed files"
-	assert_eq ".claude/skills/factory-run/drift.md:1 factory-copy differs from what factory/ installs; $AGAIN
+	assert_eq ".claude/skills/build/drift.md:1 factory-copy differs from what factory/ installs; $AGAIN
 .claude/skills/repro-first/SKILL.md:1 factory-copy missing; factory/ installs it; $AGAIN
-factory/skills/factory-run/drift.md:1 factory-record changed since tools/verify/factory-version was recorded; $AGAIN" "$out" "check's findings"
+factory/skills/build/drift.md:1 factory-record changed since tools/verify/factory-version was recorded; $AGAIN" "$out" "check's findings"
 }
 
 test_check_runs_the_skill_budget() {
@@ -374,17 +466,31 @@ test_check_runs_the_skill_budget() {
 # factory-amend makes one; cd there. The amend swaps factory/core/test.sh for a
 # stand-in that logs its call to $TEST_TMP/suite.log, runs $TEST_TMP/race.sh
 # when there is one (in the suite's environment, its output the suite's) and
-# fails while $TEST_TMP/suite-fails exists. $MAIN is the main checkout.
+# fails while $TEST_TMP/suite-fails exists. $MAIN is the main checkout. The
+# project up to the amend's commit, its worktree removed, is built once per
+# test.sh run and copied (cached_project); the remote and the worktree, whose
+# paths git records, are the test's own.
 landable() {
-	adopted
+	adopt_env
+	cached_project landable build_landable
 	mkdir -p "$TEST_TMP/remote"
 	git init -q --bare -b dev "$TEST_TMP/remote/My_Game.git" || fail "could not make the remote"
 	git remote set-url origin "$TEST_TMP/remote/My_Game.git"
-	echo /.claude/worktrees/ >> .gitignore
-	git commit -q -am "worktrees" || fail "could not commit"
 	git push -q origin dev 2> /dev/null || fail "could not push dev"
 	MAIN="$PWD"
-	git worktree add -q --no-track -b amend/stand-in .claude/worktrees/amend-stand-in origin/dev 2> /dev/null || fail "could not add the worktree"
+	git worktree add -q .claude/worktrees/amend-stand-in amend/stand-in 2> /dev/null || fail "could not add the worktree"
+	cd .claude/worktrees/amend-stand-in || fail "could not enter the worktree"
+}
+
+# build_landable: landable's project, built in $TEST_TMP/project: adopted, with
+# the worktrees ignored on dev, and the amend committed on amend/stand-in (made
+# in a worktree from dev, which origin/dev will be). The worktree goes once it
+# holds nothing but the commit, so a test's own checkout of the branch is it.
+build_landable() {
+	cached_project adopted build_adopted
+	echo /.claude/worktrees/ >> .gitignore
+	git commit -q -am "worktrees" || fail "could not commit"
+	git worktree add -q --no-track -b amend/stand-in .claude/worktrees/amend-stand-in dev 2> /dev/null || fail "could not add the worktree"
 	cd .claude/worktrees/amend-stand-in || fail "could not enter the worktree"
 	cat > factory/core/test.sh << 'SH'
 echo "suite GODOT_BIN=${GODOT_BIN:-unset} args=$*" >> "$TEST_TMP/suite.log"
@@ -400,6 +506,10 @@ SH
 	amend record
 	assert_status 0
 	git add -A && git commit -q -m "Amend the factory: a stand-in suite" -m "Release: patch" || fail "could not commit the amend"
+	# The fake format step's log (.fixture/), which record ran, is the only file
+	# left out of the commit; no land test reads it.
+	rm -rf .fixture && assert_eq "" "$(git status --porcelain --ignored)" "the worktree holds files its commit doesn't"
+	cd "$TEST_TMP/project" && git worktree remove .claude/worktrees/amend-stand-in || fail "could not remove the worktree"
 }
 
 # remote_dev: origin's dev SHA.
@@ -517,11 +627,11 @@ test_land_refuses_a_dirty_tree_dev_not_contained_or_nothing_to_land() {
 test_land_stops_on_a_finding() {
 	landable
 	before="$(remote_dev)"
-	echo "an unrecorded line" >> factory/skills/factory-run/drift.md
+	echo "an unrecorded line" >> factory/skills/build/drift.md
 	git commit -q -am "an unrecorded amend" || fail "could not commit"
 	amend land
 	assert_status 1
-	assert_line "factory/skills/factory-run/drift.md:1 factory-record changed since tools/verify/factory-version was recorded; $AGAIN"
+	assert_line "factory/skills/build/drift.md:1 factory-record changed since tools/verify/factory-version was recorded; $AGAIN"
 	stderr_has "check failed"
 	[ ! -e "$TEST_TMP/suite.log" ] || fail "land ran the suite after a finding"
 	assert_eq "$before" "$(remote_dev)" "origin/dev moved"
@@ -1017,14 +1127,28 @@ test_land_tags_a_workspace_main_that_holds_the_amend_already() {
 # and the workspace's .factory-repo, CLAUDE.md, .gitignore and the copies record
 # installs. Its origin, $ORIGIN, a bare repo, holds main, tagged v0.1.0. Then a
 # worktree on amend/x from origin/main, as factory-amend makes one; cd there.
-# $WS is the main checkout.
+# $WS is the main checkout. The workspace up to its tag, with no remote yet, is
+# built once per test.sh run (cached_project, in $TEST_TMP/project, then moved
+# to $WS); the origin and the worktree, whose paths git records, are the test's
+# own.
 factory_workspace() {
 	isolate_git
 	unset GODOT_BIN FACTORY_GDUNIT4 FACTORY_PNPM_STORE FACTORY_PLAYWRIGHT_BROWSERS FACTORY_BASE_BRANCH FACTORY_REMOTE
 	WS="$TEST_TMP/ws"
 	ORIGIN="$TEST_TMP/origin.git"
-	mkdir -p "$WS" && copy_factory "$WS/factory" || fail "could not make the workspace"
-	cd "$WS" || fail "could not enter the workspace"
+	cached_project workspace build_workspace
+	mv "$TEST_TMP/project" "$WS" && cd "$WS" || fail "could not make the workspace"
+	git init -q --bare -b main "$ORIGIN" && git remote add origin "$ORIGIN" &&
+		git push -q origin main v0.1.0 2> /dev/null && git fetch -q origin || fail "could not push the workspace"
+	git worktree add -q --no-track -b amend/x .claude/worktrees/amend-x origin/main 2> /dev/null || fail "could not add the worktree"
+	cd .claude/worktrees/amend-x || fail "could not enter the worktree"
+}
+
+# build_workspace: factory_workspace's main checkout, before its origin, built
+# in $TEST_TMP/project.
+build_workspace() {
+	mkdir -p "$TEST_TMP/project" && copy_factory "$TEST_TMP/project/factory" || fail "could not make the workspace"
+	cd "$TEST_TMP/project" || fail "could not enter the workspace"
 	cat > factory/core/test.sh << 'SH'
 echo "suite GODOT_BIN=${GODOT_BIN:-unset} FACTORY_GDUNIT4=${FACTORY_GDUNIT4:-unset} FACTORY_PNPM_STORE=${FACTORY_PNPM_STORE:-unset} FACTORY_PLAYWRIGHT_BROWSERS=${FACTORY_PLAYWRIGHT_BROWSERS:-unset} args=$*" >> "$TEST_TMP/suite.log"
 [ ! -f "$TEST_TMP/race.sh" ] || bash "$TEST_TMP/race.sh"
@@ -1044,12 +1168,10 @@ SH
 	amend record
 	assert_status 0
 	assert_eq "installed .claude/skills/factory-amend/SKILL.md
-installed .claude/skills/frontend-design/SKILL.md" "$(printf '%s\n' "$out" | grep SKILL.md | LC_ALL=C sort)" "record's copies"
+installed .claude/skills/frontend-design/SKILL.md
+installed .claude/skills/new-project/SKILL.md" "$(printf '%s\n' "$out" | grep SKILL.md | LC_ALL=C sort)" "record's copies"
+	cmp -s factory/workspace-skills/new-project/SKILL.md .claude/skills/new-project/SKILL.md || fail "record didn't install the workspace's new-project skill"
 	git add -A && git commit -q -m "factory 0.1.0" && git tag -a v0.1.0 -m "factory 0.1.0" || fail "could not commit the workspace"
-	git init -q --bare -b main "$ORIGIN" && git remote add origin "$ORIGIN" &&
-		git push -q origin main v0.1.0 2> /dev/null && git fetch -q origin || fail "could not push the workspace"
-	git worktree add -q --no-track -b amend/x .claude/worktrees/amend-x origin/main 2> /dev/null || fail "could not add the worktree"
-	cd .claude/worktrees/amend-x || fail "could not enter the worktree"
 }
 
 # origin_git <git args...>: git in $ORIGIN.
@@ -1087,7 +1209,7 @@ removed .claude/skills/factory-amend/old.md" "$(printf '%s\n' "$out" | LC_ALL=C 
 	cmp -s factory/skills/factory-amend/SKILL.md .claude/skills/factory-amend/SKILL.md || fail "the copy wasn't refreshed"
 	[ ! -e tools/verify/factory-version ] && [ ! -e AGENTS.md ] && [ ! -e .claude/agents/driver.md ] ||
 		fail "record wrote a project's files"
-	[ ! -e .claude/skills/factory-run ] || fail "record installed a skill the workspace does not take"
+	[ ! -e .claude/skills/build ] || fail "record installed a skill the workspace does not take"
 	git diff --cached --quiet || fail "record staged something"
 	assert_clean_check
 	amend record
@@ -1522,7 +1644,7 @@ test_repo_land_runs_the_real_tool_tests_of_the_adapter_it_changes() {
 # of the adapter whose tests name it; a release alone (factory/VERSION), none.
 test_repo_land_runs_every_real_tool_test_for_the_core_or_a_path_they_read() {
 	local path
-	for path in factory/core/lib/steps.sh factory/skills/factory-run/drift.md; do
+	for path in factory/core/lib/steps.sh factory/skills/build/drift.md; do
 		factory_workspace
 		echo "# a line" >> "$path"
 		git commit -q -am "Amend the factory: $path" -m "Release: patch" || fail "could not commit the amend"
@@ -1789,35 +1911,41 @@ test_land_in_a_project_runs_the_suites_of_the_adapters_its_batch_can_affect() {
 }
 
 # The budget: over it, land warns with the load average and still lands; the
-# figure comes from the environment, else local.env, else 180. The test sets
+# figure comes from the environment, else local.env, else 1200. The test sets
 # each itself, whatever FACTORY_SUITE_BUDGET the machine running the suite has.
 test_repo_land_warns_over_the_suite_budget_and_lands() {
 	factory_workspace
 	unset FACTORY_SUITE_BUDGET
-	echo "test.sh: wall time 180.4 s, 900.0 test-seconds summed" > "$TEST_TMP/wall"
+	echo "test.sh: wall time 1200.4 s, 900.0 test-seconds summed" > "$TEST_TMP/wall"
 	commit_in "$PWD" CLAUDE.md "# CLAUDE.md, edited"
 	head="$(git rev-parse HEAD)"
 	amend land
 	assert_status 0
-	stderr_has "amend: warning: the full suite took 180.4 s, over its budget of 180 s (FACTORY_SUITE_BUDGET); the load average is "
+	stderr_has "amend: warning: the full suite took 1200.4 s, over its budget of 1200 s (FACTORY_SUITE_BUDGET); the load average is "
 	assert_line "amend: landed $head on origin/main"
 	commit_in "$PWD" CLAUDE.md "# CLAUDE.md, edited again"
-	echo "FACTORY_SUITE_BUDGET=200" > local.env
+	echo "FACTORY_SUITE_BUDGET=1300" > local.env
 	amend land
 	assert_status 0
-	! grep -q "warning" "$TEST_TMP/stderr" || fail "warned under a budget of 200 from local.env: $(cat "$TEST_TMP/stderr")"
+	! grep -q "warning" "$TEST_TMP/stderr" || fail "warned under a budget of 1300 from local.env: $(cat "$TEST_TMP/stderr")"
 	commit_in "$PWD" CLAUDE.md "# CLAUDE.md, edited a third time"
 	run_cmd env FACTORY_SUITE_BUDGET=100 bash factory/core/amend.sh land
 	assert_status 0
 	stderr_has "over its budget of 100 s"
 	commit_in "$PWD" CLAUDE.md "# CLAUDE.md, edited a fourth time"
-	echo "test.sh: wall time 180.0 s, 900.0 test-seconds summed" > "$TEST_TMP/wall"
+	echo "test.sh: wall time 1200.0 s, 900.0 test-seconds summed" > "$TEST_TMP/wall"
 	rm local.env
 	amend land
 	assert_status 0
 	! grep -q "warning" "$TEST_TMP/stderr" || fail "warned at the budget exactly: $(cat "$TEST_TMP/stderr")"
 	commit_in "$PWD" CLAUDE.md "# CLAUDE.md, edited a fifth time"
-	echo "test.sh: wall time 300.0 s, 900.0 test-seconds summed" > "$TEST_TMP/wall"
+	echo "test.sh: wall time 1200.4 s, 900.0 test-seconds summed" > "$TEST_TMP/wall"
+	run_cmd env FACTORY_SUITE_BUDGET=soon bash factory/core/amend.sh land
+	assert_status 0
+	stderr_has "amend: FACTORY_SUITE_BUDGET is 'soon', not a number of seconds; the budget is 1200 s"
+	stderr_has "over its budget of 1200 s"
+	commit_in "$PWD" CLAUDE.md "# CLAUDE.md, edited a sixth time"
+	echo "test.sh: wall time 1500.0 s, 900.0 test-seconds summed" > "$TEST_TMP/wall"
 	touch "$TEST_TMP/suite-fails"
 	amend land
 	assert_status 1

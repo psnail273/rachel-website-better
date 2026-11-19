@@ -65,6 +65,9 @@ export function MobileMenu({ pathname }: { pathname: string | null }) {
       event.currentTarget.querySelectorAll<HTMLElement>("button, a[href]");
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
+    if (first === undefined || last === undefined) {
+      return;
+    }
     if (event.shiftKey && event.target === first) {
       event.preventDefault();
       last.focus();

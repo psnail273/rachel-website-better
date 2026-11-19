@@ -50,9 +50,7 @@ png_width() {
 # server is gone after; on a page axe decides everything on, the list is none.
 test_the_sheet_holds_each_page_route_at_each_width_and_scheme_with_node() {
 	needs_browser
-	skeleton_project
-	step prepare
-	[ "$status" -eq 0 ] || fail "prepare failed on the skeleton: $out"$'\n'"$(tail -n 20 "$TEST_TMP/stderr")"
+	primed_project
 	rm -f node_modules/.bin/next && cp "$NEXTJS_FIXTURES/smoke/next.mjs.txt" node_modules/.bin/next && chmod 755 node_modules/.bin/next ||
 		fail "could not stand in for next"
 	export STAND_IN_SITE="$TEST_TMP/site" STAND_IN_PID="$TEST_TMP/server.pid"
@@ -134,9 +132,7 @@ index_has() {
 # screenshot and no line.
 test_the_layout_checks_left_to_the_eye_are_listed_and_gate_nothing_with_node() {
 	needs_browser
-	skeleton_project
-	step prepare
-	[ "$status" -eq 0 ] || fail "prepare failed on the skeleton: $out"$'\n'"$(tail -n 20 "$TEST_TMP/stderr")"
+	primed_project
 	rm -f node_modules/.bin/next && cp "$NEXTJS_FIXTURES/smoke/next.mjs.txt" node_modules/.bin/next && chmod 755 node_modules/.bin/next ||
 		fail "could not stand in for next"
 	export STAND_IN_SITE="$TEST_TMP/site" STAND_IN_PID="$TEST_TMP/server.pid"

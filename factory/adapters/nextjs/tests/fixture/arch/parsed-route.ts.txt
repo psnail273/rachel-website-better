@@ -1,0 +1,19 @@
+import { z } from "zod";
+
+const Item = z.object({ name: z.string() });
+
+export async function POST(request: Request): Promise<Response> {
+  const item = Item.parse(await request.json());
+  return Response.json(item);
+}
+
+// Reads no input: a URL it builds, a date it parses, a raw body it forwards.
+export function GET(): Response {
+  const outgoing = new URL("https://example.com");
+  outgoing.searchParams.set("k", "v");
+  return Response.json({ url: outgoing.toString(), when: Date.parse("2020") });
+}
+
+export function PUT(request: Request): Response {
+  return new Response(request.body);
+}

@@ -216,10 +216,13 @@ factory_repo_tree() {
 # or a file under factory/, and the folder at the repo's top that holds a copy of
 # each of its files, or the file's copy. The agents are copied as they are: they
 # hold no <stack> or <project> to fill in. The Verifier preloads frontend-design,
-# so its skill comes too.
+# so its skill comes too. workspace-skills/ holds the skills only this workspace
+# takes (new-project, which starts a project from here): factory_installed_copies
+# never lists it, so no project installs them.
 factory_repo_copies() {
 	printf '%s\n' \
 		"skills/factory-amend .claude/skills/factory-amend" \
+		"workspace-skills/new-project .claude/skills/new-project" \
 		"third-party/frontend-design .claude/skills/frontend-design" \
 		"agents/amend-builder.md .claude/agents/amend-builder.md" \
 		"agents/verifier.md .claude/agents/verifier.md"

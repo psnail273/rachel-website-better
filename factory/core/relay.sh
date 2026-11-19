@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# A Run's relay (factory-run's parallel.md): read a driver's report and print
+# A Run's relay (the build skill's parallel.md): read a driver's report and print
 # exactly what the main session does with it, so it relays a `needs` report
 # without reasoning about it. Run from the main checkout:
 #   bash factory/core/relay.sh [<report-file>]   the report, or stdin without one
@@ -18,7 +18,7 @@
 # them. A driver never asks for max: an effort of max runs at xhigh, and a report
 # with no effort at medium, each said in a factory-relay reply line.
 #
-# A Verifier check changes nothing (factory-run's editor.md, Subagents), so for
+# A Verifier check changes nothing (the build skill's editor.md, Subagents), so for
 # verifier it also takes the workspace's fingerprint, in the worktree the prompt's
 # last line names (`factory-worktree: <path>`): HEAD, git status with untracked
 # files and the diff against HEAD, kept in <its git dir>/factory/relay-before. It

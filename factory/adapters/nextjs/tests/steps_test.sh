@@ -160,12 +160,16 @@ test_prepare_names_a_missing_node_or_pnpm_with_node() {
 test_the_steps_name_a_tool_not_installed_with_node() {
 	needs_node
 	skeleton_project
-	local s tool
-	for s in format:prettier typecheck:tsc lint:eslint; do
-		tool="${s#*:}"
+	local s tool want
+	# lint names each of its three tools, and runs none.
+	for s in format:prettier typecheck:tsc "lint:eslint knip secretlint"; do
+		want=""
+		for tool in ${s#*:}; do
+			want+="${want:+$'\n'}package.json:1 tool-missing node_modules/.bin/$tool is not installed; run bash tools/verify.sh prepare (on a new machine, bash tools/verify/bootstrap first)"
+		done
 		step "${s%%:*}"
 		assert_status 1
-		assert_eq "package.json:1 tool-missing node_modules/.bin/$tool is not installed; run bash tools/verify.sh prepare (on a new machine, bash tools/verify/bootstrap first)" "$out" "${s%%:*} with nothing installed"
+		assert_eq "$want" "$out" "${s%%:*} with nothing installed"
 	done
 }
 
@@ -244,6 +248,32 @@ test_typecheck_needs_strict_and_every_check_it_brings_on_with_node() {
 	assert_eq "tsconfig.json:$(grep -n '"strict"' tsconfig.json | cut -d: -f1) typecheck-strict strict is not on; the gate needs \"strict\": true" "$out" "with strict off"
 }
 
+# Each check strict leaves off that the gate needs: off is a finding at its line,
+# left out one at compilerOptions; on, an unchecked index read is a tsc error.
+test_typecheck_needs_the_checks_strict_leaves_off_with_node() {
+	prepared_project
+	cp tsconfig.json "$TEST_TMP/tsconfig.json"
+	local flag
+	for flag in noUncheckedIndexedAccess noImplicitOverride noFallthroughCasesInSwitch; do
+		cp "$TEST_TMP/tsconfig.json" tsconfig.json
+		sed -i "s/\"$flag\": true/\"$flag\": false/" tsconfig.json
+		grep -qF "\"$flag\": false" tsconfig.json || fail "could not turn $flag off"
+		step typecheck
+		assert_status 1
+		assert_eq "tsconfig.json:$(grep -n "\"$flag\"" tsconfig.json | cut -d: -f1) typecheck-flags $flag is not on; the gate needs \"$flag\": true" "$out" "with $flag off"
+	done
+	cp "$TEST_TMP/tsconfig.json" tsconfig.json
+	sed -i '/"noImplicitOverride": true,/d' tsconfig.json
+	step typecheck
+	assert_status 1
+	assert_eq "tsconfig.json:$(grep -n '"compilerOptions"' tsconfig.json | cut -d: -f1) typecheck-flags noImplicitOverride is not on; the gate needs \"noImplicitOverride\": true" "$out" "with noImplicitOverride left out"
+	cp "$TEST_TMP/tsconfig.json" tsconfig.json
+	add_fixture typecheck/first.ts.txt lib/first.ts
+	step typecheck
+	assert_status 1
+	assert_eq "lib/first.ts:3 TS18048 'head' is possibly 'undefined'." "$out" "an unchecked index read"
+}
+
 test_typecheck_without_a_tsconfig_with_node() {
 	needs_node
 	skeleton_project
@@ -258,7 +288,7 @@ test_lint_ignores_disable_comments_and_reports_type_aware_rules_with_node() {
 	add_fixture lint/floating.ts.txt lib/submit.ts
 	step lint
 	assert_status 1
-	assert_eq "lib/submit.ts:7 @typescript-eslint/no-floating-promises" "$(printf '%s\n' "$out" | cut -d' ' -f1-2)" "lint's findings"
+	assert_eq "lib/submit.ts:7 @typescript-eslint/no-floating-promises" "$(printf '%s\n' "$out" | grep -v ' knip-files ' | cut -d' ' -f1-2)" "ESLint's findings"
 }
 
 test_lint_reports_a_scoped_file_its_config_ignores_with_node() {
@@ -268,7 +298,75 @@ test_lint_reports_a_scoped_file_its_config_ignores_with_node() {
 	grep -qF '"legacy/"' eslint.config.mjs || fail "could not change the ESLint config"
 	step lint
 	assert_status 1
-	assert_eq "legacy/total.ts:1 lint-ignored the ESLint config ignores this file, which tools/verify/scope checks; lint it, or take it out of the scope" "$out" "lint's findings"
+	assert_eq "legacy/total.ts:1 lint-ignored the ESLint config ignores this file, which tools/verify/scope checks; lint it, or take it out of the scope" "$(printf '%s\n' "$out" | grep -v ' knip-files ')" "ESLint's findings"
+}
+
+# has_line_starting <prefix>: stdout has a line starting with this text.
+has_line_starting() {
+	printf '%s\n' "$out" | grep -qF -- "$1" && printf '%s\n' "$out" | cut -c1-"${#1}" | grep -qxF -- "$1" ||
+		fail "no line starting '$1' in stdout:"$'\n'"$out"
+}
+
+test_lint_reports_hooks_misuse_and_nextjs_rules_with_node() {
+	prepared_project
+	add_fixture lint/hooks.tsx.txt app/counter.tsx
+	add_fixture lint/img.tsx.txt app/logo.tsx
+	step lint
+	assert_status 1
+	has_line_starting "app/counter.tsx:5 react-hooks/rules-of-hooks "
+	has_line_starting "app/logo.tsx:2 @next/next/no-img-element "
+}
+
+# knip's issues in files in scope, one finding each; none out of scope.
+# server-only, which R6 names and Next.js bundles, needs no package.json line.
+test_lint_reports_knips_unused_files_exports_and_dependencies_with_node() {
+	prepared_project
+	add_fixture lint/key.ts.txt lib/key.ts
+	add_fixture lint/key-route.ts.txt app/api/key/route.ts
+	add_fixture lint/util.ts.txt lib/util.ts
+	add_fixture lint/uses.tsx.txt app/uses/page.tsx
+	add_fixture lint/orphan.ts.txt lib/orphan.ts
+	add_fixture lint/orphan.ts.txt vendor/orphan.ts
+	printf '**\n!.claude/\n!.cursor/\n!factory/\n!tools/\n!vendor/\n' > tools/verify/scope
+	sed -i 's/"zod": "4.6.7"/"zod": "4.6.7",\n    "is-odd": "3.0.1"/' package.json
+	grep -qF '"is-odd"' package.json || fail "could not add a dependency"
+	step lint
+	assert_status 1
+	assert_eq "app/uses/page.tsx:1 knip-unlisted left-pad is imported but package.json doesn't list it
+lib/orphan.ts:1 knip-files nothing imports this file; use it or delete it
+lib/util.ts:5 knip-exports spare is exported but nothing imports it
+package.json:$(grep -n '"is-odd"' package.json | cut -d: -f1) knip-dependencies is-odd is a dependency nothing imports" "$(printf '%s\n' "$out" | grep ' knip-')" "knip's findings"
+}
+
+test_lint_reports_knip_failing_without_a_report_with_node() {
+	prepared_project
+	echo '{ "ignore": [' > knip.json
+	step lint
+	assert_status 1
+	assert_eq "tools/verify/lint:1 lint-error knip exited 2 without a report (see stderr)" "$out" "lint's finding"
+}
+
+# A secret in any file in scope, its value masked in the finding; with no
+# .secretlintrc.json, the recommended preset still finds it.
+test_lint_reports_a_committed_secret_masked_with_node() {
+	prepared_project
+	add_fixture lint/aws.md.txt docs/deploy.md
+	step lint
+	assert_status 1
+	assert_eq "docs/deploy.md:5 secret-aws found AWS Secret Access Key: ****************************************" "$out" "lint's finding"
+	rm .secretlintrc.json
+	step lint
+	assert_status 1
+	assert_eq "docs/deploy.md:5 secret-aws found AWS Secret Access Key: ****************************************" "$out" "with no secretlint config"
+	case "$out" in *wJalrXUtnFEMI*) fail "the finding carries the secret" ;; esac
+}
+
+test_lint_reports_secretlint_failing_without_a_report_with_node() {
+	prepared_project
+	echo '{ "rules": [{ "id": "no-such-rule" }] }' > .secretlintrc.json
+	step lint
+	assert_status 1
+	has_line_starting "tools/verify/lint:1 lint-error secretlint exited "
 }
 
 test_lint_runs_its_own_checks_on_test_files_only_with_node() {
@@ -286,7 +384,8 @@ test_lint_reports_eslint_failing_without_a_report_with_node() {
 	echo 'export default [;' > eslint.config.mjs
 	step lint
 	assert_status 1
-	assert_eq "tools/verify/lint:1 lint-error ESLint exited 2 without a report (see stderr)" "$out" "lint's finding"
+	# knip, which can't load the config either, finds ESLint's packages unused.
+	assert_eq "tools/verify/lint:1 lint-error ESLint exited 2 without a report (see stderr)" "$(printf '%s\n' "$out" | grep -v ' knip-dev-dependencies ')" "lint's finding"
 }
 
 test_bootstrap_installs_what_the_lockfile_locks_with_node() {

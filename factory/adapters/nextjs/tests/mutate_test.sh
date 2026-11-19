@@ -17,9 +17,7 @@ TAB=$'\t'
 # test checks only above 100. The project's Stryker config gains a timeout.
 mutate_project() {
 	needs_store
-	skeleton_project
-	step prepare
-	[ "$status" -eq 0 ] || fail "prepare failed on the skeleton: $out"$'\n'"$(tail -n 20 "$TEST_TMP/stderr")"
+	primed_project
 	sed -i 's#^{#{\n  "timeoutMS": 60000,#' stryker.config.json
 	add_fixture mutate/cart_base.ts.txt lib/cart.ts
 	add_fixture mutate/cart_base.test.ts.txt lib/cart.test.ts

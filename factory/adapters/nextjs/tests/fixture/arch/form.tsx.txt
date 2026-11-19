@@ -1,0 +1,17 @@
+import { z } from "zod";
+
+export default function Form() {
+  async function save(formData: FormData): Promise<void> {
+    "use server";
+    await Promise.resolve(formData.get("x"));
+  }
+  async function saveChecked(formData: FormData): Promise<void> {
+    "use server";
+    await Promise.resolve(z.string().parse(formData.get("x")));
+  }
+  return (
+    <form action={save}>
+      <button formAction={saveChecked}>save</button>
+    </form>
+  );
+}

@@ -1,5 +1,7 @@
 import js from "@eslint/js";
+import nextPlugin from "@next/eslint-plugin-next";
 import { defineConfig } from "eslint/config";
+import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
 
 export default defineConfig(
@@ -15,6 +17,8 @@ export default defineConfig(
   },
   js.configs.recommended,
   tseslint.configs.strictTypeChecked,
+  reactHooks.configs.flat.recommended,
+  nextPlugin.configs["core-web-vitals"],
   {
     languageOptions: {
       parserOptions: {

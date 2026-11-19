@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # The shell lint: shellcheck and shfmt over every shell script the factory ships or
-# the gate runs. The factory's test suite runs it, one test per script
+# the gate runs. The factory's test suite runs it once over every script
 # (tests/shell_lint_test.sh). Run from anywhere:
 #   bash factory/core/shell-lint.sh            every shell script
 #   bash factory/core/shell-lint.sh <path...>  only these, relative to the project root
@@ -28,8 +28,13 @@ SHELLCHECK_PIN=0.9.0
 SHFMT_PIN=3.8.0
 SHELL_LINT_INSTALL="sudo apt install -y shellcheck shfmt"
 #
-# Prints each finding on stdout: shellcheck's as <file>:<line>:<column>: lines,
-# shfmt's as a diff whose header names the file. Exits 0 when every script is
+# Each tool runs once over all the scripts of a dialect; only a script that run
+# names (or every script of its dialect, when the run says what it cannot pin on
+# one) is linted again by itself, for its findings.
+#
+# Prints each finding on stdout, script by script in the order given: those
+# from shellcheck as <file>:<line>:<column>: lines, those from shfmt as a diff
+# whose header names the file. Exits 0 when every script is
 # clean, 1 on a finding, 2 on a usage error or a bad config line, and 3 when a tool
 # is missing or not at its pin (why, and the install command, on stderr).
 set -u
@@ -180,29 +185,41 @@ disabled_codes() {
 	printf '%s' "$codes"
 }
 
+# file_shell <file>: set SCRIPT_SHELL to the dialect the file is linted in: the
+# shell its shebang runs, bash with no shebang, or empty for another shebang
+# (shellcheck then reads it itself, and shfmt guesses).
+file_shell() {
+	local first
+	first="$(first_line "$1")"
+	script_shell "$first" && return
+	[[ $first == '#!'* ]] || SCRIPT_SHELL=bash
+}
+
+# tool_opts <shell>: set SC_OPTS and SHFMT_OPTS to the tools' options for the
+# dialect.
+tool_opts() {
+	SC_OPTS=(--norc -f gcc)
+	[ -z "$codes" ] || SC_OPTS+=(-e "$codes")
+	[ -z "$1" ] || SC_OPTS+=(-s "$1")
+	SHFMT_OPTS=("${SHFMT_FLAGS[@]}")
+	case "$1" in
+		bash) SHFMT_OPTS+=(-ln bash) ;;
+		sh | dash) SHFMT_OPTS+=(-ln posix) ;;
+	esac
+}
+
 # lint <file>: print the file's findings; false when it has any.
 lint() {
-	local f="$1" first text status bad=0
-	local -a opts=(--norc -f gcc) dialect=()
-	[ -z "$codes" ] || opts+=(-e "$codes")
-	first="$(first_line "$f")"
-	if script_shell "$first"; then
-		opts+=(-s "$SCRIPT_SHELL")
-	elif [[ $first != '#!'* ]]; then
-		SCRIPT_SHELL=bash
-		opts+=(-s bash)
-	fi
-	case "$SCRIPT_SHELL" in
-		bash) dialect=(-ln bash) ;;
-		sh | dash) dialect=(-ln posix) ;;
-	esac
-	text="$(shellcheck "${opts[@]}" -- "$f" 2>&1)"
+	local f="$1" text status bad=0
+	file_shell "$f"
+	tool_opts "$SCRIPT_SHELL"
+	text="$(shellcheck "${SC_OPTS[@]}" -- "$f" 2>&1)"
 	status=$?
 	if [ "$status" -ne 0 ]; then
 		printf '%s\n' "${text:-$f: shellcheck exited $status}"
 		bad=1
 	fi
-	text="$(shfmt "${SHFMT_FLAGS[@]}" "${dialect[@]}" -d -- "$f" 2>&1)"
+	text="$(shfmt "${SHFMT_OPTS[@]}" -d -- "$f" 2>&1)"
 	status=$?
 	if [ "$status" -ne 0 ]; then
 		printf '%s\n' "${text:-$f: shfmt exited $status}"
@@ -244,12 +261,81 @@ if [ "$#" -eq 0 ]; then
 	fi
 	mapfile -t files <<< "$listing"
 fi
-failed=0
+# The batch: each tool once per dialect (- for another shebang's), over its
+# scripts. A line of a run's output that starts <file>:<line>:<column>:
+# (shellcheck's findings, shfmt's parse errors) or is a file shfmt -l lists marks
+# that file; any other output, or a failing run with none, marks every file of
+# the dialect. The marked files are linted again one by one, for their findings.
+declare -A dialect_of=() files_of=() marked=() suspect=()
 for f in "${files[@]}"; do
 	if [ ! -f "$f" ]; then
 		echo "shell-lint: no file $f" >&2
 		exit 2
 	fi
+	file_shell "$f"
+	dialect_of["$f"]="${SCRIPT_SHELL:--}"
+	files_of["${SCRIPT_SHELL:--}"]+="$f"$'\n'
+done
+
+# mark_from <dialect> <status> <text>: mark the files the run's text names. A
+# clean run exits 0 and prints nothing (shfmt -l exits 0 as it lists files).
+mark_from() {
+	local line named=0 file
+	[ "$2" -eq 0 ] && [ -z "$3" ] && return
+	while IFS= read -r line; do
+		[ -n "$line" ] || continue
+		file=""
+		if [[ $line =~ ^(.+):[0-9]+:[0-9]+:\  ]]; then
+			file="${BASH_REMATCH[1]}"
+		else
+			file="$line"
+		fi
+		if [ -n "$file" ] && [ -n "${dialect_of["$file"]+set}" ] && [ "${dialect_of["$file"]}" = "$1" ]; then
+			marked["$file"]=1
+			named=1
+		else
+			suspect["$1"]=1
+		fi
+	done <<< "$3"
+	[ "$named" -eq 1 ] || suspect["$1"]=1
+}
+
+# mark_sourcing: mark each file with a source= or source-path= directive, and each
+# that sources, by a path with no $ in it, a file whose name a file of the batch
+# has. A run over several files follows such a source to one of them, and loses a
+# finding linting the file by itself reports (a variable the sourced file sets);
+# a $ path it follows only by a source-path, and what it finds in a file it
+# follows it reports for no file.
+mark_sourcing() {
+	local f line target
+	local -A names=()
+	for f in "${files[@]}"; do
+		names["${f##*/}"]=1
+	done
+	while IFS= read -r -d '' f; do
+		marked["$f"]=1
+	done < <(grep -lZE -- '#[[:blank:]]*shellcheck[[:blank:]].*source(-path)?=' "${files[@]}")
+	while IFS= read -r -d '' f && IFS= read -r line; do
+		[[ $line =~ (source|\.)[[:blank:]]+([^[:blank:]]+)$ ]] || continue
+		target="${BASH_REMATCH[2]//[\"\']/}"
+		[[ $target != *'$'* ]] || continue
+		[ -n "${target##*/}" ] && [ -n "${names["${target##*/}"]+set}" ] && marked["$f"]=1
+	done < <(grep -oZHE -- '(^|[;&|({!`[:blank:]])(source|\.)[[:blank:]]+[^[:blank:];&|)`]+' "${files[@]}")
+}
+mark_sourcing
+
+for shell in "${!files_of[@]}"; do
+	mapfile -t batch <<< "${files_of["$shell"]%$'\n'}"
+	tool_opts "${shell#-}"
+	text="$(shellcheck "${SC_OPTS[@]}" -- "${batch[@]}" 2>&1)"
+	mark_from "$shell" "$?" "$text"
+	text="$(shfmt "${SHFMT_OPTS[@]}" -l -- "${batch[@]}" 2>&1)"
+	mark_from "$shell" "$?" "$text"
+done
+
+failed=0
+for f in "${files[@]}"; do
+	[ -n "${marked["$f"]+set}" ] || [ -n "${suspect["${dialect_of["$f"]}"]+set}" ] || continue
 	lint "$f" || failed=$((failed + 1))
 done
 if [ "$failed" -gt 0 ]; then

@@ -12,6 +12,7 @@ const pages = import.meta.glob<PageModule>("./page.tsx");
 async function loadPage(): Promise<PageModule> {
   const load = pages["./page.tsx"];
   expect(load).toBeDefined();
+  if (load === undefined) throw new Error("no ./page.tsx beside this test");
   return load();
 }
 
@@ -232,12 +233,12 @@ describe("AboutPage", () => {
     expect(figure?.children).toHaveLength(1);
     expect(child(figure, 0)?.tagName).toBe("IMG");
     expect(imgs).toHaveLength(1);
-    expect(imgs[0].getAttribute("src")).toBe("/images/headshot-therapist.svg");
-    expect(imgs[0].getAttribute("alt")).toBe(
+    expect(imgs[0]?.getAttribute("src")).toBe("/images/headshot-therapist.svg");
+    expect(imgs[0]?.getAttribute("alt")).toBe(
       "Rachel Siegel in glasses and a navy tee, seated outdoors",
     );
-    expect(imgs[0].getAttribute("width")).toBe("874");
-    expect(imgs[0].getAttribute("height")).toBe("1184");
+    expect(imgs[0]?.getAttribute("width")).toBe("874");
+    expect(imgs[0]?.getAttribute("height")).toBe("1184");
   });
 
   it("has its own title and description and no Upcoming strip", async () => {

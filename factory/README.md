@@ -4,7 +4,9 @@ A set of automated gates, scripts, skills and agent roles that build a project f
 
 ## Install
 
-From a clone of this repo, checked out at a release tag, into a project that is a clean git checkout:
+A new project, in one step: run `/new-project` in a Claude session in a checkout of this repo. It asks for the name, the adapter (Next.js by default), the Gitea owner and the visibility (private by default), then `factory/core/new-project.sh` makes the folder, its git repo on `dev` with an empty first commit, its Gitea repo (through `gt`, pushed) and installs the latest release with the adapter's skeleton (`install.sh --new`, below, the factory's labels created in the new repo); the skill then takes the project through the `/adopt` steps, commits the adoption on `dev` and pushes it. The script refuses before it makes anything when the folder is not empty, the adapter is unknown or has no skeleton, `gt` is not logged in, or the Gitea repo exists; once the Gitea repo exists it never removes anything, and a failure says what it made and how to remove it. The skill is the workspace's alone (`factory/workspace-skills/`): no project installs it.
+
+By hand, from a clone of this repo, checked out at a release tag, into a project that is a clean git checkout:
 
 ```bash
 git clone -b <tag> git@git.stuffworks.net:psnail273/factory.git ~/factory
@@ -12,7 +14,7 @@ bash ~/factory/factory/core/install.sh <project dir> <adapter>         # an exis
 bash ~/factory/factory/core/install.sh <project dir> <adapter> --new   # a new one, from the adapter's skeleton
 ```
 
-(A tag from before the repo became a workspace, below, has the factory at its root: there it is `bash ~/factory/core/install.sh`.) `install.sh` copies the clone's tracked `factory/` into `<project>/factory/`, runs `factory/core/adopt.sh` there, and records this repo's URL and the tag in `tools/verify/factory-version` (its `upstream` and `tag` lines). It commits nothing. Then, before you commit, the `/factory-adopt` skill (now in `.claude/skills/`) takes the project the rest of the way from the staged adoption (labels, tracker docs, ARCHITECTURE.md, cleanup issues).
+(A tag from before the repo became a workspace, below, has the factory at its root: there it is `bash ~/factory/core/install.sh`.) `install.sh` copies the clone's tracked `factory/` into `<project>/factory/`, runs `factory/core/adopt.sh` there, and records this repo's URL and the tag in `tools/verify/factory-version` (its `upstream` and `tag` lines). It commits nothing. Then, before you commit, the `/adopt` skill (now in `.claude/skills/`) takes the project the rest of the way from the staged adoption (labels, tracker docs, ARCHITECTURE.md, cleanup issues).
 
 ## Machine tools
 
@@ -21,6 +23,12 @@ bash ~/factory/factory/core/install.sh <project dir> <adapter> --new   # a new o
 ## Update
 
 `bash factory/core/sync.sh <tag>` re-copies `factory/` from a release of the repo that factory-version's `upstream` line names (`FACTORY_UPSTREAM` overrides it). It refuses while `factory/` has local edits, and prints the adapter templates' diff to port into `tools/verify/` by hand. `sync.sh latest` syncs to the highest `v<major>.<minor>.<patch>` tag there, and `sync.sh check` only says whether one is newer than the project's (`newer v<x> (on <version>)` or `current <version>`). A Claude Code session runs that check at its start, at most once a day per checkout. A newer patch release (the same major and minor) syncs itself there, in the background, and is committed on dev as `Sync factory <new> (from <old>)`, when no issue is in flight (no `.claude/worktrees/issue-*`) and the session is in the main checkout, on dev, with a clean tree; the session says so in one line, `factory synced <old> → <new> (patch); push dev so new issues get it`, since that commit is local and issues are cut from `origin/dev`, and the log is `.git/factory/update-sync.log`. A newer minor or major release, or a patch held back, makes the session ask the human whether to sync.
+
+A skeleton file (the adapter's `new/`, laid only by `--new`) is not in that diff: when a template's header says a step now needs one (a config file, a package, a tsconfig flag, an ARCHITECTURE.md rule), copy it from `factory/adapters/<adapter>/new/` as the header says. A new check finds old code: record those findings into the Baseline in the port's own commit, `bash factory/core/baseline.sh add <rule>...`, and file them as cleanup with `/audit`.
+
+## Audit
+
+`/audit`, a project skill for the human to run, runs every step of the gate over the whole project and reports the findings beyond the Baseline by step and rule, the Baseline's size and what a step skipped; on the human's yes it files cleanup issues for them, as `/adopt` files its cleanup. In a Next.js project that gate includes strict indexing, React's hooks rules, Next.js's rules, knip's dead code, a secret scan and zod at the input boundaries (the adapter's typecheck, lint and arch steps); a Godot project runs its own.
 
 ## Amends
 

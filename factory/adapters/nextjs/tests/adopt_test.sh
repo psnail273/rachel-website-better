@@ -118,8 +118,11 @@ factory_clone() {
 	git clone -q -b v0.1.0 "$src" "$TEST_TMP/clone" 2> /dev/null || fail "could not clone the factory"
 }
 
-# The brief's proof: install.sh --new in a fresh repo, then the full gate passes,
-# and arm.sh (two more full verifies, which must match) arms it.
+# The brief's proof: install.sh --new in a fresh repo (its Baseline from a full
+# verify), then the full gate passes and arm.sh arms it. arm.sh's two full
+# verifies, which must match, are that gate: a third run of it on the same tree
+# would check nothing more. The project's own entry point, tools/verify.sh, runs
+# its two quick steps first. No run mutates: the project is on no issue's branch.
 # shellcheck disable=SC2154 # out: set by run_cmd, in factory/core/tests/lib.sh
 test_install_new_makes_a_project_that_verifies_green_and_arms_with_node() {
 	needs_browser
@@ -147,19 +150,22 @@ test_install_new_makes_a_project_that_verifies_green_and_arms_with_node() {
 	assert_eq "" "$(git ls-files -- node_modules .next next-env.d.ts tools/verify/local.env)" "installed or generated files were staged"
 	git commit -q -m "adopt the factory" || fail "could not commit the adoption"
 
-	run_cmd bash tools/verify.sh
+	run_cmd bash tools/verify.sh prepare format
 	assert_status 0
-	assert_last_line "verify: PASS"
-	# Every step is real: none is a no-op (mutate, the Core's optional step,
-	# skips a tree with no change since its base).
-	local s
-	for s in prepare format typecheck lint arch deviation test smoke; do
-		assert_line "== $s PASS"
-	done
+	assert_eq "== prepare PASS
+== format PASS
+verify: PASS" "$out" "tools/verify.sh prepare format"
 
 	run_cmd bash factory/core/arm.sh
 	assert_status 0
-	grep -qxF "  verify: verify: two runs match" "$TEST_TMP/stderr" || fail "arm.sh's verify:"$'\n'"$(cat "$TEST_TMP/stderr")"
+	# Every step is real: none is a no-op but mutate, the Core's optional step,
+	# which runs only on an issue's branch in its Green phase (lib/mutate.sh).
+	local line
+	for line in "== prepare PASS" "== format PASS" "== typecheck PASS" "== lint PASS" "== arch PASS" "== deviation PASS" "== test PASS" \
+		"== mutate SKIP" "== smoke PASS" "verify: PASS" "verify: two runs match"; do
+		grep -qxF "  verify: $line" "$TEST_TMP/stderr" || fail "arm.sh's verify has no '$line':"$'\n'"$(cat "$TEST_TMP/stderr")"
+	done
+	stderr_has "verify: mutate: no mutants: no run state: this checkout is on no issue's branch"
 	assert_eq enforce "$(git show :tools/verify/hook-mode | grep -v '^#')" "arm.sh didn't stage enforce"
 	assert_eq "M  tools/verify/hook-mode" "$(git status --porcelain)" "arm.sh left more than the staged hook mode"
 }
