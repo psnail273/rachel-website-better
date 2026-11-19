@@ -1,21 +1,29 @@
 "use client";
 
 import { useState, type ReactNode, type SyntheticEvent } from "react";
-import type { ContactResult } from "../../lib/contact";
+import {
+  validateContact,
+  type ContactErrors,
+  type ContactResult,
+} from "../../lib/contact";
+import { siteConfig } from "../../lib/site-config";
 import { tieLast } from "../../lib/tie";
 
-type Errors = { email?: string; message?: string };
-
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+type Alert = "failed" | "rate-limited";
 
 const CONTROL_CLASS =
   "w-full p-tight border border-line-strong bg-surface text-heading leading-[1.4] aria-invalid:border-error aria-invalid:shadow-[inset_0_0_0_1px_var(--error)]";
 const LABEL_CLASS = "font-medium text-heading";
 const ERROR_CLASS = "font-medium text-error type-small";
+const ALERT_CLASS = "font-medium text-center text-error type-small";
+const ALERT_LEAD = {
+  failed: "Your message couldn\u2019t be sent. Please try again, or ",
+  "rate-limited": "Too many messages. Please try again later, or ",
+} as const;
 const BUTTON_CLASS =
   "type-button inline-flex h-14 w-50 max-w-full items-center justify-center justify-self-center border border-heading text-heading transition-colors duration-150 ease-[cubic-bezier(0.2,0.7,0.2,1)] hover:bg-heading hover:text-bg";
 
-const SUCCESS_TEXT = tieLast("Thanks — Rachel will get back to you.");
+const SUCCESS_TEXT = tieLast("Thanks \u2014 Rachel will get back to you.");
 
 function focusOnMount(element: HTMLElement | null): void {
   element?.focus();
@@ -25,22 +33,15 @@ function text(value: FormDataEntryValue | null): string {
   return typeof value === "string" ? value : "";
 }
 
-function validate(email: string, message: string): Errors {
-  const errors: Errors = {};
-  if (email === "") errors.email = "Enter your email address.";
-  else if (!EMAIL_PATTERN.test(email))
-    errors.email = "Enter an email address like name@example.com.";
-  if (message.trim() === "") errors.message = "Write a message.";
-  return errors;
-}
-
 export function ContactForm({
   sendAction,
 }: {
   sendAction: (formData: FormData) => Promise<ContactResult>;
 }): ReactNode {
-  const [errors, setErrors] = useState<Errors>({});
+  const [errors, setErrors] = useState<ContactErrors>({});
   const [sent, setSent] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [alert, setAlert] = useState<Alert | null>(null);
 
   if (sent) {
     return (
@@ -61,21 +62,38 @@ export function ContactForm({
   ): Promise<void> {
     event.preventDefault();
     const form = event.currentTarget;
+    setAlert(null);
     const formData = new FormData(form);
-    const email = text(formData.get("email"));
-    const message = text(formData.get("message"));
-    const next = validate(email, message);
+    const next = validateContact({
+      email: text(formData.get("email")),
+      message: text(formData.get("message")),
+    });
+    if (showErrors(form, next)) return;
+    setPending(true);
+    try {
+      const result = await sendAction(formData);
+      if (result.ok) setSent(true);
+      else if (result.reason === "invalid") showErrors(form, result.errors);
+      else setAlert(result.reason);
+    } catch {
+      setAlert("failed");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  // Shows the errors and focuses the first invalid field; true when any.
+  function showErrors(form: HTMLFormElement, next: ContactErrors): boolean {
     setErrors(next);
     if (next.email !== undefined) {
       form.querySelector<HTMLElement>("#contact-email")?.focus();
-      return;
+      return true;
     }
     if (next.message !== undefined) {
       form.querySelector<HTMLElement>("#contact-message")?.focus();
-      return;
+      return true;
     }
-    const result = await sendAction(formData);
-    if (result.ok) setSent(true);
+    return false;
   }
 
   return (
@@ -143,9 +161,26 @@ export function ContactForm({
           </p>
         )}
       </div>
-      <button type="submit" className={BUTTON_CLASS}>
-        Send
+      <input
+        name="company"
+        type="text"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+        className="sr-only"
+      />
+      <button type="submit" disabled={pending} className={BUTTON_CLASS}>
+        {pending ? "Sending\u2026" : "Send"}
       </button>
+      {alert === null ? null : (
+        <p role="alert" className={ALERT_CLASS}>
+          {ALERT_LEAD[alert]}
+          <a href={`mailto:${siteConfig.email}`}>
+            {tieLast("email Rachel directly")}
+          </a>
+          .
+        </p>
+      )}
     </form>
   );
 }

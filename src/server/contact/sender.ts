@@ -1,3 +1,5 @@
+import { Resend } from "resend";
+
 export type Mail = {
   from: string;
   to: string;
@@ -8,6 +10,11 @@ export type Mail = {
 
 export type MailSender = { send(mail: Mail): Promise<void> };
 
-export const createResendSender: (apiKey: string) => MailSender = () => ({
-  send: () => Promise.resolve(),
-});
+export function createResendSender(apiKey: string): MailSender {
+  return {
+    async send(mail) {
+      const { error } = await new Resend(apiKey).emails.send(mail);
+      if (error !== null) throw new Error(error.message);
+    },
+  };
+}
