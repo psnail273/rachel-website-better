@@ -117,6 +117,26 @@ describe("SiteFooter", () => {
     });
   });
 
+  it("grounds the footer on the band with on-band text and an on-band focus ring", async () => {
+    render(await SiteFooter());
+    const classes = (
+      screen.getByRole("contentinfo").getAttribute("class") ?? ""
+    )
+      .split(/\s+/)
+      .filter(
+        (name) =>
+          name.startsWith("bg-") ||
+          name.startsWith("text-on-") ||
+          name.startsWith("[--"),
+      );
+
+    expect(classes).toEqual([
+      "[--accent:var(--on-band)]",
+      "bg-band",
+      "text-on-band",
+    ]);
+  });
+
   it("shows the brand, the tagline, St. Louis, MO and the copyright line for the current year", async () => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2031-06-15T12:00:00Z"));

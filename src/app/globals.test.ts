@@ -102,25 +102,25 @@ const COLOR_TOKENS = [
 ];
 
 const ROOT_COLORS: [string, string][] = [
-  ["--bg", "light-dark(#f6e4e6, #17302a)"],
-  ["--surface", "light-dark(#fbf3f3, #1e3b33)"],
-  ["--tint", "light-dark(#eed3d7, #27483f)"],
+  ["--bg", "light-dark(#f6e4e6, #24131c)"],
+  ["--surface", "light-dark(#fbf3f3, #2f1b26)"],
+  ["--tint", "light-dark(#eed3d7, #3d2431)"],
   ["--ink", "light-dark(#3b2530, #eadfd9)"],
   ["--heading", "light-dark(#2a1420, #f7eee9)"],
-  ["--muted", "light-dark(#6a525d, #b9c4bc)"],
-  ["--link", "light-dark(#1f4a3a, #f7eee9)"],
-  ["--accent", "light-dark(#2b6044, #f2abbe)"],
+  ["--muted", "light-dark(#6a525d, #c6b3ba)"],
+  ["--link", "light-dark(#75203f, #f7dce4)"],
+  ["--accent", "light-dark(#853a62, #f2abbe)"],
   ["--error", "light-dark(#8f1836, #ffb4c0)"],
-  ["--ornament", "light-dark(#d98fa3, #5e8a6f)"],
-  ["--line", "light-dark(#e3c9ce, #2c4a41)"],
-  ["--line-strong", "light-dark(#8f7480, #7fa091)"],
-  ["--band", "light-dark(#1f3a30, #0f231d)"],
+  ["--ornament", "light-dark(#c98aa6, #8b5a72)"],
+  ["--line", "light-dark(#e3c9ce, #42293a)"],
+  ["--line-strong", "light-dark(#8f7480, #a78895)"],
+  ["--band", "light-dark(#47172f, #47172f)"],
   ["--on-band", "light-dark(#f8eee9, #f8eee9)"],
-  ["--on-band-muted", "light-dark(#c5d3c9, #c5d3c9)"],
+  ["--on-band-muted", "light-dark(#dcc5cd, #dcc5cd)"],
   ["--band-accent", "light-dark(#f2abbe, #f2abbe)"],
   ["--plum", "light-dark(#24121c, #24121c)"],
   ["--on-image", "light-dark(#f8eee9, #f8eee9)"],
-  ["--poster", "light-dark(#1f3a30, #1f3a30)"],
+  ["--poster", "light-dark(#47172f, #47172f)"],
 ];
 
 const LAYOUT_TOKENS: [string, string][] = [
@@ -143,28 +143,28 @@ const SPACE_NAMES = ["section", "block", "heading", "flow", "tight"];
 
 // fg, bg, light ratio, dark ratio: copied from docs/design.md section 1.
 const PAIRS: [string, string, number, number][] = [
-  ["ink", "bg", 11.5, 10.8],
-  ["ink", "surface", 12.9, 9.3],
-  ["ink", "tint", 10.0, 7.7],
-  ["heading", "bg", 14.1, 12.3],
-  ["heading", "surface", 15.8, 10.6],
-  ["heading", "tint", 12.2, 8.8],
-  ["muted", "bg", 5.8, 7.8],
-  ["muted", "surface", 6.5, 6.8],
-  ["link", "bg", 8.2, 12.3],
-  ["link", "surface", 9.2, 10.6],
-  ["accent", "bg", 6.0, 7.6],
-  ["accent", "surface", 6.7, 6.6],
-  ["accent", "tint", 5.2, 5.4],
-  ["error", "bg", 7.3, 8.4],
-  ["error", "surface", 8.2, 7.3],
-  ["bg", "heading", 14.1, 12.3],
-  ["on-band", "band", 10.8, 14.4],
-  ["on-band-muted", "band", 7.9, 10.6],
-  ["band-accent", "band", 6.6, 8.9],
+  ["ink", "bg", 11.5, 13.5],
+  ["ink", "surface", 12.9, 12.3],
+  ["ink", "tint", 10.0, 10.7],
+  ["heading", "bg", 14.1, 15.5],
+  ["heading", "surface", 15.8, 14.1],
+  ["heading", "tint", 12.2, 12.3],
+  ["muted", "bg", 5.8, 8.9],
+  ["muted", "surface", 6.5, 8.1],
+  ["link", "bg", 8.4, 13.8],
+  ["link", "surface", 9.4, 12.5],
+  ["accent", "bg", 6.2, 9.6],
+  ["accent", "surface", 6.9, 8.7],
+  ["accent", "tint", 5.4, 7.6],
+  ["error", "bg", 7.3, 10.6],
+  ["error", "surface", 8.2, 9.6],
+  ["bg", "heading", 14.1, 15.5],
+  ["on-band", "band", 12.9, 12.9],
+  ["on-band-muted", "band", 9.0, 9.0],
+  ["band-accent", "band", 7.9, 7.9],
   ["on-image", "plum", 15.6, 15.6],
-  ["line-strong", "bg", 3.4, 4.9],
-  ["line-strong", "surface", 3.9, 4.2],
+  ["line-strong", "bg", 3.4, 5.6],
+  ["line-strong", "surface", 3.9, 5.1],
 ];
 
 type Mode = "light" | "dark";
@@ -194,6 +194,21 @@ function ratio(fg: string, bg: string, mode: Mode): number | null {
   if (front === undefined || back === undefined) return null;
   const [a, b] = [luminance(front), luminance(back)];
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+}
+
+function hue(hex: string): number | null {
+  const [r, g, b] = [1, 3, 5].map(
+    (i) => parseInt(hex.slice(i, i + 2), 16) / 255,
+  );
+  if (r === undefined || g === undefined || b === undefined) return null;
+  const max = Math.max(r, g, b);
+  const d = max - Math.min(r, g, b);
+  if (d === 0) return null;
+  let h: number;
+  if (max === r) h = ((g - b) / d) % 6;
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return (h * 60 + 360) % 360;
 }
 
 function round1(value: number | null): number | null {
@@ -441,6 +456,36 @@ describe("design tokens", () => {
     );
     expect(rootColors).toEqual(ROOT_COLORS);
     expect(themeColors).toEqual(expectedTheme);
+  });
+
+  it("resolves no colour token to a green hue", () => {
+    const greens = COLOR_TOKENS.flatMap((token) => {
+      const colors = palette(token);
+      if (colors === null) return [`${token}: does not parse`];
+      return (["light", "dark"] as const).flatMap((mode) => {
+        const h = hue(colors[mode]);
+        return h !== null && h >= 60 && h <= 180
+          ? [`${token} (${mode}): ${String(Math.round(h))} degrees`]
+          : [];
+      });
+    });
+    const oldValues = [
+      "#1f4a3a",
+      "#2b6044",
+      "#1f3a30",
+      "#17302a",
+      "#1e3b33",
+      "#27483f",
+      "#5e8a6f",
+      "#c5d3c9",
+      "#0f231d",
+      "#2c4a41",
+      "#7fa091",
+      "#b9c4bc",
+    ].filter((value) => css.toLowerCase().includes(value));
+
+    expect(greens).toEqual([]);
+    expect(oldValues).toEqual([]);
   });
 
   it("uses no colour token that no longer exists", () => {
