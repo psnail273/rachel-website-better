@@ -9,6 +9,7 @@ Engine and library facts that briefs rely on, each with the probe that showed it
 - No copy of the OFL licence text is under `node_modules/`; Geist's is `OFL.txt` in github.com/vercel/geist-font. (#2)
 - `next/font/local` is empty at runtime outside Next's compiler (`node_modules/next/font/local/index.js` is empty), so a Vitest test that imports a file calling `localFont` must `vi.mock("next/font/local", ...)`. (#6)
 - Weight axes: Fraunces 100 to 900, Source Sans 3 200 to 900 (`fc-scan`: `[0 210]` and `[40 210]`); `localFont({ src: [{ path, style: "normal" }, { path, style: "italic" }], weight: "<min> <max>", variable })` builds four `@font-face` rules from the four `.ttf` files. (#6)
+- Both Fraunces files (`src/app/fonts/Fraunces-Variable.ttf`, `Fraunces-Italic-Variable.ttf`) have axes `opsz 9..144`, `wght 100..900`, `SOFT 0..100` (default 0) and `WONK 0..1` with default 1: any text without an explicit `"WONK" 0` in `font-variation-settings` shows the swashed forms (the curled "h"). Probe: read the `fvar` axis records with a node script (min, default, max). (#68)
 
 ## Calendar feed (2026-11-14)
 
