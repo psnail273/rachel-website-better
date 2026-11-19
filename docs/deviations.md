@@ -153,3 +153,10 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: a plain `<img>` is a lint finding (`@next/next/no-img-element`, a warning, and warnings count under `--no-inline-config`). `unoptimized` keeps the design's intent: no optimizer, no `srcset`, YouTube's own URL, lazy, 480 × 360 (`docs/agents/facts.md`, Remote images).
 - Ruling: driver's call: inside the brief.
 - Reasoning: the rendered element is the design's `img` in every attribute the design names. The three extra attributes are next/image's own and change nothing visible.
+## #41 c48417e: four contact-form mutants out of reach
+
+- Issue: #41 (Contact: centred column with the two statements and a contact form). Commit: c48417e.
+- What deviated: the green gate left four mutants in `src/app/_components/contact-form.tsx` that no test kills. At :24, `typeof value === "string"` → `true` and `""` → `"Stryker was here!"` (the `text` helper). At :69 and :73, `?.focus` → `.focus` on `#contact-email` and `#contact-message`.
+- Reason: equivalent. The form renders all three named fields, so `FormData.get` never returns `null` or a `File` for them, and the focus targets are the form's own fields, always present when the submit handler runs.
+- Ruling: driver's call: out of reach.
+- Reasoning: no input reaches these branches. The other three survivors (the email pattern's `^` and `$`, and `preventDefault`) can be killed: the brief now scopes `src/app/_components/contact-form.test.tsx` for them, resealed at aa71e7fd.
