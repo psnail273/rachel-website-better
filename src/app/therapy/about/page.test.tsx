@@ -209,7 +209,9 @@ describe("AboutPage", () => {
     expect(figure?.children).toHaveLength(1);
     expect(child(figure, 0)?.tagName).toBe("IMG");
     expect(imgs).toHaveLength(1);
-    expect(imgs[0]?.getAttribute("src")).toBe("/images/headshot-therapist.svg");
+    expect(imgs[0]?.getAttribute("src")).toBe(
+      "/_next/image?url=%2Fimages%2Fheadshot-therapist.jpg&w=3840&q=75",
+    );
     expect(imgs[0]?.getAttribute("alt")).toBe(
       "Rachel Siegel in glasses and a navy tee, seated outdoors",
     );
