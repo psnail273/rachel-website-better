@@ -118,13 +118,17 @@ describe("BioPage", () => {
     expect(figure?.children).toHaveLength(1);
     expect(image?.tagName).toBe("IMG");
     expect(doc.querySelectorAll("img")).toHaveLength(1);
-    expect(image?.getAttribute("src")).toBe("/images/headshot-clarinet.svg");
+    expect(image?.getAttribute("src")).toBe(
+      "/_next/image?url=%2Fimages%2Fheadshot-clarinet.jpg&w=3840&q=75",
+    );
     expect(image?.getAttribute("alt")).toBe(
       "Rachel Siegel holding her clarinet among white blossoming trees",
     );
-    expect(image?.getAttribute("width")).toBe("768");
-    expect(image?.getAttribute("height")).toBe("1024");
-    expect(image?.getAttribute("sizes")).toBeNull();
+    expect(image?.getAttribute("width")).toBe("684");
+    expect(image?.getAttribute("height")).toBe("922");
+    expect(image?.getAttribute("sizes")).toBe(
+      "(min-width: 640px) 24rem, 100vw",
+    );
     expect(
       Array.from(
         doc.querySelectorAll("[class]"),

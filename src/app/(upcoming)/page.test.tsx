@@ -122,20 +122,27 @@ describe("Home", () => {
     const links = [...doc.querySelectorAll("link")].map((link) => ({
       rel: link.getAttribute("rel"),
       as: link.getAttribute("as"),
-      href: link.getAttribute("href"),
+      imagesrcset: link.getAttribute("imagesrcset"),
     }));
 
     expect(attrs(img)).toEqual({
       alt: "Snow-capped mountains glowing pink at sunset above a still lake",
-      width: "1920",
-      height: "1280",
+      width: "2600",
+      height: "1736",
       decoding: "async",
       "data-nimg": "1",
       style: "color:transparent",
-      src: "/images/hero-mountain-lake.svg",
+      src: "/_next/image?url=%2Fimages%2Fhero-mountain-lake.jpg&w=3840&q=75",
+      srcset:
+        "/_next/image?url=%2Fimages%2Fhero-mountain-lake.jpg&w=3840&q=75 1x",
     });
     expect(links).toEqual([
-      { rel: "preload", as: "image", href: "/images/hero-mountain-lake.svg" },
+      {
+        rel: "preload",
+        as: "image",
+        imagesrcset:
+          "/_next/image?url=%2Fimages%2Fhero-mountain-lake.jpg&w=3840&q=75 1x",
+      },
     ]);
   });
 
@@ -149,10 +156,10 @@ describe("Home", () => {
     }));
     expect(imgs).toEqual([
       {
-        src: "/images/hero-mountain-lake.svg",
+        src: "/_next/image?url=%2Fimages%2Fhero-mountain-lake.jpg&w=3840&q=75",
         alt: "Snow-capped mountains glowing pink at sunset above a still lake",
-        width: "1920",
-        height: "1280",
+        width: "2600",
+        height: "1736",
       },
     ]);
   });

@@ -131,13 +131,15 @@ describe("MediaPage", () => {
     expect(tags(doc.querySelector("[data-sidebar-aside] > figure"))).toEqual([
       "IMG",
     ]);
-    expect(img?.getAttribute("src")).toBe("/images/headshot-recorder.svg");
+    expect(img?.getAttribute("src")).toBe(
+      "/_next/image?url=%2Fimages%2Fheadshot-recorder.jpg&w=3840&q=75",
+    );
     expect(img?.getAttribute("alt")).toBe(
       "Rachel Siegel holding a wooden recorder among pink cherry blossoms",
     );
-    expect(img?.getAttribute("width")).toBe("1471");
-    expect(img?.getAttribute("height")).toBe("2048");
-    expect(img?.getAttribute("sizes")).toBeNull();
+    expect(img?.getAttribute("width")).toBe("716");
+    expect(img?.getAttribute("height")).toBe("998");
+    expect(img?.getAttribute("sizes")).toBe("(min-width: 640px) 24rem, 100vw");
     expect(
       Array.from(doc.querySelectorAll("[class]")).filter((el) =>
         /self-center|max-w-|mx-auto/.test(el.getAttribute("class") ?? ""),
@@ -254,7 +256,7 @@ describe("MediaPage", () => {
     expect(
       Array.from(doc.querySelectorAll("img"), (i) => i.getAttribute("src")),
     ).toEqual([
-      "/images/headshot-recorder.svg",
+      "/_next/image?url=%2Fimages%2Fheadshot-recorder.jpg&w=3840&q=75",
       "https://i.ytimg.com/vi/VdwOjCyVsSE/hqdefault.jpg",
       "https://i.ytimg.com/vi/DZA9Wi6KzWY/hqdefault.jpg",
     ]);

@@ -1,4 +1,3 @@
-// @vitest-environment happy-dom
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -15,43 +14,30 @@ describe("images", () => {
   it("lists the four site images with their src, alt and size", () => {
     expect(images).toStrictEqual({
       "hero-mountain-lake": {
-        src: "/images/hero-mountain-lake.svg",
+        src: "/images/hero-mountain-lake.jpg",
         alt: "Snow-capped mountains glowing pink at sunset above a still lake",
-        width: 1920,
-        height: 1280,
+        width: 2600,
+        height: 1736,
       },
       "headshot-therapist": {
-        src: "/images/headshot-therapist.svg",
+        src: "/images/headshot-therapist.jpg",
         alt: "Rachel Siegel in glasses and a navy tee, seated outdoors",
         width: 874,
         height: 1184,
       },
       "headshot-clarinet": {
-        src: "/images/headshot-clarinet.svg",
+        src: "/images/headshot-clarinet.jpg",
         alt: "Rachel Siegel holding her clarinet among white blossoming trees",
-        width: 768,
-        height: 1024,
+        width: 684,
+        height: 922,
       },
       "headshot-recorder": {
-        src: "/images/headshot-recorder.svg",
+        src: "/images/headshot-recorder.jpg",
         alt: "Rachel Siegel holding a wooden recorder among pink cherry blossoms",
-        width: 1471,
-        height: 2048,
+        width: 716,
+        height: 998,
       },
     });
-  });
-
-  it("draws the hero placeholder as the design's dusk-lake illustration", () => {
-    const root = join(import.meta.dirname, "..", "..");
-    const publicFile = join(root, "public", "images", "hero-mountain-lake.svg");
-    const design = readFileSync(
-      join(root, "docs", "design", "hero-dusk-lake.svg"),
-      "utf-8",
-    );
-    const placeholder = existsSync(publicFile)
-      ? readFileSync(publicFile, "utf-8")
-      : "";
-    expect(placeholder).toBe(design);
   });
 
   it("points every src at a file in public", () => {
@@ -64,43 +50,28 @@ describe("images", () => {
     expect(missing).toEqual([]);
   });
 
-  it("sizes each placeholder SVG to its slot", () => {
-    const expected = (
-      [
-        ["hero-mountain-lake", "1920", "1280"],
-        ["headshot-therapist", "874", "1184"],
-        ["headshot-clarinet", "768", "1024"],
-        ["headshot-recorder", "1471", "2048"],
-      ] as const
-    ).map(([key, w, h]) => ({
-      key,
-      tagName: "svg",
-      width: w,
-      height: h,
-      viewBox: `0 0 ${w} ${h}`,
-    }));
+  it("gives each image the pixel size of its JPEG", () => {
     const actual = keys.map((key) => {
-      const file = join(
-        import.meta.dirname,
-        "..",
-        "..",
-        "public",
-        "images",
-        `${key}.svg`,
+      const bytes = readFileSync(
+        join(import.meta.dirname, "..", "..", "public", images[key].src),
       );
-      const source = existsSync(file) ? readFileSync(file, "utf-8") : "";
-      const root = new DOMParser().parseFromString(
-        source,
-        "image/svg+xml",
-      ).documentElement;
+      let at = 2;
+      while (at < bytes.length) {
+        const marker = bytes.readUInt8(at + 1);
+        if (marker >= 0xc0 && marker <= 0xc2) break;
+        at += 2 + bytes.readUInt16BE(at + 2);
+      }
       return {
         key,
-        tagName: root.tagName,
-        width: root.getAttribute("width"),
-        height: root.getAttribute("height"),
-        viewBox: root.getAttribute("viewBox"),
+        width: bytes.readUInt16BE(at + 7),
+        height: bytes.readUInt16BE(at + 5),
       };
     });
-    expect(actual).toEqual(expected);
+    expect(actual).toEqual([
+      { key: "hero-mountain-lake", width: 2600, height: 1736 },
+      { key: "headshot-therapist", width: 874, height: 1184 },
+      { key: "headshot-clarinet", width: 684, height: 922 },
+      { key: "headshot-recorder", width: 716, height: 998 },
+    ]);
   });
 });
