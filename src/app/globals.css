@@ -6,25 +6,25 @@
 
 :root {
   color-scheme: light dark;
-  --bg: light-dark(#f6e4e6, #17302a);
-  --surface: light-dark(#fbf3f3, #1e3b33);
-  --tint: light-dark(#eed3d7, #27483f);
+  --bg: light-dark(#f6e4e6, #24131c);
+  --surface: light-dark(#fbf3f3, #2f1b26);
+  --tint: light-dark(#eed3d7, #3d2431);
   --ink: light-dark(#3b2530, #eadfd9);
   --heading: light-dark(#2a1420, #f7eee9);
-  --muted: light-dark(#6a525d, #b9c4bc);
-  --link: light-dark(#1f4a3a, #f7eee9);
-  --accent: light-dark(#2b6044, #f2abbe);
+  --muted: light-dark(#6a525d, #c6b3ba);
+  --link: light-dark(#75203f, #f7dce4);
+  --accent: light-dark(#853a62, #f2abbe);
   --error: light-dark(#8f1836, #ffb4c0);
-  --ornament: light-dark(#d98fa3, #5e8a6f);
-  --line: light-dark(#e3c9ce, #2c4a41);
-  --line-strong: light-dark(#8f7480, #7fa091);
-  --band: light-dark(#1f3a30, #0f231d);
+  --ornament: light-dark(#c98aa6, #8b5a72);
+  --line: light-dark(#e3c9ce, #42293a);
+  --line-strong: light-dark(#8f7480, #a78895);
+  --band: light-dark(#47172f, #47172f);
   --on-band: light-dark(#f8eee9, #f8eee9);
-  --on-band-muted: light-dark(#c5d3c9, #c5d3c9);
+  --on-band-muted: light-dark(#dcc5cd, #dcc5cd);
   --band-accent: light-dark(#f2abbe, #f2abbe);
   --plum: light-dark(#24121c, #24121c);
   --on-image: light-dark(#f8eee9, #f8eee9);
-  --poster: light-dark(#1f3a30, #1f3a30);
+  --poster: light-dark(#47172f, #47172f);
   --content-max: 78rem;
   --gutter: clamp(1.25rem, 0.5rem + 3.2vw, 3rem);
   --measure: 65ch;
