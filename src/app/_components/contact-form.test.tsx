@@ -1,5 +1,11 @@
 // @vitest-environment happy-dom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ContactForm } from "./contact-form";
 
@@ -20,24 +26,44 @@ function fill(email: string, action: () => Promise<{ ok: boolean }>): void {
 }
 
 describe("ContactForm", () => {
-  it.each(["x y@z.co", "a@b.co c"])(
-    "rejects an email with other text before or after the whole address",
-    async (email) => {
-      const action = vi.fn(() => Promise.resolve({ ok: true }));
-      fill(email, action);
-      fireEvent.submit(screen.getByRole("button", { name: "Send" }));
-      expect(await screen.findByText(EMAIL_ERROR)).toBeDefined();
-      expect(action).not.toHaveBeenCalled();
-    },
-  );
+  it("rejects an email with other text before or after the whole address", async () => {
+    const action = vi.fn(() => Promise.resolve({ ok: true }));
+    fill("x y@z.co", action);
+    const send = screen.getByRole("button", { name: "Send" });
+    fireEvent.submit(send);
+    expect(await screen.findByText(EMAIL_ERROR)).toBeDefined();
+    expect(action).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/^Email/), {
+      target: { value: "a@b.co c" },
+    });
+    fireEvent.submit(send);
+    expect(await screen.findByText(EMAIL_ERROR)).toBeDefined();
+    expect(action).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText(/^Email/), {
+      target: { value: "a@b.co" },
+    });
+    fireEvent.submit(send);
+    await waitFor(() => {
+      expect(action).toHaveBeenCalledTimes(1);
+    });
+  });
 
   it("cancels the browser's own submit", () => {
     fill(
-      "a@b.co",
+      "",
       vi.fn(() => Promise.resolve({ ok: true })),
     );
-    expect(fireEvent.submit(screen.getByRole("button", { name: "Send" }))).toBe(
-      false,
-    );
+    const send = screen.getByRole("button", { name: "Send" });
+    expect(fireEvent.submit(send)).toBe(false);
+
+    fireEvent.change(screen.getByLabelText(/^Email/), {
+      target: { value: "a@b.co" },
+    });
+    fireEvent.change(screen.getByLabelText(/^Message/), {
+      target: { value: "Hello" },
+    });
+    expect(fireEvent.submit(send)).toBe(false);
   });
 });
