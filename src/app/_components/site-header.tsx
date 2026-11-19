@@ -32,7 +32,10 @@ export function SiteHeader() {
   }, []);
 
   return (
-    <header data-scrolled={scrolled ? "" : undefined}>
+    <header
+      data-over-hero={pathname === "/" ? "" : undefined}
+      data-scrolled={scrolled ? "" : undefined}
+    >
       <PageShell>
         <Link href="/" data-brand="" className="type-brand">
           Rachel Siegel

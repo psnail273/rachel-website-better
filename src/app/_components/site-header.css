@@ -37,12 +37,12 @@ body > header[data-scrolled] {
   box-shadow: 0 1px 0 var(--line);
 }
 
-body:has(> main [data-bleed]) > header:not([data-scrolled]) {
+body > header[data-over-hero]:not([data-scrolled]) {
   color: var(--on-image);
 }
 
-body:has(> main [data-bleed])
-  > header:not([data-scrolled])
+body
+  > header[data-over-hero]:not([data-scrolled])
   :is([data-brand], [data-nav-tab], [data-menu-button]) {
   --accent: var(--on-image);
 }

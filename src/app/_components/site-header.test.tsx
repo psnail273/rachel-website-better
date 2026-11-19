@@ -295,10 +295,13 @@ describe("SiteHeader", () => {
     const backAtTop = attributesOf(header);
 
     expect([atRest, atTheLimit, pastTheLimit, backAtTop]).toEqual([
-      [],
-      [],
-      [["data-scrolled", ""]],
-      [],
+      [["data-over-hero", ""]],
+      [["data-over-hero", ""]],
+      [
+        ["data-over-hero", ""],
+        ["data-scrolled", ""],
+      ],
+      [["data-over-hero", ""]],
     ]);
   });
 
@@ -308,6 +311,7 @@ describe("SiteHeader", () => {
     renderAt("/");
 
     expect(attributesOf(document.querySelector("header"))).toEqual([
+      ["data-over-hero", ""],
       ["data-scrolled", ""],
     ]);
   });
@@ -336,7 +340,7 @@ describe("SiteHeader", () => {
     const contact = childAt(nav, 2);
     const label = childAt(contact, 0);
 
-    expect(attributesOf(header)).toEqual([]);
+    expect(attributesOf(header)).toEqual([["data-over-hero", ""]]);
     expect(header?.children.length).toBe(1);
     expect(attributesOf(shell)).toEqual([["data-shell", ""]]);
     expect(tagsOf(shell)).toEqual(["A", "NAV", "DIV"]);

@@ -12,7 +12,7 @@ main {
   flex: none;
 }
 
-main:has([data-bleed]) {
+body:has(> header[data-over-hero]) > main {
   padding-block-start: 0;
 }
 
