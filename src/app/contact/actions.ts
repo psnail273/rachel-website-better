@@ -3,6 +3,6 @@
 export async function sendMessage(
   formData: FormData,
 ): Promise<{ ok: boolean }> {
-  void formData;
-  return await Promise.resolve({ ok: false });
+  await Promise.resolve(formData);
+  return { ok: false };
 }
