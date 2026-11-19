@@ -117,6 +117,28 @@ describe("SiteFooter", () => {
     });
   });
 
+  const colourTokens = [
+    "bg",
+    "surface",
+    "tint",
+    "ink",
+    "heading",
+    "muted",
+    "link",
+    "accent",
+    "error",
+    "ornament",
+    "line",
+    "line-strong",
+    "band",
+    "on-band",
+    "on-band-muted",
+    "band-accent",
+    "plum",
+    "on-image",
+    "poster",
+  ];
+
   it("grounds the footer on the band with on-band text and an on-band focus ring", async () => {
     render(await SiteFooter());
     const classes = (
@@ -125,9 +147,10 @@ describe("SiteFooter", () => {
       .split(/\s+/)
       .filter(
         (name) =>
-          name.startsWith("bg-") ||
-          name.startsWith("text-on-") ||
-          name.startsWith("[--"),
+          name.startsWith("[--") ||
+          colourTokens.some(
+            (token) => name === `bg-${token}` || name === `text-${token}`,
+          ),
       );
 
     expect(classes).toEqual([
