@@ -1,4 +1,4 @@
-export type CalendarFeed = {
+type CalendarFeed = {
   name: string;
   icsUrl: string;
 };

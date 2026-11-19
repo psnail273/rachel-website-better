@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { validateContact, type ContactResult } from "../../lib/contact";
 import type { ContactConfig } from "./config";
 import type { RateLimiter } from "./rate-limit";
@@ -13,19 +14,27 @@ export type ContactDeps = {
 
 const NAME_MAX = 200;
 
-function field(formData: FormData, name: string): string {
-  const value = formData.get(name);
-  return typeof value === "string" ? value : "";
-}
+const FormSchema = z.object({
+  company: z.string().catch(""),
+  name: z.string().catch(""),
+  email: z.string().catch(""),
+  message: z.string().catch(""),
+});
 
 export async function handleContact(
   formData: FormData,
   deps: ContactDeps,
 ): Promise<ContactResult> {
-  if (field(formData, "company") !== "") return { ok: true };
-  const name = field(formData, "name").trim().slice(0, NAME_MAX);
-  const email = field(formData, "email").trim();
-  const message = field(formData, "message").trim();
+  const fields = FormSchema.parse({
+    company: formData.get("company"),
+    name: formData.get("name"),
+    email: formData.get("email"),
+    message: formData.get("message"),
+  });
+  if (fields.company !== "") return { ok: true };
+  const name = fields.name.trim().slice(0, NAME_MAX);
+  const email = fields.email.trim();
+  const message = fields.message.trim();
   const errors = validateContact({ email, message });
   if (errors.email !== undefined || errors.message !== undefined)
     return { ok: false, reason: "invalid", errors };

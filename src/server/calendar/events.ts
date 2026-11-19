@@ -6,7 +6,7 @@ export type CalendarEvent = {
   location: string | null;
 };
 
-export type CardLocation =
+type CardLocation =
   { kind: "link"; href: string } | { kind: "text"; text: string };
 
 export type EventCard = {
