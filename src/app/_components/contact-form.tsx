@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode, type SyntheticEvent } from "react";
+import type { ContactResult } from "../../lib/contact";
 import { tieLast } from "../../lib/tie";
 
 type Errors = { email?: string; message?: string };
@@ -36,7 +37,7 @@ function validate(email: string, message: string): Errors {
 export function ContactForm({
   sendAction,
 }: {
-  sendAction: (formData: FormData) => Promise<{ ok: boolean }>;
+  sendAction: (formData: FormData) => Promise<ContactResult>;
 }): ReactNode {
   const [errors, setErrors] = useState<Errors>({});
   const [sent, setSent] = useState(false);

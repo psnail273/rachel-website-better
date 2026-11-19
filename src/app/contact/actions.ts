@@ -1,8 +1,8 @@
 "use server";
 
-export async function sendMessage(
-  formData: FormData,
-): Promise<{ ok: boolean }> {
+import type { ContactResult } from "../../lib/contact";
+
+export async function sendMessage(formData: FormData): Promise<ContactResult> {
   await Promise.resolve(formData);
-  return { ok: false };
+  return { ok: false, reason: "failed" };
 }

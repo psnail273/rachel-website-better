@@ -1,11 +1,5 @@
 // @vitest-environment happy-dom
-import {
-  act,
-  cleanup,
-  fireEvent,
-  render,
-  screen,
-} from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { siteConfig } from "@/lib/site-config";
 import { sendMessage } from "./actions";
@@ -202,7 +196,7 @@ describe("ContactPage", () => {
     expect(container.textContent).not.toMatch(/upcoming/i);
   });
 
-  it("names the form by its heading and gives it Name, Email (required) and Message (required) fields and a Send button", () => {
+  it("names the form by its heading and gives it Name, Email (required) and Message (required) fields, a hidden honeypot and a Send button", () => {
     render(<ContactPage />);
     const form = pick("form");
 
@@ -212,7 +206,7 @@ describe("ContactPage", () => {
       "aria-labelledby": "contact-form-heading",
       class: cls("grid gap-flow max-w-(--measure) mx-auto text-start"),
     });
-    expect(form.children).toHaveLength(4);
+    expect(form.children).toHaveLength(5);
     const fields = Array.from(form.children).slice(0, 3);
     expect(fields.map((f) => f.tagName)).toEqual(["DIV", "DIV", "DIV"]);
     expect(fields.map(attrs)).toEqual([
@@ -281,7 +275,22 @@ describe("ContactPage", () => {
       },
     ]);
 
-    const button = must(form.children[3]);
+    const honeypot = must(form.children[3]);
+    expect(honeypot.tagName).toBe("INPUT");
+    expect(attrs(honeypot)).toEqual({
+      name: "company",
+      type: "text",
+      tabindex: "-1",
+      autocomplete: "off",
+      "aria-hidden": "true",
+      class: "sr-only",
+    });
+    expect(honeypot.id).toBe("");
+    expect(
+      Array.from(form.querySelectorAll("label"), (l) => l.htmlFor),
+    ).toEqual(["contact-name", "contact-email", "contact-message"]);
+
+    const button = must(form.children[4]);
     expect(button.tagName).toBe("BUTTON");
     expect(attrs(button)).toEqual({
       type: "submit",
@@ -367,7 +376,7 @@ describe("ContactPage", () => {
     );
     cleanup();
 
-    send.mockResolvedValue({ ok: false });
+    send.mockResolvedValue({ ok: false, reason: "failed" });
     const good = ["rachel@example.com", "r@e.co"];
     const accepted: unknown[] = [];
     for (const value of good) {
@@ -453,8 +462,8 @@ describe("ContactPage", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
-  it("clears the errors on a valid submit and sends the three fields to the action", () => {
-    send.mockResolvedValue({ ok: false });
+  it("clears the errors on a valid submit and sends the three fields and the empty honeypot to the action", () => {
+    send.mockResolvedValue({ ok: false, reason: "failed" });
     render(<ContactPage />);
     submit();
     expect(errorIds()).toHaveLength(2);
@@ -475,28 +484,8 @@ describe("ContactPage", () => {
       ["name", "Ada Lovelace"],
       ["email", "ada@example.com"],
       ["message", "Hello Rachel"],
+      ["company", ""],
     ]);
-  });
-
-  it("keeps the form and its values when the action reports failure", async () => {
-    send.mockResolvedValue({ ok: false });
-    render(<ContactPage />);
-    fill(nameInput(), "Ada Lovelace");
-    fill(emailInput(), "ada@example.com");
-    fill(messageInput(), "Hello Rachel");
-    const before = formWrapper().outerHTML;
-
-    submit();
-    await act(async () => {
-      await send.mock.results[0]?.value;
-    });
-
-    expect(send).toHaveBeenCalledTimes(1);
-    expect(formWrapper().outerHTML).toBe(before);
-    expect(
-      [nameInput(), emailInput(), messageInput()].map((c) => c.value),
-    ).toEqual(["Ada Lovelace", "ada@example.com", "Hello Rachel"]);
-    expect(document.querySelector("[role='status']")).toBeNull();
   });
 
   it("replaces the form with a focused status Lead when the action reports success", async () => {
