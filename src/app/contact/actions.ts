@@ -1,9 +1,7 @@
 "use server";
 
 export async function sendMessage(
-  formData: FormData,
+  _formData: FormData,
 ): Promise<{ ok: boolean }> {
-  return await Promise.reject(
-    new Error(`sendMessage is not built: ${typeof formData}`),
-  );
+  return await Promise.resolve({ ok: false });
 }
