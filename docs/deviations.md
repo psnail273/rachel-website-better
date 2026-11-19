@@ -160,3 +160,10 @@ Each entry records the issue, the commit, what deviated, the reason (or "undecla
 - Reason: equivalent. The form renders all three named fields, so `FormData.get` never returns `null` or a `File` for them, and the focus targets are the form's own fields, always present when the submit handler runs.
 - Ruling: driver's call: out of reach.
 - Reasoning: no input reaches these branches. The other three survivors (the email pattern's `^` and `$`, and `preventDefault`) can be killed: the brief now scopes `src/app/_components/contact-form.test.tsx` for them, resealed at aa71e7fd.
+## #54 45106ca: two contact-action mutants out of reach
+
+- Issue: #54 (Contact form sends Rachel an email through Resend, with spam protection). Commit: 45106ca.
+- What deviated: the green gate left two mutants that no test kills. In `src/app/contact/actions.ts:18`, `""` → `"Stryker was here!"` (the key passed to the sender when the config is null). In `src/server/contact/rate-limit.ts:11`, `[]` → `["Stryker was here"]` (a key's take list when it has no takes yet).
+- Reason: equivalent. Without a config, `handleContact` returns before it sends, and the sender builds its Resend client only on send, so that key is never read. For the limiter, `time - "Stryker was here"` is `NaN`, so the window filter always drops that entry.
+- Ruling: driver's call: out of reach.
+- Reasoning: no input can reach either difference. The green Verifier ruled both equivalent twice. The third survivor, `config === null` → `true`, was not equivalent: it sent with the raw environment key. 45106ca kills it.
