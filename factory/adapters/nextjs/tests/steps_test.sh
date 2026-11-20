@@ -448,6 +448,46 @@ test_playtest_waits_for_the_build_lock_with_node() {
 	assert_eq "build" "$(cat "$TEST_TMP/built")" "what next ran"
 }
 
+# playtest builds from source: under the build lock, just before next build, it
+# removes .next/cache/turbopack (a stale one once mixed old CSS into a playtest),
+# and nothing else; with no such folder it builds as before. next is a stand-in
+# that records, as it starts, whether the cache folder is there and the lock held.
+test_playtest_removes_the_turbopack_cache_under_the_build_lock_with_node() {
+	needs_node
+	skeleton_project
+	mkdir -p node_modules/.bin
+	printf '#!/usr/bin/env bash\n{ echo "$1"; [ -e .next/cache/turbopack ] && echo cache || echo no-cache; [ -d %q ] && echo locked || echo unlocked; } >> %q\n' \
+		"$FACTORY_BUILD_LOCK" "$TEST_TMP/built" > node_modules/.bin/next && chmod 755 node_modules/.bin/next ||
+		fail "could not stand in for next"
+	mkdir -p .next/cache/turbopack/stale .next/cache/fetch-cache .next/cache/images &&
+		echo old > .next/cache/turbopack/stale/chunk.css && echo kept > .next/cache/fetch-cache/entry ||
+		fail "could not make the stale cache"
+
+	# The lock held past the wait: no build, and the cache is left as it was.
+	mkdir "$FACTORY_BUILD_LOCK" && echo "$BASHPID" > "$FACTORY_BUILD_LOCK/pid" || fail "could not hold the lock"
+	FACTORY_BUILD_WAIT=0 step playtest
+	assert_status 1
+	[ -f .next/cache/turbopack/stale/chunk.css ] || fail "playtest removed the cache without the build lock"
+	rm -rf "$FACTORY_BUILD_LOCK"
+
+	FACTORY_BUILD_WAIT=0 step playtest
+	assert_status 0
+	assert_eq "pnpm exec next start --port 3000   then open http://localhost:3000" "$out" "playtest's stdout"
+	assert_eq $'build\nno-cache\nlocked' "$(cat "$TEST_TMP/built")" "what next found as it started"
+	stderr_has "playtest: removed .next/cache/turbopack, so the build is from source"
+	[ ! -e .next/cache/turbopack ] || fail "the Turbopack cache is still there"
+	assert_eq "kept" "$(cat .next/cache/fetch-cache/entry)" ".next/cache's other caches"
+	[ -d .next/cache/images ] || fail "playtest removed .next/cache/images"
+	[ ! -e "$FACTORY_BUILD_LOCK" ] || fail "playtest left the build lock behind"
+
+	# No cache folder (as after that build): it builds, and says nothing of one.
+	rm -f "$TEST_TMP/built"
+	FACTORY_BUILD_WAIT=0 step playtest
+	assert_status 0
+	assert_eq $'build\nno-cache\nlocked' "$(cat "$TEST_TMP/built")" "what next found as it started"
+	! grep -qF 'removed .next/cache/turbopack' "$TEST_TMP/stderr" || fail "playtest claimed a cache it didn't remove"
+}
+
 # Node and pnpm named by a path, and on no PATH: the playtest's start command and
 # the verify skill's shell setup (local.env, then _nextjs.sh) still find them.
 test_node_and_pnpm_off_path_are_found_through_local_env_with_node() {

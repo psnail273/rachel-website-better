@@ -16,6 +16,13 @@
 # (_nextjs.sh's nx_next_build), so it queues behind a gate's build instead of
 # colliding with it; FACTORY_BUILD_WAIT (local.env; seconds, default 900) bounds
 # the wait.
+#
+# The build is from source: just before next build starts, under that lock (so
+# no other build through it, in this checkout or another, is running), it removes
+# this checkout's .next/cache/turbopack, Turbopack's build cache, and nothing else
+# (.next/cache's other caches, other checkouts). A stale cache there once built a
+# playtest whose CSS mixed new and old values, and the human judges a playtest by
+# eye. The cold build is slower; a cache it can't remove fails the playtest.
 # Exits 0 with the app built, 1 otherwise (the reason on stderr).
 #
 # Run bare (the build skill's playtest.md), it reads tools/verify/local.env itself, as
@@ -30,6 +37,21 @@ if [ -f tools/verify/local.env ]; then
 	set +a
 fi
 . "$(dirname "${BASH_SOURCE[0]}")/_nextjs.sh"
+
+# tool (_nextjs.sh's), but next build first removes .next/cache/turbopack:
+# nx_next_build runs `tool next build` once it holds the build lock.
+tool() {
+	local name="$1"
+	shift
+	if [ "$name" = next ] && [ "${1:-}" = build ] && { [ -e .next/cache/turbopack ] || [ -L .next/cache/turbopack ]; }; then
+		if ! rm -rf .next/cache/turbopack || [ -e .next/cache/turbopack ]; then
+			echo "playtest: could not remove .next/cache/turbopack, Turbopack's build cache; remove it, then run again" >&2
+			return 1
+		fi
+		echo "playtest: removed .next/cache/turbopack, so the build is from source" >&2
+	fi
+	"node_modules/.bin/$name" "$@"
+}
 
 port="${FACTORY_PLAYTEST_PORT:-3000}"
 case "$port" in
