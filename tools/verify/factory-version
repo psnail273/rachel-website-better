@@ -273,7 +273,7 @@ file 87fcdf5af253f1622a5c8a03adc002276a2b7b65 factory/agents/asset-fetcher.md
 file c7edee82ecf0e81e33989e56bc8a74f2c510e479 factory/agents/check-editor-sonnet.log
 file 8890233f8acf2f28511fb4f0497d920083c5c208 factory/agents/check-editor-sonnet.sh
 file 5988c540d0f15d5d22ad4632604792b827676da5 factory/agents/designer.md
-file e59810489ca040c5e4b26a27832160cb92277a05 factory/agents/driver.md
+file 30a7e2628757e8f50d20c78bdafc159c8208792b factory/agents/driver.md
 file 1049999f709c3fc36f0fccb0f80cabe691df6be2 factory/agents/editor-sonnet.md
 file 49469d1a8ba41a35e2271656e636db17c741c297 factory/agents/verifier.md
 file 802083108998b7ab2cb52d5686967a4235200fc4 factory/core/adopt.sh
@@ -281,7 +281,7 @@ file b7312b0ce1569aad79fc45effee15d143e0477b7 factory/core/agents.sh
 file c204c9d2635db00942ca51d4b00b8592207dae5e factory/core/amend.sh
 file 2fe54c3088f55bf544c73eadf1b48bba697ac7be factory/core/arm.sh
 file 28ba6a10933b580d81a4bc2c6724fa5829ff14a2 factory/core/baseline.sh
-file 54ebd9a666486c6d2eed190c1c4ae9139bd89fc3 factory/core/brief.sh
+file fbb4c91af5257d5010f677ab3247e700679b3656 factory/core/brief.sh
 file 6bd7d99d508b5f300677617d6907008f243e9be1 factory/core/deviation.sh
 file bb02a13ae5492c59e572862f529fe7c2f6e95621 factory/core/hooks.sh
 file b117e9cbbf1fb3c766c95c41d23bfd83162d013d factory/core/hooks/claude-deny.sh
@@ -299,7 +299,7 @@ file 30a4384d54e3aff372c5c63ce88af33e26293221 factory/core/land.sh
 file 5c7fc6ca119e5206a9bbe913f9944a3d4fb44704 factory/core/lib/agents.sh
 file a1e0bd81a2148b3f03047ee1783549df0b43d33d factory/core/lib/architecture.sh
 file 8c4f0b29abd1687af6c40cc34975e216119ce2af factory/core/lib/bounded.sh
-file ea10da84a94fc98d06987e9d998141864680957d factory/core/lib/brief.sh
+file e1bede496f85523e2e7ff8acadecdb0715863c5d factory/core/lib/brief.sh
 file d11366413a58e31acf154ed53300d5fd2b22cf84 factory/core/lib/diff.sh
 file ed00baec460ffb5119261abcd94e4bbf82969708 factory/core/lib/findings.sh
 file ef6059697066a376db29b5d85ac57cc778200495 factory/core/lib/hooks.sh
@@ -309,6 +309,8 @@ file b3c6c824eb2b3354cfbec909dc67b92da5b939a8 factory/core/lib/lock.sh
 file 5160c036f6b264d98d7371c278aafcb16b85db5a factory/core/lib/mutate.sh
 file 9deef2af8f7fcb83e45820141516b77a66fe3cd0 factory/core/lib/project.sh
 file 6a5e85d2ff46bf00708638621215d5a08aaea812 factory/core/lib/protect.sh
+file 184091c8a7a380aeb16048cef3ee7aca01a26e5d factory/core/lib/readers.awk
+file 2543ccba2922981207e99a9eb18c60307cfa8a5e factory/core/lib/readers.sh
 file 568a16c358bd2629aad288f1a3218cf0012c46c9 factory/core/lib/red.sh
 file 550eeecabc541fd86be8add5534c124a26f8cac3 factory/core/lib/release.sh
 file d324099aeb29bcf0dc4c8400501843c5e64e8041 factory/core/lib/results.sh
@@ -349,7 +351,7 @@ file 0217883c6ec27089797ba7d2cf7650cdd38a5b13 factory/core/tests/architecture_te
 file 1c3f96c252653cbcaef9c3175ea6763b2ba66e2b factory/core/tests/arm_test.sh
 file 812bfc8cbc26a3e8b3dee702251ec828c0be7619 factory/core/tests/baseline_test.sh
 file 09897a759a930a74f1be02f60f1d58f00d7d9838 factory/core/tests/bounded_test.sh
-file ce98baa148e8a8d34de14ed4527363aebd9263ea factory/core/tests/brief_test.sh
+file 7b4e4f4b0a97007f93ec7f30d92ac322768fcce4 factory/core/tests/brief_test.sh
 file 44f7fbbe0b035068f4e354233d697c2e9dd774d5 factory/core/tests/build_skill_test.sh
 file e38c357be05b8b01c7d95115227de3edc3a60be4 factory/core/tests/claude_deny_test.sh
 file c6304de9c93785a881f0e6168338ac654b950343 factory/core/tests/claude_usage_test.sh
@@ -427,8 +429,8 @@ file efdf886059c4ef258b473e16aa9342f8d26a0f90 factory/skills/audit/SKILL.md
 file 1668e8bb7c90945a46fa4ed442f97fcfc9af8ccf factory/skills/build/SKILL.md
 file 2e8f6b9a36ea002588b1dc389d69866bc8cb11d6 factory/skills/build/amend-slices.md
 file 267a27e1595000875610a89e4527db2b2cb9f145 factory/skills/build/assets.md
-file 02f3b8b5b6c65f1039de7b9f1c18de4646759eae factory/skills/build/brief-rubric.md
-file 4fd914aa54fd06a9e3c7e406a2321979b5e1580b factory/skills/build/build-brief.md
+file edddbf17c0084f64f9fe58f493296b30f01f2a2f factory/skills/build/brief-rubric.md
+file 9bcbe7046dc2610a17d97ddc66cff8060cf6bd1a factory/skills/build/build-brief.md
 file 188418d882c57e9415850b70fc9c8e4cc9188077 factory/skills/build/drift-rubric.md
 file fb9ea9b4aa41c49f8d1e3048cbd1435ac67eb313 factory/skills/build/drift.md
 file e12e18f77f2e71c1b69246e54b132d3b41733df8 factory/skills/build/editor.md

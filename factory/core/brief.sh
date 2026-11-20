@@ -11,13 +11,33 @@
 #   bash factory/core/brief.sh grows [brief]   the accepted ratchet growth, `<file> <entry>` per line
 #   bash factory/core/brief.sh invariants [brief]
 #                                              the invariants, `<path> <symbol> <property>` per line
+#   bash factory/core/brief.sh readers         the source readers: each test that reads
+#                                              source files as text, and its reach,
+#                                              `<test file> <path>` per line (a folder
+#                                              ends in /); it reads no brief
 #
 # [brief] defaults to $FACTORY_BRIEF, else <git-dir>/factory/brief.md. The
 # listings print nothing but the findings when the block is malformed, and exit 1.
 # check and seal read the prose too (factory_brief_lint), once the block parses:
-# the template's Kind line and sections, and that they agree with the block; a
-# `lane small` brief's limits (factory_brief_lane_lint); and a test-only brief's,
-# Kind build in Phase green (factory_brief_test_only_lint).
+# the template's Kind line and sections, and that they agree with the block,
+# each Constraint naming the test that pins it or `untested: <reason>` among
+# them; a `lane small` brief's limits (factory_brief_lane_lint); a test-only
+# brief's, Kind build in Phase green (factory_brief_test_only_lint); that each
+# source reader whose reach a scope line covers is under Existing tests
+# (factory_brief_readers_lint); and that `invariants` lines have their test file
+# in scope, `<module>.invariants<test file ending>`, or where tests keep a
+# folder of their own a test file named for invariants
+# (factory_brief_invariants_lint).
+#
+# The source readers come from a text scan of the test files (lib/readers.sh
+# names what it reads), for JavaScript and TypeScript tests: a test file that
+# calls readFileSync, readFile, readdirSync, readdir, opendirSync, opendir,
+# existsSync, statSync, lstatSync, createReadStream or globSync, or imports a
+# file with `?raw`. Its reach is the files and folders it names: a join or
+# resolve from import.meta.dirname, __dirname, process.cwd() or a literal path,
+# a new URL(<path>, import.meta.url), a literal path, a `?raw` specifier; a join
+# whose next part isn't a literal, as a directory walk like
+# sourceFiles(srcDir) has, reaches the whole folder.
 #
 # seal runs in the issue's worktree, on its branch. The Driver seals the brief
 # before the Editor's first round and again after every edit to it: state.sh
@@ -47,14 +67,25 @@ core="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$core/lib/lock.sh"
 . "$core/lib/json.sh"
 . "$core/lib/protect.sh"
+. "$core/lib/readers.sh"
 
 usage() {
-	echo "usage: bash factory/core/brief.sh check|seal|scope|tests|seams|removes|grows|invariants [brief]" >&2
+	echo "usage: bash factory/core/brief.sh check|seal|scope|tests|seams|removes|grows|invariants [brief], or readers" >&2
 	exit 2
 }
 
 [ "$#" -ge 1 ] && [ "$#" -le 2 ] || usage
 what="$1"
+if [ "$what" = readers ]; then
+	[ "$#" -eq 1 ] || usage
+	git rev-parse --is-inside-work-tree > /dev/null 2>&1 || {
+		echo "brief: not in a git repository" >&2
+		exit 1
+	}
+	factory_test_paths_load || exit 1
+	factory_source_readers
+	exit
+fi
 case "$what" in check | seal | scope | tests | seams | removes | grows | invariants) ;; *) usage ;; esac
 if [ "$#" -eq 2 ]; then
 	brief="$2"
@@ -78,6 +109,8 @@ case "$what" in check | seal)
 	# The lane's and the test-only limits need the Kind and Phase the lint read.
 	factory_brief_lane_lint "$brief" >> "$findings" || lint=1
 	factory_brief_test_only_lint "$brief" >> "$findings" || lint=1
+	factory_brief_readers_lint "$brief" >> "$findings" || lint=1
+	factory_brief_invariants_lint "$brief" >> "$findings" || lint=1
 	if [ "$lint" -ne 0 ]; then
 		factory_sort_findings < "$findings"
 		exit 1

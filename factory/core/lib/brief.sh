@@ -83,8 +83,11 @@ BRIEF_GROWS=() BRIEF_GROW_LINES=()
 BRIEF_ASSERTS=() BRIEF_ASSERT_LINES=()
 BRIEF_INVARIANTS=() BRIEF_INVARIANT_LINES=()
 BRIEF_LANE="" BRIEF_LANE_LINE=0
-# Filled by factory_brief_lint: the Kind and Phase its Kind line names, or "".
+# Filled by factory_brief_lint: the Kind and Phase its Kind line names, or "";
+# the test files its Existing tests bullets name, unaffected ones too, with a
+# leading ./ dropped, and the line of that heading (0 when there is none).
 BRIEF_KIND="" BRIEF_PHASE=""
+BRIEF_EXISTING_FILES=() BRIEF_EXISTING_LINE=0
 
 # factory_is_driver_doc <path>: true when the path is one of the Driver's docs.
 factory_is_driver_doc() {
@@ -317,15 +320,25 @@ factory_brief_has_test() {
 #     a scope line covers unless the bullet says unaffected; or a line starting
 #     None that says what was searched. A bullet opens with its tests and their
 #     files, `<test>`[, `<test>`...] in `<file>`, groups joined by a comma or
-#     "and"; whatever follows is detail, never a file
+#     "and"; whatever follows is detail, never a file. A bullet that opens with
+#     neither is refused with the fix, one test per line, unless it says
+#     unaffected
+#   - `## Constraints`: each bullet at the start of a line is a Constraint, and
+#     the lines under it, up to the next such bullet, are its detail. Each one
+#     names a `test` line of the block in backticks, the test that pins it, or
+#     says `untested: <reason>`, in any case; a Driver's check (`The Driver's
+#     check after green: ...`) is the Driver's, and needs neither. Checked
+#     when the block has a `test` line (not in Phase partial, Kind asset or an
+#     amend's own check, which have none to name)
 #   - each `asserts` line's file is in scope
 # Seams and Probed are required in every phase but partial; Existing tests in
 # every phase but partial and in every Kind but asset.
 factory_brief_lint() {
 	local brief="$1" n=0 line fence="" run section="" bad=0 kind="" phase="" heading after i path names
 	local kind_line=0 accept_line=0 seams_line=0 probed_line=0 none_line=0 probed_n=0
-	local existing_line=0 existing_n=0
+	local existing_line=0 existing_n=0 pinned
 	local -a mapped=() mapped_lines=() untested_lines=() judged_lines=() bullets=() bullet_lines=()
+	local -a constraints=() constraint_lines=()
 	local re_kind='^Kind: ([a-z]+)\. Phase: ([a-z]+)\.[[:space:]]*$'
 	local re_tick='^[[:space:],]*`([^`]+)`(.*)$'
 	local re_in='(^|[[:space:]])in[[:space:]]+`[^`]*`'
@@ -337,7 +350,11 @@ factory_brief_lint() {
 	local re_bullet='^[-*][[:space:]]'
 	local re_heading='^#{1,2}[[:space:]]+(.*[^[:space:]])[[:space:]]*$'
 	local re_fence='^ {0,3}(`{3,}|~{3,})(.*)$'
+	local re_untested='untested:[[:space:]]*[^[:space:]]'
+	local re_drivers_check='^[-*][[:space:]]+The Driver.s check'
+	local re_any_tick='`([^`]+)`(.*)$'
 
+	BRIEF_EXISTING_FILES=() BRIEF_EXISTING_LINE=0
 	# shellcheck disable=SC2094 # the loop reads the brief; factory_finding only names it
 	while IFS= read -r line || [ -n "$line" ]; do
 		n=$((n + 1))
@@ -363,6 +380,7 @@ factory_brief_lint() {
 				Seams) section=seams seams_line=$n ;;
 				Probed) section=probed probed_line=$n ;;
 				'Existing tests') section=existing existing_line=$n ;;
+				Constraints) section=constraints ;;
 				*) section="" ;;
 			esac
 			continue
@@ -441,20 +459,30 @@ factory_brief_lint() {
 					fi
 				elif [[ $line =~ $re_bullet ]]; then
 					existing_n=$((existing_n + 1))
-					# An unaffected test needs no scope line.
-					[[ ${line,,} == *unaffected* ]] && continue
 					after="${line#?}" names=0
 					while [[ $after =~ $re_existing ]]; do
 						path="${BASH_REMATCH[5]}" after="${BASH_REMATCH[6]}"
 						names=$((names + 1))
+						while [ "${path#./}" != "$path" ]; do path="${path#./}"; done
+						BRIEF_EXISTING_FILES+=("$path")
+						# An unaffected test needs no scope line.
+						[[ ${line,,} == *unaffected* ]] && continue
 						factory_in_scope_plain "$path" && continue
 						factory_finding "$brief" "$n" brief-existing-test "test file $path is outside the scope: add a scope line for it, or say why its test is unaffected ('unaffected: <reason>')"
 						bad=1
 					done
-					if [ "$names" -eq 0 ]; then
-						factory_finding "$brief" "$n" brief-existing-test "expected '- \`<test>\` in \`<file>\`: in scope, or unaffected: <reason>', got: $line"
+					if [ "$names" -eq 0 ] && [[ ${line,,} != *unaffected* ]]; then
+						factory_finding "$brief" "$n" brief-existing-test "list one test per line, by its name and its file: '- \`<test>\` in \`<file>\`: in scope, or unaffected: <reason>' (tests of one file may share a bullet: '- \`<test>\`, \`<test>\` in \`<file>\`: ...'); a bullet for a group of tests, or for a whole file, names no test, got: $line"
 						bad=1
 					fi
+				fi
+				;;
+			constraints)
+				# A bullet at the start of a line opens a Constraint; what follows is its detail.
+				if [[ $line =~ $re_bullet ]]; then
+					constraints+=("$line") constraint_lines+=("$n")
+				elif [ "${#constraints[@]}" -gt 0 ]; then
+					constraints[${#constraints[@]} - 1]+=$'\n'"$line"
 				fi
 				;;
 		esac
@@ -552,6 +580,28 @@ factory_brief_lint() {
 		factory_finding "$brief" "$existing_line" brief-section "Existing tests is empty: each existing test the change reaches, or None and what was searched"
 		bad=1
 	fi
+
+	# Each Constraint names the test that pins it, or why none can; a brief with
+	# no test lines (Phase partial, Kind asset, an amend's own check) has none to name.
+	if [ "${#BRIEF_TESTS[@]}" -gt 0 ]; then
+		for i in "${!constraints[@]}"; do
+			line="${constraints[i]}"
+			[[ ${line,,} =~ $re_untested ]] && continue
+			[[ $line =~ $re_drivers_check ]] && continue
+			pinned=0 after="$line"
+			while [[ $after =~ $re_any_tick ]]; do
+				if factory_brief_has_test "${BASH_REMATCH[1]}"; then
+					pinned=1
+					break
+				fi
+				after="${BASH_REMATCH[2]}"
+			done
+			[ "$pinned" -eq 0 ] || continue
+			factory_finding "$brief" "${constraint_lines[i]}" brief-constraint "a Constraint names the test that pins it, in backticks as its 'test' line names it, or says why no test can: 'untested: <reason>'; got: ${line%%$'\n'*}"
+			bad=1
+		done
+	fi
+	BRIEF_EXISTING_LINE="$existing_line"
 	BRIEF_KIND="$kind" BRIEF_PHASE="$phase"
 	return "$bad"
 }
@@ -653,6 +703,97 @@ factory_brief_test_only_lint() {
 		factory_is_driver_doc "${BRIEF_SCOPE[i]}" && continue
 		factory_scope_is_tests "${BRIEF_SCOPE[i]}" && continue
 		factory_finding "$brief" "${BRIEF_SCOPE_LINES[i]}" brief-test-only "a test-only brief (Kind build, Phase green) scopes only test files ($FACTORY_TEST_PATHS) and the Driver's docs ($FACTORY_DRIVER_DOCS), not ${BRIEF_SCOPE[i]}; a product change needs a red phase"
+		bad=1
+	done
+	return "$bad"
+}
+
+# factory_brief_readers_lint <brief>: refuse a brief that leaves a source reader
+# out of Existing tests: a test that reads source files as text
+# (factory_source_readers, lib/readers.sh) whose reach covers a scope line, so
+# the change can break it though it imports nothing the change touches. Needs
+# factory_brief_parse and factory_brief_lint run first, and diff.sh and
+# readers.sh sourced; run from the project root. Prints a brief-reader finding
+# per reader, against <brief>, and returns 1 if there were any.
+#   - a reader counts when no Existing tests bullet names its file, in scope or
+#     unaffected, and it is in the tree at the diff base (factory_diff_base):
+#     a test the issue writes is the brief's own
+#   - the scope lines that count are the product's: not the Driver's docs, and
+#     not a glob that names only test files (factory_scope_is_tests)
+#   - a reach covers a scope line when they may overlap (factory_scope_overlap)
+# Phase partial and Kind asset list no Existing tests, and outside a git work
+# tree or without the test-paths globs there is nothing to scan: they pass.
+factory_brief_readers_lint() {
+	local brief="$1" bad=0 base readers file reach i s last=""
+	[ "$BRIEF_PHASE" != partial ] && [ "$BRIEF_KIND" != asset ] || return 0
+	factory_test_paths_load > /dev/null || return 0
+	readers="$(factory_source_readers 2> /dev/null)" || return 0
+	base="$(factory_diff_base)" || base=""
+	while read -r file reach; do
+		[ -n "$file" ] && [ "$file" != "$last" ] || continue
+		factory_word_in "$file" "${BRIEF_EXISTING_FILES[@]}" && continue
+		[ -z "$base" ] || git cat-file -e "$base:$file" 2> /dev/null || continue
+		for i in "${!BRIEF_SCOPE[@]}"; do
+			s="${BRIEF_SCOPE[i]}"
+			factory_is_driver_doc "$s" && continue
+			factory_scope_is_tests "$s" && continue
+			factory_scope_overlap "$reach" "$s" || continue
+			factory_finding "$brief" "$((BRIEF_EXISTING_LINE > 0 ? BRIEF_EXISTING_LINE : 1))" brief-reader "$file reads $reach as text, and scope $s may change it: list its tests under Existing tests, one per line, '- \`<test>\` in \`$file\`: in scope, or unaffected: <reason>' (bash factory/core/brief.sh readers lists the source readers)"
+			bad=1 last="$file"
+			break
+		done
+	done <<< "$readers"
+	return "$bad"
+}
+
+# factory_brief_invariants_lint <brief>: an `invariants` line's property tests
+# need a test file of their own in scope, which no red commit locks: the module
+# (its path less its extension) with `.invariants` and a test file's ending,
+# from a `**/*<ending>` test-paths glob (`invariants src/server/events.ts ...`
+# with `**/*.test.ts` wants `scope src/server/events.invariants.test.ts`). With
+# no such glob (a stack that keeps its tests in a folder of their own, as
+# `tests/**`), a scope line whose last part holds `invariants`, or one that may
+# overlap `<module>.invariants.*`, passes.
+# Needs factory_brief_parse run first and diff.sh sourced. Prints a
+# brief-invariants finding per module, against <brief>, and returns 1 if there
+# were any.
+factory_brief_invariants_lint() {
+	local brief="$1" bad=0 i g s path name module want ok
+	local -a endings=() seen=()
+	[ "${#BRIEF_INVARIANTS[@]}" -gt 0 ] || return 0
+	if factory_test_paths_load > /dev/null; then
+		for g in "${TEST_PATHS[@]}"; do
+			case "$g" in '**/*'?*) ;; *) continue ;; esac
+			g="${g#'**/*'}"
+			case "$g" in *'*'* | *'?'* | */*) continue ;; esac
+			endings+=("$g")
+		done
+	fi
+	for i in "${!BRIEF_INVARIANTS[@]}"; do
+		path="${BRIEF_INVARIANTS[i]%% *}" module="${BRIEF_INVARIANTS[i]%% *}"
+		name="${path##*/}"
+		case "$name" in ?*.*) module="${path%.*}" ;; esac
+		factory_word_in "$module" "${seen[@]}" && continue
+		seen+=("$module")
+		ok=0
+		if [ "${#endings[@]}" -gt 0 ]; then
+			for g in "${endings[@]}"; do
+				factory_in_scope_plain "$module.invariants$g" && ok=1 && break
+			done
+			want="$module.invariants${endings[0]}"
+		else
+			for s in "${BRIEF_SCOPE[@]}"; do
+				[[ ${s##*/} == *invariants* ]] && ok=1 && break
+				factory_scope_overlap "$s" "$module.invariants.*" && ok=1 && break
+			done
+			want=""
+		fi
+		[ "$ok" -eq 0 ] || continue
+		if [ -n "$want" ]; then
+			factory_finding "$brief" "${BRIEF_INVARIANT_LINES[i]}" brief-invariants "the property tests of $path go in a test file of their own, which the red commit doesn't lock: add 'scope $want'"
+		else
+			factory_finding "$brief" "${BRIEF_INVARIANT_LINES[i]}" brief-invariants "the property tests of $path go in a test file of their own, which the red commit doesn't lock: add a scope line for it, where the project keeps its tests, with 'invariants' in its name"
+		fi
 		bad=1
 	done
 	return "$bad"

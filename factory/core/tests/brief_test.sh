@@ -296,7 +296,7 @@ Reorder stock at the threshold.
 None
 
 ## Constraints
-- R1 holds.
+- R1 holds; untested: the arch step checks it.
 
 ```factory-brief
 scope src/stock/**
@@ -620,7 +620,7 @@ test_check_wants_each_existing_test_in_scope_or_unaffected() {
 	assert_status 1
 	assert_eq "brief.md:30 brief-existing-test test file tests/supplier/client_test.txt is outside the scope: add a scope line for it, or say why its test is unaffected ('unaffected: <reason>')
 brief.md:34 brief-existing-test test file src/y_test.txt is outside the scope: add a scope line for it, or say why its test is unaffected ('unaffected: <reason>')
-brief.md:35 brief-existing-test expected '- \`<test>\` in \`<file>\`: in scope, or unaffected: <reason>', got: - the report tests read the order size" "$out"
+brief.md:35 brief-existing-test list one test per line, by its name and its file: '- \`<test>\` in \`<file>\`: in scope, or unaffected: <reason>' (tests of one file may share a bullet: '- \`<test>\`, \`<test>\` in \`<file>\`: ...'); a bullet for a group of tests, or for a whole file, names no test, got: - the report tests read the order size" "$out"
 	template_brief
 	edit_brief 's|in `tests/stock/report_test.txt`: in scope.*$|in `tests/supplier/client_test.txt`: Unaffected: it places no order.|'
 	run_brief check brief.md
@@ -686,7 +686,7 @@ MD
 # Headings and Kind lines inside a fenced block (a quoted example) don't count.
 test_check_skips_fenced_text() {
 	template_brief
-	edit_brief '/^- R1 holds.$/a ```text\n## Seams\nKind: bug. Phase: red.\n- `src/x.txt` `X.y`: no\n```'
+	edit_brief '/^- R1 holds;/a ```text\n## Seams\nKind: bug. Phase: red.\n- `src/x.txt` `X.y`: no\n```'
 	run_brief check brief.md
 	assert_status 0
 	assert_eq "" "$out"
@@ -696,9 +696,9 @@ test_check_skips_fenced_text() {
 # an indent of up to three spaces.
 test_check_skips_every_kind_of_fence() {
 	template_brief
-	edit_brief '/^- R1 holds.$/a ~~~text\nKind: bug. Phase: red.\n```\n## Seams\n~~~'
-	edit_brief '/^- R1 holds.$/a ````markdown\n```text\nKind: bug. Phase: red.\n```\n- `src/x.txt` `X.y`: no\n````'
-	edit_brief '/^- R1 holds.$/a \   ```\n## Probed\n   ```'
+	edit_brief '/^- R1 holds;/a ~~~text\nKind: bug. Phase: red.\n```\n## Seams\n~~~'
+	edit_brief '/^- R1 holds;/a ````markdown\n```text\nKind: bug. Phase: red.\n```\n- `src/x.txt` `X.y`: no\n````'
+	edit_brief '/^- R1 holds;/a \   ```\n## Probed\n   ```'
 	run_brief check brief.md
 	assert_status 0
 	assert_eq "" "$out"
@@ -713,6 +713,378 @@ test_check_reads_the_prose_once_the_block_parses() {
 	run_brief check brief.md
 	assert_status 1
 	assert_eq "brief.md:25 brief-format expected 'seam <path> <symbol>', got: seam only-a-path" "$out"
+}
+
+# --- Constraints -----------------------------------------------------------------
+
+# Each Constraint names the test that pins it, in backticks as its test line
+# names it, anywhere in its bullet or the lines under it; or says why no test
+# can, `untested: <reason>` in any case. A Driver's check is the Driver's.
+test_check_takes_a_constraint_that_names_its_test_or_says_untested() {
+	template_brief
+	edit_brief '/^- R1 holds;/a - The order size stays under 10: pinned by `test_reorder_keeps`.\n- Timers are cleared on unmount.\n  - `test_reorder_waits` checks none is left.\n- Names stay as they are; Untested: a name is no behaviour.\n- The Driver'"'"'s check after green: a build runs clean. It is not the Editor'"'"'s to run.'
+	run_brief check brief.md
+	assert_status 0
+	assert_eq "" "$out"
+}
+
+# #35's Constraint named neither: it cost a brief-review FAIL.
+test_check_refuses_a_constraint_with_no_test_and_no_untested_reason() {
+	template_brief
+	edit_brief '/^- R1 holds;/a - No `metadata` export.\n- The size reads `Order.size`; untested:\n- Uses `test_other` from the report suite.'
+	run_brief check brief.md
+	assert_status 1
+	assert_eq "brief.md:20 brief-constraint a Constraint names the test that pins it, in backticks as its 'test' line names it, or says why no test can: 'untested: <reason>'; got: - No \`metadata\` export.
+brief.md:21 brief-constraint a Constraint names the test that pins it, in backticks as its 'test' line names it, or says why no test can: 'untested: <reason>'; got: - The size reads \`Order.size\`; untested:
+brief.md:22 brief-constraint a Constraint names the test that pins it, in backticks as its 'test' line names it, or says why no test can: 'untested: <reason>'; got: - Uses \`test_other\` from the report suite." "$out"
+}
+
+# An amend's own check, Kind amend with no test lines, has no test to name.
+test_check_leaves_constraints_alone_in_a_brief_with_no_test_lines() {
+	cat > brief.md << 'MD'
+# Build Brief: #4 A colour check
+
+Kind: amend. Phase: green.
+
+## Acceptance criteria → tests
+- each hex colour in a .tsx file is reported → judged by the Verifier
+
+## Seams
+None
+
+## Probed
+None
+
+## Constraints
+- The check reads every .tsx file under src/ and reports each hex colour as `raw-colour`.
+
+## Existing tests
+None: searched tools/verify/ for a colour check; there is none.
+
+```factory-brief
+scope ARCHITECTURE.md
+scope tools/verify/lint
+scope docs/deviations.md
+```
+MD
+	run_brief check brief.md
+	assert_status 0
+	assert_eq "" "$out"
+}
+
+# A test name holds spaces (TypeScript's describe blocks joined by ` > `).
+test_check_takes_a_constraint_naming_a_test_with_spaces() {
+	template_brief
+	edit_brief 's/^test test_reorder_keeps$/test cart > keeps the size/; s/`test_reorder_keeps`$/`cart > keeps the size`/'
+	edit_brief 's/^- R1 holds;.*$/- The size stays under 10 (`cart > keeps the size`)./'
+	run_brief check brief.md
+	assert_status 0
+	assert_eq "" "$out"
+}
+
+# Partial mode and an asset have no tests, so their Constraints need neither.
+test_check_leaves_constraints_alone_in_partial_mode_and_for_an_asset() {
+	cat > brief.md << 'MD'
+# Build Brief: #2 Tidy
+
+Kind: cleanup. Phase: partial.
+
+## Acceptance criteria → tests
+- the long line is gone → `removes src/a.txt long-line line too long`
+
+## Constraints
+- Touch nothing but the long line.
+
+```factory-brief
+scope src/a.txt
+removes src/a.txt long-line line too long
+```
+MD
+	run_brief check brief.md
+	assert_status 0
+	assert_eq "" "$out"
+	asset_brief
+	printf '\n## Constraints\n- Keep the sounds under 1 MB each.\n' >> brief.md
+	run_brief check brief.md
+	assert_status 0
+	assert_eq "" "$out"
+}
+
+# --- invariants' test file ---------------------------------------------------------
+
+# A property test is written in green, after the red commit locked its test
+# files, so it needs a test file of its own in scope: the module with
+# .invariants and a test file's ending from a `**/*<ending>` test-paths glob.
+test_check_wants_the_invariants_test_file_in_scope() {
+	template_brief
+	mkdir -p tools/verify && printf '**/*_test.txt\ntests/**\n' > tools/verify/test-paths
+	edit_brief 's|^scope src/stock/\*\*$|scope src/stock/supplier.txt|'
+	edit_brief 's|^seam src/stock/supplier.txt Supplier.place$|&\
+invariants src/stock/ics.txt parseIcs never throws on any string\
+invariants src/stock/ics.txt parseIcs events come out sorted by start|'
+	run_brief check brief.md
+	assert_status 1
+	assert_eq "brief.md:27 brief-invariants the property tests of src/stock/ics.txt go in a test file of their own, which the red commit doesn't lock: add 'scope src/stock/ics.invariants_test.txt'" "$out"
+	edit_brief 's|^scope src/stock/supplier.txt$|&\
+scope ./src/stock/ics.invariants_test.txt|'
+	run_brief check brief.md
+	assert_status 0
+	assert_eq "" "$out"
+}
+
+# With no `**/*<ending>` glob, as a stack that keeps its tests in a folder of
+# their own (Godot's `tests/**`), a scope line whose last part holds
+# `invariants` will do, or one that may hold <module>.invariants.*; the module
+# of a path with no extension is the path. A tests folder the red commit locks
+# is no such line.
+test_check_wants_an_invariants_scope_line_without_an_ending_glob() {
+	template_brief
+	mkdir -p tools/verify && printf 'tests/**\n' > tools/verify/test-paths
+	edit_brief 's|^scope src/stock/\*\*$|scope scripts/stock/reorder_rule.gd|'
+	edit_brief 's|^seam src/stock/supplier.txt Supplier.place$|&\
+invariants scripts/stock/reorder_rule.gd ReorderRule.order_size never below the minimum order|'
+	edit_brief 's|^seam src/stock/supplier.txt Supplier.place$||; s|^- `src/stock/supplier.txt` `Supplier.place`.*$|None|'
+	run_brief check brief.md
+	assert_status 1
+	assert_eq "brief.md:27 brief-invariants the property tests of scripts/stock/reorder_rule.gd go in a test file of their own, which the red commit doesn't lock: add a scope line for it, where the project keeps its tests, with 'invariants' in its name" "$out"
+	edit_brief 's|^scope scripts/stock/reorder_rule.gd$|&\
+scope tests/stock/reorder_rule_invariants_test.gd|'
+	run_brief check brief.md
+	assert_status 0
+	assert_eq "" "$out"
+	edit_brief 's|^scope tests/stock/reorder_rule_invariants_test.gd$|scope scripts/**|'
+	run_brief check brief.md
+	assert_status 0
+	assert_eq "" "$out"
+}
+
+# --- source readers ----------------------------------------------------------------
+
+# reader_repo: a git repo on branch issue/1 off dev, whose dev commit holds a
+# small TypeScript project: test-paths, tsconfig.json's `@/*` alias, and these
+# tests, shaped like this project's own:
+#   - src/app/globals.test.ts walks src/ like globals.test.ts's sourceFiles(),
+#     and reads globals.css beside it;
+#   - src/app/_components/header.test.tsx reads header.tsx with readFileSync;
+#   - src/app/_components/hero.css.test.ts imports its stylesheet and
+#     globals.css with ?raw, the second through the alias;
+#   - src/server/cache.test.ts reads only a temp folder's file, and joins an
+#     array: no reader.
+reader_repo() {
+	isolate_git
+	git init -q -b dev repo || fail "git init failed"
+	cd repo || fail "no repo"
+	mkdir -p tools/verify src/app/_components src/server docs
+	printf '**/*.test.ts\n**/*.test.tsx\n' > tools/verify/test-paths
+	cat > tsconfig.json << 'JSON'
+{
+  "compilerOptions": {
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+JSON
+	: > src/app/page.tsx
+	: > src/app/globals.css
+	: > src/app/_components/header.tsx
+	: > src/app/_components/hero.css
+	: > src/server/cache.ts
+	cat > src/app/globals.test.ts << 'TS'
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+const srcDir = join(import.meta.dirname, "..");
+const css = readFileSync(join(import.meta.dirname, "globals.css"), "utf8");
+
+function sourceFiles(dir: string, extensions: string[]): string[] {
+  return readdirSync(dir, { recursive: true, encoding: "utf8" }).filter(
+    (name) => extensions.some((ext) => name.endsWith(ext)) && !name.includes(".test."),
+  );
+}
+
+describe("globals", () => {
+  it("sets no colour by hand", () => {
+    for (const file of sourceFiles(srcDir, [".tsx"])) {
+      expect(readFileSync(join(srcDir, file), "utf8")).not.toMatch(/#[0-9a-f]{6}/);
+    }
+    expect(css).toContain("--ink");
+  });
+});
+TS
+	cat > src/app/_components/header.test.tsx << 'TS'
+import { readFileSync } from "node:fs";
+import path from "node:path";
+
+import { expect, it } from "vitest";
+
+const source = readFileSync(path.join(import.meta.dirname, "header.tsx"), "utf8");
+
+it("names no colour", () => {
+  expect(source).not.toContain("#");
+});
+TS
+	cat > src/app/_components/hero.css.test.ts << 'TS'
+import { expect, it } from "vitest";
+
+import globals from "@/app/globals.css?raw";
+import css from "./hero.css?raw";
+
+it("uses the tokens", () => {
+  expect(css).toContain("var(--ink)");
+  expect(globals).toContain("--ink");
+});
+TS
+	cat > src/server/cache.test.ts << 'TS'
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+
+import { expect, it } from "vitest";
+
+const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "cache-"));
+
+it("starts empty", () => {
+  const file = path.join(tmp, "nested", "events.sqlite");
+  expect(fs.existsSync(file)).toBe(false);
+  expect(["a", "b"].join(" > ")).toBe("a > b");
+});
+TS
+	git add -A && git commit -q -m base || fail "no base commit"
+	git checkout -q -b issue/1 || fail "no branch"
+}
+
+# reader_brief <scope...>: brief.md for a red issue on the page, scoping the
+# given paths besides the page's test and docs/deviations.md; its Existing tests
+# heading is line 17, its None line 18.
+reader_brief() {
+	{
+		cat << 'MD'
+# Build Brief: #3 The page
+
+Kind: build. Phase: red.
+
+## Acceptance criteria → tests
+- the page has a heading → `page > has a heading` in `src/app/page.test.tsx`
+
+## Seams
+None
+
+## Probed
+None
+
+## Constraints
+- Rules this touches: R1; untested: the arch step checks it.
+
+## Existing tests
+None: searched src/ for the page; no test reads it.
+
+```factory-brief
+scope src/app/page.test.tsx
+scope docs/deviations.md
+test page > has a heading
+MD
+		printf 'scope %s\n' "$@"
+		echo "$FENCE"
+	} > brief.md
+}
+
+test_readers_lists_each_test_that_reads_source_files_and_its_reach() {
+	reader_repo
+	run_brief readers
+	assert_status 0
+	assert_eq "src/app/_components/header.test.tsx src/app/_components/header.tsx
+src/app/_components/hero.css.test.ts src/app/_components/hero.css
+src/app/_components/hero.css.test.ts src/app/globals.css
+src/app/globals.test.ts src/" "$out"
+}
+
+# A literal path is read from the project root; a new URL from the test's
+# folder. A path that leaves the project, and the root itself, are no reach.
+test_readers_reads_literal_paths_urls_and_resolve() {
+	reader_repo
+	cat > src/server/config.test.ts << 'TS'
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+const pkg = readFileSync("package.json", "utf8");
+const page = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+const root = resolve(import.meta.dirname, "..", "..");
+const up = existsSync(resolve(import.meta.dirname, "..", "..", "..", "elsewhere"));
+const files = existsSync(resolve(root, "public"));
+TS
+	run_brief readers
+	assert_status 0
+	assert_line "src/server/config.test.ts package.json"
+	assert_line "src/server/config.test.ts src/app/page.tsx"
+	assert_line "src/server/config.test.ts public"
+	[ "$(grep -c '^src/server/config.test.ts ' <<< "$out")" = 3 ] || fail "expected three reaches for config.test.ts, got: $out"
+}
+
+test_readers_needs_the_test_paths() {
+	reader_repo
+	rm tools/verify/test-paths
+	run_brief readers
+	assert_status 1
+	assert_eq "tools/verify/test-paths:1 test-paths-missing no test-paths file; it lists the globs of the project's test files, one per line" "$out"
+}
+
+# A brief whose scope a source reader's reach covers lists that reader under
+# Existing tests, or check refuses it at that heading, once per reader.
+test_check_wants_each_source_reader_whose_reach_a_scope_line_covers() {
+	reader_repo
+	reader_brief src/app/page.tsx
+	run_brief check brief.md
+	assert_status 1
+	assert_eq "brief.md:17 brief-reader src/app/globals.test.ts reads src/ as text, and scope src/app/page.tsx may change it: list its tests under Existing tests, one per line, '- \`<test>\` in \`src/app/globals.test.ts\`: in scope, or unaffected: <reason>' (bash factory/core/brief.sh readers lists the source readers)" "$out"
+	reader_brief 'src/app/_components/**'
+	run_brief check brief.md
+	assert_status 1
+	assert_line "brief.md:17 brief-reader src/app/_components/header.test.tsx reads src/app/_components/header.tsx as text, and scope src/app/_components/** may change it: list its tests under Existing tests, one per line, '- \`<test>\` in \`src/app/_components/header.test.tsx\`: in scope, or unaffected: <reason>' (bash factory/core/brief.sh readers lists the source readers)"
+	assert_line "brief.md:17 brief-reader src/app/_components/hero.css.test.ts reads src/app/_components/hero.css as text, and scope src/app/_components/** may change it: list its tests under Existing tests, one per line, '- \`<test>\` in \`src/app/_components/hero.css.test.ts\`: in scope, or unaffected: <reason>' (bash factory/core/brief.sh readers lists the source readers)"
+	[ "$(grep -c brief-reader <<< "$out")" = 3 ] || fail "expected one finding per reader, got: $out"
+}
+
+test_check_passes_a_brief_that_lists_the_source_readers_it_reaches() {
+	reader_repo
+	reader_brief 'src/app/_components/**' src/app/globals.css
+	sed -i 's|^None: searched.*$|- `globals > sets no colour by hand` in `src/app/globals.test.ts`: unaffected: the page sets no colour.\
+- `names no colour` in `./src/app/_components/header.test.tsx`: in scope\
+- `uses the tokens` in `src/app/_components/hero.css.test.ts`: in scope|' brief.md
+	run_brief check brief.md
+	assert_status 0
+	assert_eq "" "$out"
+}
+
+# Only readers of product files count: a scope of tests or the Driver's docs, a
+# reach no scope line covers, and a test the branch adds pass.
+test_check_counts_only_readers_at_the_base_that_reach_a_product_scope_line() {
+	reader_repo
+	reader_brief src/server/cache.ts src/server/cache.test.ts src/app/_components/header.test.tsx README.md docs/agents/facts.md
+	sed -i 's|^None: searched.*$|- `globals > sets no colour by hand` in `src/app/globals.test.ts`: unaffected: the cache sets no colour.|' brief.md
+	cp src/app/globals.test.ts src/server/walk.test.ts
+	git add -A && git commit -q -m "red: a new walk" || fail "no commit"
+	run_brief check brief.md
+	assert_status 0
+	assert_eq "" "$out"
+}
+
+# --- grouped Existing tests ---------------------------------------------------------
+
+# A bullet for a group of tests or a whole file names no test: the refusal says
+# to list one test per line. #28 and Spec #3's #9 and #10 each resealed for it.
+# A group the change leaves unaffected may share a bullet.
+test_check_refuses_grouped_existing_tests_naming_the_fix() {
+	template_brief
+	edit_brief '$a - `tests/stock/report_test.txt` (all its tests): in scope'
+	edit_brief '$a - the report tests in `tests/stock/report_test.txt`: in scope'
+	edit_brief '$a - the supplier tests: unaffected: they place no order'
+	run_brief check brief.md
+	assert_status 1
+	assert_eq "brief.md:31 brief-existing-test list one test per line, by its name and its file: '- \`<test>\` in \`<file>\`: in scope, or unaffected: <reason>' (tests of one file may share a bullet: '- \`<test>\`, \`<test>\` in \`<file>\`: ...'); a bullet for a group of tests, or for a whole file, names no test, got: - \`tests/stock/report_test.txt\` (all its tests): in scope
+brief.md:32 brief-existing-test list one test per line, by its name and its file: '- \`<test>\` in \`<file>\`: in scope, or unaffected: <reason>' (tests of one file may share a bullet: '- \`<test>\`, \`<test>\` in \`<file>\`: ...'); a bullet for a group of tests, or for a whole file, names no test, got: - the report tests in \`tests/stock/report_test.txt\`: in scope" "$out"
 }
 
 # --- the seal --------------------------------------------------------------------

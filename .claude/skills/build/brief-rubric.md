@@ -34,7 +34,7 @@ One verdict per `test` line of the brief, on the test as its bullets describe it
 
 ### Existing tests
 
-One verdict. Search the test files (the globs in `tools/verify/test-paths`) for each signal, method, node path, constant and state the brief changes. FAIL an existing test that reads one of them but isn't listed under `## Existing tests` with its file in scope or a reason it is unaffected. A test-only brief changes no product symbol: check only the tests it rewrites, and that each is listed with its file in scope.
+One verdict. Search the test files (the globs in `tools/verify/test-paths`) for each signal, method, node path, constant and state the brief changes, and run `bash factory/core/brief.sh readers` for the tests that read source files as text and what each reads. FAIL an existing test that reads one of them, or a source reader whose reach covers a file the brief changes, but isn't listed under `## Existing tests` with its file in scope or a reason it is unaffected; and a Constraint that asks for what a listed test forbids. A test-only brief changes no product symbol: check only the tests it rewrites, and that each is listed with its file in scope.
 
 ### Seams
 
@@ -44,7 +44,7 @@ One verdict. FAIL a product file or test tooling config a test bullet imports or
 
 One verdict per Constraint that states a bound or a behaviour, or names a command.
 
-- **Bounds and behaviours:** FAIL a Constraint whose bound or behaviour no test bullet pins: a resource bound (ids, nodes, timers, threads, memory, files), a listener removed on cleanup, a `finally` that closes, a timeout.
+- **Bounds and behaviours:** FAIL a Constraint whose bound or behaviour no test bullet pins: a resource bound (ids, nodes, timers, threads, memory, files), a listener removed on cleanup, a `finally` that closes, a timeout. A Constraint names its test, or says `untested: <reason>` (`brief.sh check` holds it to one of them): FAIL an `untested:` whose bound or behaviour a test could pin, and a named test whose bullets don't pin it.
 
 ### Invariants
 
