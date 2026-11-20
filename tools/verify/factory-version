@@ -266,9 +266,9 @@ file 87fcdf5af253f1622a5c8a03adc002276a2b7b65 factory/agents/asset-fetcher.md
 file c7edee82ecf0e81e33989e56bc8a74f2c510e479 factory/agents/check-editor-sonnet.log
 file 8890233f8acf2f28511fb4f0497d920083c5c208 factory/agents/check-editor-sonnet.sh
 file 5988c540d0f15d5d22ad4632604792b827676da5 factory/agents/designer.md
-file cd47862e54046d5995b72b2eb4334237e2d440a4 factory/agents/driver.md
-file 4cafcac64eb6224f10c5243c6a25b0328ac762dd factory/agents/editor-sonnet.md
-file 8d7f38a74613b513f2fc09c720a18b183682b2ff factory/agents/verifier.md
+file 3e07e78b2f1f7a581a01ff9a391175ae2669ee7a factory/agents/driver.md
+file 1049999f709c3fc36f0fccb0f80cabe691df6be2 factory/agents/editor-sonnet.md
+file 49469d1a8ba41a35e2271656e636db17c741c297 factory/agents/verifier.md
 file 802083108998b7ab2cb52d5686967a4235200fc4 factory/core/adopt.sh
 file b7312b0ce1569aad79fc45effee15d143e0477b7 factory/core/agents.sh
 file c204c9d2635db00942ca51d4b00b8592207dae5e factory/core/amend.sh
@@ -282,7 +282,7 @@ file 058cdb729ad2ca9060fd933ee9889a5e8897ea43 factory/core/hooks/claude-hooks.js
 file 726628b0371b2175bb17fb50ccea5bc38eabf253 factory/core/hooks/claude-subagent-start.sh
 file 11fd9c0c7b14a6566e73fd8e80e138aaf81120b2 factory/core/hooks/claude-subagent-stop.sh
 file f41a24c0662afb45d673bf663aee2fdd19ae5641 factory/core/hooks/claude-update-check.sh
-file bb37f5d157b29bf5cd8907b54c9fe3ea7da50867 factory/core/hooks/claude-wait-guard.sh
+file 203872829d19d499ad7b550946bfa15a11188bbd factory/core/hooks/claude-wait-guard.sh
 file fe29394ec9374d4c1407a3bdbbd28ea263e0a4c4 factory/core/hooks/claude-workspace-hooks.json
 file 02b33ad98548dd19ea2975b447a558c5ab289eb9 factory/core/hooks/editor-gate.sh
 file f24d499ef66b3a0f00d653f6ed44fd1c0ea68eee factory/core/hooks/githooks/pre-commit
@@ -295,7 +295,7 @@ file 8c4f0b29abd1687af6c40cc34975e216119ce2af factory/core/lib/bounded.sh
 file ea10da84a94fc98d06987e9d998141864680957d factory/core/lib/brief.sh
 file d11366413a58e31acf154ed53300d5fd2b22cf84 factory/core/lib/diff.sh
 file ed00baec460ffb5119261abcd94e4bbf82969708 factory/core/lib/findings.sh
-file e0f16d5f81c933d784e9a334ad3fb21c28768cfa factory/core/lib/hooks.sh
+file ef6059697066a376db29b5d85ac57cc778200495 factory/core/lib/hooks.sh
 file 312949cfd6ce59dd803da84087304aa859181ea1 factory/core/lib/json.sh
 file 6883910dc77179048254b71d5c891a444801b45e factory/core/lib/localenv.sh
 file b3c6c824eb2b3354cfbec909dc67b92da5b939a8 factory/core/lib/lock.sh
@@ -346,7 +346,7 @@ file ce98baa148e8a8d34de14ed4527363aebd9263ea factory/core/tests/brief_test.sh
 file 44f7fbbe0b035068f4e354233d697c2e9dd774d5 factory/core/tests/build_skill_test.sh
 file e38c357be05b8b01c7d95115227de3edc3a60be4 factory/core/tests/claude_deny_test.sh
 file c6304de9c93785a881f0e6168338ac654b950343 factory/core/tests/claude_usage_test.sh
-file 8777c176f24fb84f10f09125e7da369fc50c34e9 factory/core/tests/claude_wait_guard_test.sh
+file eb75fb5c49cdec627f366aa756f3362dc2f0352d factory/core/tests/claude_wait_guard_test.sh
 file 3fafb4464e3ea0ebf7c40b9669dfa9bb08e1d67c factory/core/tests/deviation_test.sh
 file c66f4989ebe2837a05792aa55756ea5db4a98002 factory/core/tests/editor_stop_test.sh
 file 34a143f2a3957afa52e63930b7d823fb669a9be4 factory/core/tests/fixture/parse/broken.txt
@@ -372,7 +372,8 @@ file dae6a0dae5ea07787bcae5dfe0cb3d4fd4eb0e1a factory/core/tests/fixture/project
 file 7fe451a965e88eaf1ec0310ac85776895236c5f8 factory/core/tests/fixture/project/tools/verify/versions
 file 2478d56dbe4cbc132f3ff77d3f962d8ea0e3e754 factory/core/tests/fixture/raw-waits/clean.txt
 file 53de748fcfee873f6d954adfbc1d37718e226386 factory/core/tests/fixture/raw-waits/flagged.txt
-file 37777c173dae6aabce1599e3e8dadecb31bde16c factory/core/tests/fixture/wait-guard/passed
+file 13c8e87cca0b02eff2060cb45f5acf7428672d0c factory/core/tests/fixture/wait-guard/advised
+file 89af552367587fcda807073d70481713f7590b27 factory/core/tests/fixture/wait-guard/passed
 file 0a29a79400e006c0135a0e541a17eecc45e98312 factory/core/tests/fixture/wait-guard/refused
 file ee7ed90893d2d5677afc44dffe834a0e40c304fb factory/core/tests/hooks_test.sh
 file 3c323f7353738597e258927f7243a1bbc8892cb8 factory/core/tests/install_test.sh
@@ -417,7 +418,7 @@ file 02f3b8b5b6c65f1039de7b9f1c18de4646759eae factory/skills/build/brief-rubric.
 file 4fd914aa54fd06a9e3c7e406a2321979b5e1580b factory/skills/build/build-brief.md
 file 188418d882c57e9415850b70fc9c8e4cc9188077 factory/skills/build/drift-rubric.md
 file fb9ea9b4aa41c49f8d1e3048cbd1435ac67eb313 factory/skills/build/drift.md
-file 5dae9503b3cabc6d9686216634e7230d3bf52ea8 factory/skills/build/editor.md
+file e6ac986113ccab70c1e375168fe2404a7fcb576a factory/skills/build/editor.md
 file c053486dc25aad25213c5e83232f028ad1d8deae factory/skills/build/parallel.md
 file da03b2dd3925ae0caee5576fce6564e661bb134c factory/skills/build/playtest.md
 file 8418d9fdbddd1fcb1ec5a38650768a3b628a61bf factory/skills/build/prompts/brief-review.md

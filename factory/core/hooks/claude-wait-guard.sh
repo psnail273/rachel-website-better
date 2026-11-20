@@ -27,17 +27,31 @@
 # its ends, and both as written and with each ' as Claude Code's eval quotes it
 # ('"'"'): it refuses only when the pattern matches both.
 #
-# It loads no lib and needs only bash and awk. A call whose JSON holds no
-# pgrep, pkill or pidwait exits at once. A refusal exits 2 with the rule and its
-# fixes on stderr, which Claude Code hands the agent; otherwise it exits 0 with
-# no output, and the call goes on to the normal permission flow.
+# The refusal gives the bracketed form of the caller's own pattern, `pgrep -f
+# 'tools/verify.sh'` -> `pgrep -f '[t]ools/verify.sh'`, when that form no
+# longer matches the command.
+#
+# It also advises, without refusing: a call that runs verify.sh, `lock.sh
+# record` or land.sh in the foreground (the command word, or the script a shell
+# runs; not in a call that holds a lone `&`, nor with its run_in_background) runs past the
+# 180 s after which the Bash tool backgrounds it anyway, so it is told to use
+# run_in_background and wait with `tail --pid=<pid> -f /dev/null`. The advice is
+# PreToolUse JSON on stdout, an additionalContext with no permissionDecision:
+# the call goes on to the normal permission flow.
+#
+# It loads no lib and needs only bash and awk. A call whose JSON holds none of
+# pgrep, pkill, pidwait, verify.sh, lock.sh and land.sh exits at once. A refusal
+# exits 2 with the rule and its fixes on stderr, which Claude Code hands the
+# agent; otherwise it exits 0, with the advice or no output, and the call goes
+# on to the normal permission flow.
 set -u
 
 input="$(cat)"
-case "$input" in *pgrep* | *pkill* | *pidwait*) ;; *) exit 0 ;; esac
+case "$input" in *pgrep* | *pkill* | *pidwait* | *verify.sh* | *lock.sh* | *land.sh*) ;; *) exit 0 ;; esac
 
-# The JSON's tool_input.command, decoded, when its tool_name is Bash; false
-# otherwise. Strings only: the hook needs no other value.
+# The JSON's tool_input.command, decoded, when its tool_name is Bash, after one
+# character: 1 when its tool_input.run_in_background is true, else 0; false
+# otherwise. Strings and that one true only: the hook needs no other value.
 # shellcheck disable=SC2016 # awk's own $
 json_command='
 	function utf8(c) {
@@ -91,6 +105,7 @@ json_command='
 				else if (depth == 2 && type[1] == "o" && type[2] == "o" && key[1] == "tool_input" && key[2] == "command") { command = v; have = 1 }
 				continue
 			}
+			if (c == "t" && substr(s, i, 4) == "true" && depth == 2 && type[1] == "o" && type[2] == "o" && key[1] == "tool_input" && key[2] == "run_in_background" && !iskey[2]) { bg = 1; i += 4; continue }
 			if (c == "{") { depth++; type[depth] = "o"; iskey[depth] = 1; key[depth] = "" }
 			else if (c == "[") { depth++; type[depth] = "a"; key[depth] = "" }
 			else if (c == "}" || c == "]") depth--
@@ -98,7 +113,7 @@ json_command='
 			i++
 		}
 		if (name != "Bash" || !have) exit 1
-		printf "%s", command
+		printf "%d%s", bg, command
 	}
 '
 
@@ -107,7 +122,9 @@ json_command='
 # value escaped (\\, \n, \t):
 #   P <tool> <flags: i, x, or -> <pattern>
 #   C - - <the string bash -c runs>
+#   L - - <verify.sh, lock.sh record or land.sh, run in the foreground>
 #   S - - -   (first, when the command is one simple command)
+#   A - - -   (when it holds a lone &: no advice for the call)
 # Nothing when the command doesn't parse.
 # shellcheck disable=SC2016 # awk's own $
 parse_calls='
@@ -212,8 +229,24 @@ parse_calls='
 		}
 		if (i > N[f]) return
 		base = W[f, i]; sub(/.*\//, "", base)
+		# exec: only the script it runs counts; a pgrep or a bash -c string after
+		# it is judged as before, not at all (its shell is gone).
+		if (base == "exec" && i < N[f] && K[f, i + 1]) { i++; base = W[f, i]; sub(/.*\//, "", base); if (base ~ /^(ba|da|z|k)?sh$/) shells(f, i, 1); else long(f, i, i); return }
 		if (base == "pgrep" || base == "pkill" || base == "pidwait") procs(f, i, base)
 		else if (base ~ /^(ba|da|z|k)?sh$/) shells(f, i)
+		else long(f, i, i)
+	}
+	# long <frame> <script word> <command word>: an L record when the script is
+	# verify.sh, land.sh, or lock.sh with record.
+	function long(f, j, i,   base, k) {
+		if (!K[f, j]) return
+		base = W[f, j]; sub(/.*\//, "", base)
+		if (base == "lock.sh") {
+			for (k = j + 1; k <= N[f] && W[f, k] ~ /^-/; k++) ;
+			if (k > N[f] || W[f, k] != "record") return
+			base = "lock.sh record"
+		} else if (base != "verify.sh" && base != "land.sh") return
+		OUT[++NO] = "L\t-\t-\t" base
 	}
 	# others <value> <known> <set>: true when the users or groups -u, -U or -G
 	# names leave out the shell: unknown, or none of them in <set>.
@@ -272,16 +305,18 @@ parse_calls='
 		flags = (ic ? "i" : "") (x ? "x" : "")
 		OUT[++NO] = "P\t" tool "\t" (flags == "" ? "-" : flags) "\t" esc(pat)
 	}
-	function shells(f, i,   j, w) {
+	# shells <frame> <command word> [no -c]: with a third argument, after exec,
+	# a -c string gives no record.
+	function shells(f, i, noc,   j, w) {
 		for (j = i + 1; j <= N[f]; j++) {
 			w = W[f, j]
 			if (!K[f, j]) return
 			if (w == "-o" || w == "+o" || w == "-O" || w == "+O") { j++; continue }
 			if (w ~ /^-[A-Za-z]*c[A-Za-z]*$/) {
-				if (j < N[f] && K[f, j + 1]) OUT[++NO] = "C\t-\t-\t" esc(W[f, j + 1])
+				if (!noc && j < N[f] && K[f, j + 1]) OUT[++NO] = "C\t-\t-\t" esc(W[f, j + 1])
 				return
 			}
-			if (w !~ /^[-+]/) return
+			if (w !~ /^[-+]/) { long(f, j, i); return }
 		}
 	}
 	{ s = s (NR > 1 ? "\n" : "") $0 }
@@ -322,7 +357,10 @@ parse_calls='
 			if (c == ";" || c == "|") { endcmd(d); p++; continue }
 			if (c == "&") {
 				if (substr(s, p + 1, 1) == ">") { endword(d); p = redir(p + 1); continue }
-				CPLX = 1; endcmd(d); p++; continue
+				CPLX = 1
+				# A lone &, not &&: the command before it runs in the background.
+				if (substr(s, p + 1, 1) != "&" && substr(s, p - 1, 1) !~ /[&|]/) AMP = 1
+				endcmd(d); p++; continue
 			}
 			# An array assignment: its value is words, not a command; a $(...) in
 			# it still runs.
@@ -346,6 +384,9 @@ parse_calls='
 		endcmd(0)
 		# One simple command: a bash -c running it execs it, and is gone.
 		if (NC <= 1 && !CPLX) print "S\t-\t-\t-"
+		# A lone &: something runs in the background, maybe the long script
+		# inside a ( ) or { }.
+		if (AMP) print "A\t-\t-\t-"
 		for (k = 1; k <= NO; k++) print OUT[k]
 	}
 '
@@ -373,15 +414,63 @@ self_matches() {
 	matches "$1" "$2" "$3" && matches "$1" "$2" "${3//\'/\'\"\'\"\'}"
 }
 
+# bracketed <pattern>: the pattern with its first plain letter or digit (not
+# escaped, not in a [...] or {...}) in brackets, `tools/x` -> `[t]ools/x`;
+# empty when it has none.
+bracketed() {
+	local k c prev="" depth=0
+	for ((k = 0; k < ${#1}; k++)); do
+		c="${1:k:1}"
+		if [ "$prev" = "\\" ]; then
+			prev=x
+			continue
+		fi
+		case "$c" in
+			'[' | '{') depth=$((depth + 1)) ;;
+			']' | '}') [ "$depth" -eq 0 ] || depth=$((depth - 1)) ;;
+			[A-Za-z0-9])
+				if [ "$depth" -eq 0 ]; then
+					printf '%s[%s]%s' "${1:0:k}" "$c" "${1:k+1}"
+					return
+				fi
+				;;
+		esac
+		prev="$c"
+	done
+}
+
+# quoted <text>: the text in single quotes, as a shell reads it back.
+quoted() {
+	printf "'%s'" "${1//\'/\'\\\'\'}"
+}
+
+# json_string <text>: the text as a JSON string.
+json_string() {
+	local v="$1"
+	v="${v//\\/\\\\}"
+	v="${v//\"/\\\"}"
+	v="${v//$'\n'/\\n}"
+	v="${v//$'\t'/\\t}"
+	printf '"%s"' "$v"
+}
+
 # check <text> <level>: refuse (exit 2) when a call in <text> matches the Bash
 # call's own command, $command; at level 1 and deeper (the string of a bash -c)
 # also when it matches that string, the inner shell's command line, unless the
 # string is one simple command, which that shell execs in its own place.
 check() {
-	local kind tool flags value pattern hit effect single=""
+	local kind tool flags value pattern hit effect single="" fix form rest
 	while IFS=$'\t' read -r kind tool flags value; do
 		if [ "$kind" = S ]; then
 			single=1
+			continue
+		fi
+		if [ "$kind" = A ]; then
+			ampersand=1
+			continue
+		fi
+		if [ "$kind" = L ]; then
+			case " $long " in *" $value,"*) ;; *) long="${long:+$long }$value," ;; esac
 			continue
 		fi
 		value="$(unescape "$value" && printf x)"
@@ -402,11 +491,20 @@ check() {
 			pkill) effect="pkill would kill that shell" ;;
 			*) effect="$tool matches that shell too, and a wait on it never ends" ;;
 		esac
+		# The bracketed form, when the command names the pattern's text once (the
+		# pattern itself), and holding the form in its place no longer matches.
+		fix="bracket one character of the pattern so it no longer matches itself: \`pgrep -f '[f]actory/core/test.sh'\` (only when the command doesn't also name it plainly)"
+		form="$(bracketed "$pattern")"
+		rest="${command//"$pattern"/}"
+		if [ -n "$form" ] && [ $((${#command} - ${#rest})) -eq ${#pattern} ] &&
+			! self_matches "$form" "$flags" "${command//"$pattern"/"$form"}"; then
+			fix="bracket one character of the pattern so it no longer matches itself: \`$tool -f $(quoted "$form")\`"
+		fi
 		cat >&2 << EOF
 Refused (wait-guard): \`$tool -f\` with the pattern '$pattern' matches this command's own text. Claude Code runs the command as \`bash -c "<the command>"\`, so $effect. Instead:
 - wait on a PID: start the process in this call with \`&\`, then \`while kill -0 "\$pid" 2> /dev/null; do sleep 2; done\` with pid=\$!;
 - or run the command with run_in_background and wait for its notification, or in the foreground with a long timeout;
-- or, to look for a process another call started, bracket one character of the pattern so it no longer matches itself: \`pgrep -f '[f]actory/core/test.sh'\` (only when the command doesn't also name it plainly).
+- or, to look for a process another call started, $fix.
 EOF
 		exit 2
 	done < <(printf '%s' "$1" | LC_ALL=C awk -v me="$me" -v mygroup="$mygroup" "$parse_calls")
@@ -414,7 +512,17 @@ EOF
 
 command="$(printf '%s' "$input" | LC_ALL=C awk "$json_command" && printf x)" || exit 0
 command="${command%x}"
+background="${command:0:1}"
+command="${command:1}"
 me="$(id -u),$(id -un)"
 mygroup="$(id -g),$(id -gn)"
+long=""
+ampersand=""
 check "$command" 0
+if [ -n "$long" ] && [ "$background" != 1 ] && [ -z "$ampersand" ]; then
+	long="${long%,}"
+	long="${long//,/ and}"
+	advice="Advice (wait-guard): this call runs $long in the foreground, which takes longer than the 180 s after which the Bash tool moves a command to the background whatever its timeout. Run it with run_in_background instead, recording its PID and its output: \`echo \$\$ > <scratch>/run.pid; exec bash <the script> > <scratch>/run.log 2>&1\`. Then wait for its notification, or for its PID in the foreground: \`tail --pid=\"\$(cat <scratch>/run.pid)\" -f /dev/null\`, and read the log."
+	printf '{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":%s}}\n' "$(json_string "$advice")"
+fi
 exit 0

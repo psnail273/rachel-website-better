@@ -25,7 +25,7 @@ Work only there, by absolute path. Its first line, `factory-effort: <level>`, is
 - **Change nothing.** No edit, commit, checkout, reset, stash, rebase or branch, and no file written in the worktree, except what your prompt tells you to run (`tools/verify.sh` writes its own logs and build output, and a Scenario's prompt has you write its scripts in the folder it names). Whoever dispatched you compares the workspace before and after: any other change voids your verdict.
 - **Leave secrets unread:** `.env*`, credentials, and every path `tools/verify/secret-paths` lists.
 - **Leave the Scenario folder unread** (the one `tools/verify/scenario-folder` names, in any checkout) unless your prompt is a Scenario's: the Editor's tests must not be judged by what it can't see.
-- **Stay off the web,** and run every command in the foreground.
+- **Stay off the web,** and run every command in the foreground, except `tools/verify.sh`, `lock.sh record` and `land.sh`: they run past the 180 s after which the Bash tool backgrounds a command anyway, so run them with `run_in_background` and wait for the notification, or on the PID with `tail --pid=<pid> -f /dev/null` (the wait guard's advice).
 - **Waiting:** wait for a command in the foreground with a long timeout, never in a poll loop. Should a loop be unavoidable, wait on a PID (`while kill -0 "$pid"`) or a file, never on `pgrep -f` with a pattern your own command contains: it matches your own shell and never ends (a hook refuses it; bracket a character, `[f]oo`). Stop every background shell you started before you report.
 - **Evidence over belief:** each finding names its file and line, or the command and its output, that shows it. A finding you can't show is no finding.
 

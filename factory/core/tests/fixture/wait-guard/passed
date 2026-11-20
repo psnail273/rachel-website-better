@@ -83,3 +83,28 @@ for p in "${pats[@]}"; do echo "$p"; done
 arr=("a\")" "; pgrep -f foo; ") # "
 == text after an array's ) is the same word: bash runs -f, no pgrep
 arr=(x)pgrep -f foo
+== verify.sh read, not run
+cat tools/verify.sh
+== land.sh in a diff
+git diff -- factory/core/land.sh
+== lock.sh with another subcommand
+bash factory/core/lock.sh check --staged
+== lock.sh record named, not run
+grep -n 'lock.sh record' factory/agents/driver.md
+== verify.sh in the background with &
+bash tools/verify.sh > log 2>&1 &
+== verify.sh in a string
+echo "bash tools/verify.sh"
+== verify.sh in a comment
+# bash tools/verify.sh
+ls
+== a script with another name
+bash tools/verify/steps/test.sh
+== exec replaces the shell; the bash -c it runs execs pgrep (review pass 1)
+exec bash -c 'pgrep -f foo'
+== verify.sh in a subshell in the background (review pass 1)
+(bash tools/verify.sh; echo done) &
+== verify.sh in a group in the background
+{ bash tools/verify.sh; echo done; } > log 2>&1 &
+== a bash -c running verify.sh in the background
+bash -c 'bash tools/verify.sh' &

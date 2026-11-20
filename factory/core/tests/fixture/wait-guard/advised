@@ -1,0 +1,22 @@
+== the gate, as the Driver runs it
+bash tools/verify.sh
+== a subset of the gate, run as a script
+tools/verify.sh typecheck lint
+== the Lock's record
+bash factory/core/lock.sh record
+== the land
+bash factory/core/land.sh 42
+== after a cd, with its output piped
+cd /repo && bash tools/verify.sh 2>&1 | grep -v ok
+== the land after a check, behind &&
+bash factory/core/lock.sh check && bash factory/core/land.sh 42
+== in a command substitution
+out="$(bash tools/verify.sh)"
+== a shell with options
+bash -e -o pipefail tools/verify.sh
+== exec runs it in this shell, in the foreground still
+exec bash tools/verify.sh > log 2>&1
+== a wrapper
+timeout 600 bash factory/core/land.sh 42
+== the string a bash -c runs
+bash -c 'bash factory/core/lock.sh record'

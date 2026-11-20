@@ -8,7 +8,8 @@
 #                        Sonnet Editor's PreToolUse deny (claude-deny.sh),
 #                        every agent's PreToolUse wait guard on Bash
 #                        (claude-wait-guard.sh: no pgrep -f that matches its
-#                        own shell), the Editor's SubagentStart hook
+#                        own shell; advice to background verify, lock.sh
+#                        record and land), the Editor's SubagentStart hook
 #                        (claude-subagent-start.sh, the round's snapshot,
 #                        lib/round.sh), its SubagentStop hook
 #                        (claude-subagent-stop.sh, also the PreToolUse of every
