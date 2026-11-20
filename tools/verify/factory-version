@@ -108,7 +108,7 @@ file 646f8c68dd6fdbf5425c8859a1ad6f9957c8c429 factory/adapters/nextjs/new/pnpm-l
 file b05dc4cffddd7cc3aafa7d2a91a478d88b1c33c4 factory/adapters/nextjs/new/stryker.config.json.txt
 file e8f60a269f04b51955ac3e7e4a44f60cb33ac701 factory/adapters/nextjs/new/tsconfig.json.txt
 file 04873545a45eb3d63684d1b6dede7c4d97503c0b factory/adapters/nextjs/new/vitest.config.ts.txt
-file e2457e6409bbdb476cc9fed17d1861b33e121a7a factory/adapters/nextjs/skills/write-tests-nextjs/SKILL.md
+file f60f2ac9fe9622bc62c77ee4aad9acc12aaf50cd factory/adapters/nextjs/skills/write-tests-nextjs/SKILL.md
 file 22c47ec07baf2eea3aac127586d6f362afd6e74c factory/adapters/nextjs/tests/adopt_test.sh
 file ad44256fad962ecf780f9d2879424513656deaa4 factory/adapters/nextjs/tests/arch_test.sh
 file a6055f50a18a77d8674a6254161c99acd125db28 factory/adapters/nextjs/tests/assert_counts_test.sh

@@ -3,7 +3,7 @@ name: write-tests-nextjs
 description: Write Vitest tests for a Build Brief's red phase in a Next.js app: public seams, hand-written expected values, typed stubs, fakes for the network, no fixed waits. Use when writing or fixing tests.
 ---
 
-Tests written first, from a Build Brief, before the code exists. Each one pins a criterion of the brief so that only a correct implementation turns it green. The Verifier reads your tests against the **rubric** below, and the gates check the **gate rules** by script, so every item here is one you control.
+Tests written first, from a Build Brief, before the code exists. Each one pins a criterion of the brief so that only a correct implementation turns it green. The Verifier reads your tests against the **rubric** below, and the gates check the **gate rules** by script.
 
 ## Red phase
 
@@ -24,11 +24,10 @@ The red commit holds the brief's named tests plus **typed stubs** of its named s
 
 ## Rubric
 
-Every item holds for every test.
-
 - **Public seam.** Drive the code through what callers use: the module's exports, a route handler called with a `Request` (`await GET(new Request("http://test/api/items?id=3"))`), a server action called with its arguments. Leave unexported functions and internal state untouched.
 - **Hand-written expected values.** Work each expected value out from the brief and write it as a literal or a named constant in the test. The code under test never computes its own expected value.
 - **Exact assertions.** `expect(total).toBe(150)`, `expect(body).toEqual({ id: 3, name: "Ada" })`, `expect(response.status).toBe(404)`. Floats use `toBeCloseTo(x, digits)` with the digits named. Assert a thrown error's message or type (`await expect(load()).rejects.toThrow(NotFoundError)`), not only that something threw.
+- **Lists of elements.** Pin each element's tag, attributes and text together, in every render the brief names: `expect([...nav.children].map((el) => ({ tag: el.tagName, href: el.getAttribute("href"), text: el.textContent }))).toEqual([{ tag: "A", href: "/", text: "Home" }])`. A count or the texts alone let wrong markup pass.
 - **Boundaries and negatives.** Each criterion gets its edge cases (zero, empty, the limit and one past it, a missing field) and the case where nothing should happen: the request that is refused, the call that is never made (`expect(save).not.toHaveBeenCalled()`), the state left unchanged.
 - **Fakes at seams only.** Use a double only for a seam the brief names, and prefer a small hand-written fake passed in (a handler factory's client argument, a repository object) over `vi.mock` of a module. Assert what the code did with the fake's value, never the value you put into it.
 - **Straight-line.** Arrange, act, assert, with no branches or loops that decide what gets asserted. Give every number a name or derive it from the input the test built. Every assertion runs on every run: none sits under an `if`, in a `try`/`catch`, or in a callback that may never be called (count it with `expect.assertions(n)` when you must).
@@ -52,20 +51,20 @@ it("never throws on any string", () => {
 });
 ```
 
-- **Through the seam** the line names. Shape the arbitraries (`fc.string()`, `fc.date()`, `fc.record(...)`) to reach past the first guard too: a VEVENT with a generated DTSTART, not only raw strings.
+- **Through the seam** the line names. Shape the arbitraries to reach past the first guard too: a VEVENT with a generated DTSTART, not only raw strings.
 - **No fixed seed.** Leave `seed` and `path` out, so each run draws new inputs. A failure prints its shrunk counterexample: add it as an example test, then fix the code.
 - **Fit the budget.** Set `numRuns` so the property takes well under a second, since mutate reruns it per mutant; never lower it to pass.
 
 ## Gate rules
 
-The lint step fails a test that breaks these, beside ESLint's own rules (typescript-eslint's strict type-aware set: `no-floating-promises`, the `no-unsafe-*` rules and the rest).
+The lint step fails a test that breaks these, beside ESLint's own rules (typescript-eslint's strict type-aware set).
 
 - **An assertion in every test.** Each `it(...)` or `test(...)` with a function calls `expect`, `expect.soft`, `expect.poll`, `expectTypeOf`, `assert`, or a helper whose name starts with `expect` or `assert` (`expectValidOrder(order)`); otherwise `assertion-free`. `it.todo("...")` declares a test with no body and passes.
 - **No fixed waits.** `fixed-wait` fails a sleep in a test file: `setTimeout` inside `new Promise(...)` with a delay above 0, an awaited `setTimeout` from `node:timers/promises`, an awaited `sleep(...)` or `delay(...)`, `scheduler.wait`, Playwright's `waitForTimeout` and `Atomics.wait`. A file that calls `vi.useFakeTimers()` may use the timer forms, which then wait for no real time. A wait that has to be fixed (a check that something does *not* happen within a time) gives its reason: `// fixed-wait: <why>`, on its line or alone on the line above.
 - **No disabled rules.** The lint step runs ESLint with `--no-inline-config`, so an `eslint-disable` comment changes nothing: fix the finding.
 - **Promises handled.** Every `expect(...).resolves` / `.rejects` and every async call is awaited (`no-floating-promises`); an un-awaited one passes whatever happens.
 - **Typed.** Tests typecheck under `strict` like the product code. Read a response body as `unknown` and narrow it, or assert it whole with `toEqual`, rather than casting.
-- **Same verdict twice.** The red verdicts must match on a second run, which the durable rules below make true.
+- **Same verdict twice.** The red verdicts match on a second run: see **Durable tests**.
 
 ## Arch and smoke
 
@@ -78,7 +77,7 @@ The arch and smoke steps judge the code your tests and stubs add, by the rules i
 
 ## Durable tests
 
-A durable test gives the same verdict on a machine ten times slower, under a loaded CPU, and in any test order. Its verdict depends only on the code under test.
+A durable test gives the same verdict on a machine ten times slower, under a loaded CPU, and in any test order.
 
 1. **No network.** A test never reaches a real server, the internet or a real database. Hand the code a fake at its seam (a `fetch` function, a client object) that returns a fixed `Response` (`new Response(JSON.stringify({ id: 3 }), { status: 200 })`) or rejects, and assert on the request it was given. Stub the global only when the code has no seam: `vi.stubGlobal("fetch", fake)`, with `vi.unstubAllGlobals()` in `afterEach`.
 2. **The test drives time.** `vi.useFakeTimers()`, then `vi.advanceTimersByTime(ms)` or `await vi.runAllTimersAsync()`, and `vi.useRealTimers()` in `afterEach`. Make delays config values a test can set to zero.
@@ -88,4 +87,4 @@ A durable test gives the same verdict on a machine ten times slower, under a loa
 
 **Audit** the changed test files for `setTimeout`, `setInterval`, `sleep`, `delay`, `Date.now()`, `new Date()` with no argument, `Math.random()`, `fetch(` against a real URL, and shared module-level state. Done when each hit is rewritten to the rules above or carries a one-line comment saying why its verdict can't depend on timing.
 
-A test that failed once and then passed breaks one of these rules: find which and fix it, or delete it when a pure-seam test covers its behaviour. A retry or a longer wait leaves the bug in place.
+A flaky test breaks one of these rules: find which and fix it, or delete it when a pure-seam test covers its behaviour. A retry or longer wait hides the bug.
