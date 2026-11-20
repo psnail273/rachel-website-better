@@ -26,6 +26,12 @@
 # in the tree), no incremental file (but in the Editor's loop, below), no break
 # threshold, never in place, and
 # STRYKER_JOBS (local.env) as the concurrency, else half the cores (at least 1).
+# It also registers the step's ignorer (_stryker_class_strings.mjs), which skips
+# the StringLiteral mutants of class strings: a className attribute's literal
+# (and those reaching it through ?:, && || ??, or cn/clsx-like calls) and a
+# module const named *Class or *_CLASS. A blanked class string is one no unit
+# test reads, so it only survived into Driver's calls; styling is the design
+# check's and smoke's layout check's to judge. Its other mutants still run.
 # The sandbox Stryker copies the project into leaves out what git ignores (but
 # node_modules, which Stryker links), the factory's own folder, and the
 # project's secrets (.env* and tools/verify/secret-paths): a test that needs an
@@ -222,13 +228,14 @@ if [ -s "$tmp/mutate" ]; then
 	} > "$tmp/ignore"
 	"${NODE_BIN:-node}" -e '
 		const fs = require("fs");
-		const [config, mutate, ignore, jobs, tmp] = process.argv.slice(1);
+		const [config, mutate, ignore, jobs, tmp, ignorer] = process.argv.slice(1);
 		const lines = (f) => fs.readFileSync(f, "utf8").split("\n").filter(Boolean);
 		const base = fs.existsSync(config) ? JSON.parse(fs.readFileSync(config, "utf8")) : {};
 		const out = {
 			testRunner: "vitest",
-			plugins: ["@stryker-mutator/vitest-runner"],
 			...base,
+			plugins: [...(base.plugins ?? ["@stryker-mutator/vitest-runner"]), ignorer],
+			ignorers: [...(base.ignorers ?? []), "factory-class-strings"],
 			mutate: lines(mutate),
 			ignorePatterns: [...(base.ignorePatterns ?? []), ...lines(ignore)],
 			reporters: ["json"],
@@ -245,7 +252,7 @@ if [ -s "$tmp/mutate" ]; then
 		delete out.$schema;
 		delete out.maxConcurrentTestRunners;
 		fs.writeFileSync(tmp + "/stryker.config.json", JSON.stringify(out, null, 2));
-	' stryker.config.json "$tmp/mutate" "$tmp/ignore" "$jobs" "$tmp" > "$tmp/config.log" 2>&1 || {
+	' stryker.config.json "$tmp/mutate" "$tmp/ignore" "$jobs" "$tmp" "$(cd "$dir" && pwd -P)/_stryker_class_strings.mjs" > "$tmp/config.log" 2>&1 || {
 		cat "$tmp/config.log" >&2
 		echo "stryker.config.json:1 mutate-failed could not read stryker.config.json (see stderr)"
 		exit 1

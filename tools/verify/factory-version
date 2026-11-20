@@ -166,6 +166,7 @@ file a0385c5d6b6a84b4de73b83cd7c9c63b957f4196 factory/adapters/nextjs/tests/fixt
 file f881a9d27a5a834257baa7a193d1dd71e6cbd634 factory/adapters/nextjs/tests/fixture/mutate/cart_base.test.ts.txt
 file 8fe39003d6fdf40ae0d70839a533b94c04e6570a factory/adapters/nextjs/tests/fixture/mutate/cart_base.ts.txt
 file 624032f2805b51b7b351a85c79eaa1471e26d979 factory/adapters/nextjs/tests/fixture/mutate/cart_pinned.test.ts.txt
+file 3e88bd19857d162dae50625c9096dc201a6de544 factory/adapters/nextjs/tests/fixture/mutate/classes.tsx.txt
 file 3f11f21a2b197cf6aaf0d325fc1ee31490bf198c factory/adapters/nextjs/tests/fixture/mutate/labels.test.ts.txt
 file c6fb9a4a3b8a64a1b73ef2d6542d1e3fdc17abf3 factory/adapters/nextjs/tests/fixture/mutate/labels.ts.txt
 file fd180feed163122c0a0c4993b5b48e78212fbc33 factory/adapters/nextjs/tests/fixture/mutate/labels_lazy.test.ts.txt
@@ -206,7 +207,7 @@ file 1a34c0c1082cfb42c251369faf27168779502793 factory/adapters/nextjs/tests/fixt
 file 21774b1c481d8336845e1c42dcd5e38d0af2bac1 factory/adapters/nextjs/tests/lib.sh
 file 1fe05a47eaebd6dae1bf95f5f4b2f328137d55c1 factory/adapters/nextjs/tests/lib_test.sh
 file 5091251eacca1872f7cf2f46c3afe41ace56f440 factory/adapters/nextjs/tests/lint_checks_test.sh
-file 896702d638504adbb7f2007da9141068c69d7d4c factory/adapters/nextjs/tests/mutate_test.sh
+file 1f2f773e78a479430a0d96b562b9013b4590b30d factory/adapters/nextjs/tests/mutate_test.sh
 file d0a634a656f68932e85b95149139ed322572ec75 factory/adapters/nextjs/tests/names_test.sh
 file 74950168c992a51a001ba7ce6538866e57fe2b51 factory/adapters/nextjs/tests/prime-store.sh
 file 0200456c77a96bac4101e6517d0a84b6e7aa13f4 factory/adapters/nextjs/tests/scenarios_test.sh
@@ -231,7 +232,8 @@ file b02a32b25518b2faacfdfb430100dee242b345b6 factory/adapters/nextjs/tools/veri
 file f207c11c4b244db4910d22b3071bc0e56c73ff13 factory/adapters/nextjs/tools/verify/_secretlint_findings.mjs
 file c526df4e3bc385774297a198b91bcf776a59d84c factory/adapters/nextjs/tools/verify/_server.sh
 file 234e23a0f68154f742bc33a081ad6264a96609a2 factory/adapters/nextjs/tools/verify/_smoke_page.mjs
-file 32d4de4e6d2dd5b2280b64259be5e6843a41a986 factory/adapters/nextjs/tools/verify/_stryker_mutants.mjs
+file b4b29d74caea65a948c62af675c9e7d4497d8cdc factory/adapters/nextjs/tools/verify/_stryker_class_strings.mjs
+file 6df2ae082241f4b7fb8cdcbcfd86af9a59b41d8f factory/adapters/nextjs/tools/verify/_stryker_mutants.mjs
 file 80a5fc103263eff8417887bd81fe812a8b642611 factory/adapters/nextjs/tools/verify/_vitest_errors.mjs
 file b1a1e7ea78922e95b4146a3773b3482a8bff1660 factory/adapters/nextjs/tools/verify/_vitest_results.mjs
 file 527ddc9938171597cf594abc025eb35dd19851a0 factory/adapters/nextjs/tools/verify/arch
@@ -243,7 +245,7 @@ file 9c37e1695bc952ef3f106c325110b90c89b1b3f5 factory/adapters/nextjs/tools/veri
 file c004db70740472766f5b3ff82d19e43c54b0a319 factory/adapters/nextjs/tools/verify/generated
 file 019a7bf6da7288be02bc835341291769b15cb7d2 factory/adapters/nextjs/tools/verify/lint
 file a7114266991f06514d19980a40af3f80392377ef factory/adapters/nextjs/tools/verify/local.env.example
-file b434b211183c9dbc9da7120596cfb2103b3749cd factory/adapters/nextjs/tools/verify/mutate
+file ffc4fa978edfc1fdfe5b4b5aff4bc703e28b7e84 factory/adapters/nextjs/tools/verify/mutate
 file 1707d19124af5f2fac0c9d0c6d1932b4add4ca92 factory/adapters/nextjs/tools/verify/no-overlap
 file 6f412f43d2743222895423fd93cfdea3c74462ba factory/adapters/nextjs/tools/verify/pins
 file b0227d04c9f870b18dcbc7e1811306efce2546f0 factory/adapters/nextjs/tools/verify/playtest

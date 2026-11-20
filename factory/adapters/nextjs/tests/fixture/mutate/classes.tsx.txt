@@ -1,0 +1,17 @@
+const cn = (...parts: unknown[]): string => parts.filter(Boolean).join(" ");
+
+export const linkClass = "underline";
+export const LINK_CLASS = `x`;
+export const label = "Hi";
+const hintClass = cn("text-sm", label && "italic");
+
+export function Badge({ on, size }: { on: boolean; size: number }) {
+  const localClass = "p-1";
+  return (
+    <span className="p-4" title={"Badge"}>
+      <a className={size > 1 ? "a" : "b"}>{label}</a>
+      <b className={cn("m-2", on && "x", localClass, hintClass)}>{"bold"}</b>
+      <i className={`p-${size}`} id={"i"} />
+    </span>
+  );
+}

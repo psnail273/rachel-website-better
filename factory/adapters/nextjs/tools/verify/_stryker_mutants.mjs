@@ -18,8 +18,12 @@
 // mutant (one in code that runs as its module loads, such as a module-level
 // constant), which Stryker runs against every test of the files related to it.
 //
+// A mutant the step's class-string ignorer skipped (_stryker_class_strings.mjs:
+// Ignored, with its reason) is left out: it is neither printed nor counted.
+//
 // Exits 2 when the report isn't Stryker's JSON.
 import { readFileSync } from "node:fs";
+import { REASON as CLASS_STRING } from "./_stryker_class_strings.mjs";
 
 let report;
 try {
@@ -72,6 +76,7 @@ for (const [file, entry] of Object.entries(report.files)) {
     const start = m.location?.start ?? { line: 1, column: 1 };
     const end = m.location?.end ?? start;
     if (!inRanges(file, start, end)) continue;
+    if (m.status === "Ignored" && m.statusReason === CLASS_STRING) continue;
     const text = lines[start.line - 1] ?? "";
     const code =
       end.line === start.line

@@ -108,6 +108,35 @@ lib/labels.ts:1 mutant-survived StringLiteral: \`\"Nothing here yet\"\` -> \`\"\
 	assert_eq "# killed 8, survived 1, errored 0, timed out 0, ignored 0" "$(sed -n 2p "$TEST_TMP/survivors.txt")" "the counts, loaded at the top"
 }
 
+# Class strings no test reads are not mutated: a className attribute's literal
+# (plain, in a ?:'s branch, an argument of cn) and a module const named *Class or
+# *_CLASS, the step's ignorer (_stryker_class_strings.mjs) skips their
+# StringLiteral mutants, and they are neither listed nor counted. A plain
+# constant, a const in a function, another attribute's string, a template with a
+# ${} and a call that joins no classes are still mutated, and so is everything
+# else on a className: the ?:'s test, the && itself.
+test_mutate_skips_class_strings_with_node() {
+	mutate_project
+	add_fixture mutate/cart_pinned.test.ts.txt lib/cart.test.ts
+	add_fixture mutate/classes.tsx.txt lib/classes.tsx
+	run_mutate
+	assert_status 0
+	assert_eq "lib/classes.tsx:1 mutant-survived StringLiteral: \`\" \"\` -> \`\"\"\`; tests: none
+lib/classes.tsx:5 mutant-survived StringLiteral: \`\"Hi\"\` -> \`\"\"\`; tests: none
+lib/classes.tsx:9 mutant-survived StringLiteral: \`\"p-1\"\` -> \`\"\"\`; tests: none
+lib/classes.tsx:11 mutant-survived StringLiteral: \`\"Badge\"\` -> \`\"\"\`; tests: none
+lib/classes.tsx:13 mutant-survived StringLiteral: \`\"bold\"\` -> \`\"\"\`; tests: none
+lib/classes.tsx:14 mutant-survived StringLiteral: \`\`p-\${size}\`\` -> \`\`\`\`; tests: none
+lib/classes.tsx:14 mutant-survived StringLiteral: \`\"i\"\` -> \`\"\"\`; tests: none" "$(printf '%s\n' "$out" | grep ' StringLiteral: ')" "the class file's StringLiteral mutants"
+	printf '%s\n' "$out" | grep -qxF "lib/classes.tsx:12 mutant-survived ConditionalExpression: \`size > 1\` -> \`true\`; tests: none" ||
+		fail "the ?:'s test on a className is not mutated: $out"
+	printf '%s\n' "$out" | grep -qxF "lib/classes.tsx:13 mutant-survived LogicalOperator: \`on && \"x\"\` -> \`on || \"x\"\`; tests: none" ||
+		fail "the && on a className is not mutated: $out"
+	printf '%s\n' "$out" | grep -qxF "lib/classes.tsx:6 mutant-survived LogicalOperator: \`label && \"italic\"\` -> \`label || \"italic\"\`; tests: none" ||
+		fail "the && in a *Class constant is not mutated: $out"
+	sed -n 2p "$TEST_TMP/survivors.txt" | grep -q ', ignored 0$' || fail "class strings counted as ignored: $(sed -n 2p "$TEST_TMP/survivors.txt")"
+}
+
 # The copy Stryker runs in holds no secret, nothing git ignores but node_modules,
 # and no factory folder.
 test_mutate_runs_in_a_copy_without_secrets_or_ignored_files_with_node() {
@@ -338,4 +367,19 @@ JSON
 	assert_status 0
 	assert_eq "lib/a.ts${TAB}2${TAB}1${TAB}survived${TAB}M: \`b...\` -> \`y\`${TAB}none
 lib/b.ts${TAB}1${TAB}1${TAB}survived${TAB}M: \`b\` -> \`w\`${TAB}none" "$out" "the reader's lines inside the ranges"
+}
+
+# A mutant the class-string ignorer skipped (Ignored, with its reason) is left
+# out; one ignored for any other reason is printed.
+test_the_reader_leaves_out_the_class_strings_it_skipped_with_node() {
+	needs_node
+	cat > "$TEST_TMP/report.json" << 'JSON'
+{"files": {"lib/a.ts": {"source": "const aClass = \"x\";\n", "mutants": [
+  {"mutatorName": "StringLiteral", "replacement": "\"\"", "status": "Ignored", "statusReason": "factory: a class string (a className attribute or a *Class/*_CLASS constant)", "location": {"start": {"line": 1, "column": 16}, "end": {"line": 1, "column": 19}}},
+  {"mutatorName": "StringLiteral", "replacement": "\"\"", "status": "Ignored", "statusReason": "a guess", "location": {"start": {"line": 1, "column": 16}, "end": {"line": 1, "column": 19}}}
+]}}}
+JSON
+	run_cmd "${NODE_BIN:-node}" "$NEXTJS_ADAPTER/tools/verify/_stryker_mutants.mjs" "$TEST_TMP/report.json"
+	assert_status 0
+	assert_eq "lib/a.ts${TAB}1${TAB}16${TAB}ignored${TAB}StringLiteral: \`\"x\"\` -> \`\"\"\`${TAB}none" "$out" "the reader's lines"
 }
