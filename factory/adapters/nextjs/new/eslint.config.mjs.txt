@@ -31,4 +31,71 @@ export default defineConfig(
     files: ["**/*.{js,mjs,cjs}"],
     extends: [tseslint.configs.disableTypeChecked],
   },
+  // R12: types are proven, not asserted: no type assertions (`as`, `<T>`; `as
+  // const` is allowed), no non-null assertions, and a switch on a union handles
+  // every member. Tests too.
+  {
+    files: ["**/*.{ts,tsx,mts,cts}"],
+    rules: {
+      "@typescript-eslint/consistent-type-assertions": [
+        "error",
+        { assertionStyle: "never" },
+      ],
+      "@typescript-eslint/no-non-null-assertion": "error",
+      "@typescript-eslint/switch-exhaustiveness-check": "error",
+    },
+  },
+  // R13: components outside app/_components/ stay pure: no effects, no raw HTML,
+  // no bare fetch. Tests are exempt.
+  {
+    files: ["**/*.tsx"],
+    ignores: ["app/_components/**", "**/*.test.tsx"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "ImportSpecifier[imported.name='useEffect']",
+          message: "R13: no useEffect outside app/_components/.",
+        },
+        {
+          selector: "MemberExpression[property.name='useEffect']",
+          message: "R13: no useEffect outside app/_components/.",
+        },
+        {
+          selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
+          message: "R13: no dangerouslySetInnerHTML in a component.",
+        },
+        {
+          selector: "Property[key.name='dangerouslySetInnerHTML']",
+          message: "R13: no dangerouslySetInnerHTML in a component.",
+        },
+        {
+          selector:
+            "CallExpression[callee.type='Identifier'][callee.name='fetch']",
+          message: "R13: no bare fetch() in a component; fetch in server/.",
+        },
+      ],
+    },
+  },
+  // R14: no warning comments: fix it now, or file an issue.
+  {
+    rules: {
+      "no-warning-comments": [
+        "error",
+        {
+          terms: [
+            "todo",
+            "todos",
+            "hack",
+            "hacks",
+            "fixme",
+            "fixmes",
+            "workaround",
+            "workarounds",
+          ],
+          location: "anywhere",
+        },
+      ],
+    },
+  },
 );

@@ -1,0 +1,30 @@
+// R12's findings: a type assertion each way, a non-null assertion and a switch
+// missing a member of its union; `as const` and a narrowing check are none.
+type Shape = "circle" | "square" | "triangle";
+
+export const sides = { circle: 0, square: 4 } as const;
+
+export function size(raw: unknown): number {
+  const n = raw as number;
+  const m = <number>raw;
+  return n + m;
+}
+
+export function first(items: string[]): string {
+  return items.find((item) => item.length > 0)!;
+}
+
+export function corners(shape: Shape): number {
+  switch (shape) {
+    case "circle":
+      return 0;
+    case "square":
+      return 4;
+    default:
+      return 3;
+  }
+}
+
+export function checked(raw: unknown): number {
+  return typeof raw === "number" ? raw : 0;
+}

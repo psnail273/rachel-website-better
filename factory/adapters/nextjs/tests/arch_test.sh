@@ -109,11 +109,11 @@ test_client_code_importing_server_only_itself_is_a_finding_with_node() {
 
 test_the_sync_check_fails_on_a_rule_without_a_check_and_a_check_without_a_rule_with_node() {
 	arch_project
-	printf '\n**R12.** Something new.\nEnforced by: `arch:made-up`\nSource: convention\n' >> ARCHITECTURE.md
+	printf '\n**R16.** Something new.\nEnforced by: `arch:made-up`\nSource: convention\n' >> ARCHITECTURE.md
 	sed -i 's/^Enforced by: `arch:next-in-app`$/Enforced by: `review`/' ARCHITECTURE.md
 	step arch
 	assert_status 1
-	assert_eq "ARCHITECTURE.md:$(grep -n 'arch:made-up' ARCHITECTURE.md | cut -d: -f1) arch-sync arch:made-up (R12) has no check
+	assert_eq "ARCHITECTURE.md:$(grep -n 'arch:made-up' ARCHITECTURE.md | cut -d: -f1) arch-sync arch:made-up (R16) has no check
 tools/verify/arch:1 arch-sync check next-in-app is cited by no rule" "$out" "the sync check's findings"
 }
 
@@ -143,10 +143,10 @@ test_the_pre_commit_hook_on_a_tree_without_node_modules_reports_no_tool_missing(
 test_static_only_arch_runs_the_sync_check_alone() {
 	skeleton_project
 	add_fixture arch/fonts.ts.txt app/fonts.ts
-	printf '\n**R12.** Something new.\nEnforced by: `arch:made-up`\nSource: convention\n' >> ARCHITECTURE.md
+	printf '\n**R16.** Something new.\nEnforced by: `arch:made-up`\nSource: convention\n' >> ARCHITECTURE.md
 	FACTORY_ARCH_STATIC_ONLY=1 NODE_BIN=/no/such/node step arch
 	assert_status 1
-	assert_eq "ARCHITECTURE.md:$(grep -n 'arch:made-up' ARCHITECTURE.md | cut -d: -f1) arch-sync arch:made-up (R12) has no check" "$out" "static-only arch's findings"
+	assert_eq "ARCHITECTURE.md:$(grep -n 'arch:made-up' ARCHITECTURE.md | cut -d: -f1) arch-sync arch:made-up (R16) has no check" "$out" "static-only arch's findings"
 }
 
 test_the_reader_refuses_what_isnt_dependency_cruisers_graph_with_node() {
@@ -193,6 +193,18 @@ JS
 	chmod +x node_modules/.bin/depcruise node_modules/.bin/eslint || fail "could not make the stand-ins runnable"
 }
 
+# bans: the skeleton's bans' rules (R12-R14), on, for a stand-in config, which
+# the tests about the other tags splice in.
+bans='"@typescript-eslint/consistent-type-assertions":2,"@typescript-eslint/no-non-null-assertion":2,"@typescript-eslint/switch-exhaustiveness-check":2,"no-restricted-syntax":2,"no-warning-comments":2'
+
+# bans_to_review: the bans' rules (R12-R14) enforced by review alone, so their
+# tags ask ESLint nothing.
+bans_to_review() {
+	sed -i -e '/^Enforced by: `lint:\(@typescript-eslint\/consistent-type-assertions\|no-restricted-syntax\|no-warning-comments\)`/s/^.*$/Enforced by: `review`/' ARCHITECTURE.md
+	! grep -q 'lint:\(@typescript-eslint/consistent-type-assertions\|no-restricted-syntax\|no-warning-comments\)`' ARCHITECTURE.md ||
+		fail "could not take the bans' lint tags out"
+}
+
 # tag_line <rule>: the line of ARCHITECTURE.md holding `lint:<rule>`.
 tag_line() {
 	grep -nF "\`lint:$1\`" ARCHITECTURE.md | cut -d: -f1
@@ -207,7 +219,7 @@ test_lint_tags_whose_rules_are_on_are_no_finding_with_node() {
 	needs_node
 	skeleton_project
 	stand_in_tools
-	echo '{"rules":{"@typescript-eslint/no-floating-promises":[2],"@typescript-eslint/no-unsafe-assignment":"warn","@typescript-eslint/no-unsafe-member-access":["error",{"x":1}],"no-console":[0]}}' > node_modules/.eslint-config
+	echo '{"rules":{'"$bans"',"@typescript-eslint/no-floating-promises":[2],"@typescript-eslint/no-unsafe-assignment":"warn","@typescript-eslint/no-unsafe-member-access":["error",{"x":1}],"no-console":[0]}}' > node_modules/.eslint-config
 	step arch
 	assert_status 0
 	assert_eq "" "$out" "arch's findings"
@@ -218,7 +230,7 @@ test_lint_tags_ask_about_a_file_under_src_when_one_is_there_with_node() {
 	needs_node
 	skeleton_project
 	stand_in_tools
-	echo '{"rules":{"@typescript-eslint/no-floating-promises":1,"@typescript-eslint/no-unsafe-assignment":2,"@typescript-eslint/no-unsafe-member-access":"error"}}' > node_modules/.eslint-config
+	echo '{"rules":{'"$bans"',"@typescript-eslint/no-floating-promises":1,"@typescript-eslint/no-unsafe-assignment":2,"@typescript-eslint/no-unsafe-member-access":"error"}}' > node_modules/.eslint-config
 	mkdir -p src/lib
 	printf 'export const a = 1;\n' > src/lib/a.ts
 	printf 'export const b = 1;\n' > src/a.test.ts
@@ -232,7 +244,7 @@ test_a_lint_tag_whose_eslint_rule_is_off_or_unset_is_a_finding_at_its_line_with_
 	needs_node
 	skeleton_project
 	stand_in_tools
-	echo '{"rules":{"@typescript-eslint/no-floating-promises":[0],"@typescript-eslint/no-unsafe-assignment":"off"}}' > node_modules/.eslint-config
+	echo '{"rules":{'"$bans"',"@typescript-eslint/no-floating-promises":[0],"@typescript-eslint/no-unsafe-assignment":"off"}}' > node_modules/.eslint-config
 	step arch
 	assert_status 1
 	local fix="(eslint --print-config); turn it on (warn or error) in the ESLint config, or change this rule's Enforced by: line"
@@ -246,6 +258,7 @@ test_a_lint_tag_on_a_file_eslints_config_ignores_is_a_finding_with_node() {
 	skeleton_project
 	stand_in_tools
 	sed -i 's/^Enforced by: `lint:@typescript-eslint\/no-unsafe-assignment`.*$/Enforced by: `review`/' ARCHITECTURE.md
+	bans_to_review
 	echo undefined > node_modules/.eslint-config
 	step arch
 	assert_status 1
@@ -256,6 +269,7 @@ test_the_lint_steps_own_checks_as_lint_tags_are_no_finding_and_ask_eslint_nothin
 	needs_node
 	skeleton_project
 	stand_in_tools
+	bans_to_review
 	sed -i 's/^Enforced by: `lint:@typescript-eslint.*$/Enforced by: `review`/' ARCHITECTURE.md
 	grep -qF 'Enforced by: `lint:assertion-free`, `lint:fixed-wait`' ARCHITECTURE.md || fail "the skeleton's R5 cites no assertion-free and fixed-wait"
 	echo 9 > node_modules/.eslint-exit
@@ -304,8 +318,8 @@ test_a_lint_tag_on_only_for_files_after_the_first_is_no_finding_with_node() {
 	needs_node
 	skeleton_project
 	stand_in_tools
-	echo '{"rules":{"@typescript-eslint/no-floating-promises":2,"@typescript-eslint/no-unsafe-assignment":2,"@typescript-eslint/no-unsafe-member-access":"off"}}' > node_modules/.eslint-config
-	echo '{"rules":{"@typescript-eslint/no-floating-promises":2,"@typescript-eslint/no-unsafe-assignment":2,"@typescript-eslint/no-unsafe-member-access":"warn"}}' > node_modules/.eslint-config.tsx
+	echo '{"rules":{'"$bans"',"@typescript-eslint/no-floating-promises":2,"@typescript-eslint/no-unsafe-assignment":2,"@typescript-eslint/no-unsafe-member-access":"off"}}' > node_modules/.eslint-config
+	echo '{"rules":{'"$bans"',"@typescript-eslint/no-floating-promises":2,"@typescript-eslint/no-unsafe-assignment":2,"@typescript-eslint/no-unsafe-member-access":"warn"}}' > node_modules/.eslint-config.tsx
 	step arch
 	assert_status 0
 	assert_eq "" "$out" "arch's findings"
@@ -318,8 +332,8 @@ test_a_lint_tag_on_for_no_file_is_a_finding_with_node() {
 	needs_node
 	skeleton_project
 	stand_in_tools
-	echo '{"rules":{"@typescript-eslint/no-floating-promises":2,"@typescript-eslint/no-unsafe-assignment":2,"@typescript-eslint/no-unsafe-member-access":"off"}}' > node_modules/.eslint-config
-	echo '{"rules":{"@typescript-eslint/no-floating-promises":2,"@typescript-eslint/no-unsafe-assignment":2}}' > node_modules/.eslint-config.tsx
+	echo '{"rules":{'"$bans"',"@typescript-eslint/no-floating-promises":2,"@typescript-eslint/no-unsafe-assignment":2,"@typescript-eslint/no-unsafe-member-access":"off"}}' > node_modules/.eslint-config
+	echo '{"rules":{'"$bans"',"@typescript-eslint/no-floating-promises":2,"@typescript-eslint/no-unsafe-assignment":2}}' > node_modules/.eslint-config.tsx
 	step arch
 	assert_status 1
 	assert_eq "ARCHITECTURE.md:$(tag_line @typescript-eslint/no-unsafe-member-access) R3 lint:@typescript-eslint/no-unsafe-member-access is not on: ESLint's config turns it off for app/api/health/route.ts (eslint --print-config); turn it on (warn or error) in the ESLint config, or change this rule's Enforced by: line" "$out" "arch's finding"

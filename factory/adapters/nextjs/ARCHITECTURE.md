@@ -72,6 +72,22 @@ Source: convention
 Enforced by: `arch:input-zod`, `review`
 Source: convention (a request or an action's arguments come from whoever sends them; their types don't hold until a schema checks them)
 
+**R12.** Types are proven, not asserted: in the app's TypeScript (tests too) no type assertion (`x as T`, `<T>x`; `as const` is allowed), no non-null assertion (`x!`), and a `switch` on a union has a case for every member (a `default` does not stand in for one). Narrow with a check or a parser instead.
+Enforced by: `lint:@typescript-eslint/consistent-type-assertions`, `lint:@typescript-eslint/no-non-null-assertion`, `lint:@typescript-eslint/switch-exhaustiveness-check`
+Source: Lauren Tan, All Code Is Slop (Except Mine); pstack type-system-discipline
+
+**R13.** Components stay pure: a `.tsx` file outside `app/_components/` (tests exempt) imports no `useEffect` (nor calls `React.useEffect`), sets no `dangerouslySetInnerHTML` and calls no bare `fetch(`; effects live in `app/_components/`, data comes from `server/`.
+Enforced by: `lint:no-restricted-syntax`
+Source: Lauren Tan, All Code Is Slop (Except Mine); pstack boundary-discipline
+
+**R14.** No warning comments: no comment holds the word `TODO`, `HACK`, `FIXME` or `workaround`, or its plural, anywhere in it (in any case). Fix it now, or file an issue.
+Enforced by: `lint:no-warning-comments`
+Source: Lauren Tan, All Code Is Slop (Except Mine)
+
+**R15.** Outside data (a feed, environment variables, database rows) is parsed into typed values in one place under `server/`, at the boundary; the rest of the code takes only the typed values.
+Enforced by: `review`
+Source: Lauren Tan, All Code Is Slop (Except Mine); pstack boundary-discipline
+
 ## Ratchet files
 
 These are tracked and may only shrink; the `deviation` step fails when one grows.

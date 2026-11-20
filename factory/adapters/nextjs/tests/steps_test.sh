@@ -317,6 +317,37 @@ test_lint_reports_hooks_misuse_and_nextjs_rules_with_node() {
 	has_line_starting "app/logo.tsx:2 @next/next/no-img-element "
 }
 
+# The skeleton's bans (ARCHITECTURE.md's R12-R14), each on its fixture: type and
+# non-null assertions and a switch missing a member (as const and a check are
+# none); an effect, raw HTML or a bare fetch in a component outside
+# app/_components/ (that folder and tests are exempt); a warning comment.
+test_lint_reports_the_skeletons_bans_with_node() {
+	prepared_project
+	add_fixture lint/asserted.ts.txt lib/asserted.ts
+	add_fixture lint/impure.tsx.txt app/widget.tsx
+	add_fixture lint/impure.tsx.txt app/_components/widget.tsx
+	add_fixture lint/impure.tsx.txt app/widget.test.tsx
+	add_fixture lint/warnings.ts.txt lib/warnings.ts
+	step lint
+	assert_status 1
+	assert_eq "app/widget.tsx:3 no-restricted-syntax
+app/widget.tsx:9 no-restricted-syntax
+app/widget.tsx:10 no-restricted-syntax
+app/widget.tsx:14 no-restricted-syntax
+app/widget.tsx:15 no-restricted-syntax
+lib/asserted.ts:8 @typescript-eslint/consistent-type-assertions
+lib/asserted.ts:9 @typescript-eslint/consistent-type-assertions
+lib/asserted.ts:14 @typescript-eslint/no-non-null-assertion
+lib/asserted.ts:18 @typescript-eslint/switch-exhaustiveness-check
+lib/warnings.ts:1 no-warning-comments
+lib/warnings.ts:3 no-warning-comments
+lib/warnings.ts:5 no-warning-comments
+lib/warnings.ts:6 no-warning-comments" "$(printf '%s\n' "$out" | grep -v ' knip-' | cut -d' ' -f1-2 | LC_ALL=C sort -t: -k1,1 -k2,2n)" "the bans' findings"
+	has_line_starting "app/widget.tsx:3 no-restricted-syntax R13: no useEffect outside app/_components/."
+	has_line_starting "app/widget.tsx:10 no-restricted-syntax R13: no bare fetch() in a component; fetch in server/."
+	has_line_starting "app/widget.tsx:14 no-restricted-syntax R13: no dangerouslySetInnerHTML in a component."
+}
+
 # knip's issues in files in scope, one finding each; none out of scope.
 # server-only, which R6 names and Next.js bundles, needs no package.json line.
 test_lint_reports_knips_unused_files_exports_and_dependencies_with_node() {

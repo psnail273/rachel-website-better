@@ -1,0 +1,18 @@
+"use client";
+import * as React from "react";
+import { useEffect } from "react";
+
+export function Widget({ html }: { html: string }) {
+  useEffect(() => {
+    document.title = html;
+  }, [html]);
+  React.useEffect(() => {
+    void fetch("/api/health");
+  }, []);
+  return (
+    <div>
+      <p dangerouslySetInnerHTML={{ __html: html }} />
+      {React.createElement("p", { dangerouslySetInnerHTML: { __html: html } })}
+    </div>
+  );
+}

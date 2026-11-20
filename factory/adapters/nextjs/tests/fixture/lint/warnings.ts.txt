@@ -1,0 +1,9 @@
+// The word todo in prose is a warning comment too.
+export const a = 1;
+/* A HACK until the feed is fixed. */
+export const b = 2;
+export const c = 3; // fixmes: two of them
+// Workarounds: none.
+export const d = 4;
+// A plain comment is none.
+export const e = 5;

@@ -91,7 +91,7 @@ file 0960dcab2c112fa0c1b99ef20a606b4ab51ebac6 factory/adapters/godot/tools/verif
 file 475331aad53c091a762600c29fbbd09a3248adb2 factory/adapters/godot/tools/verify/typecheck
 file e3b822aecf02da88440111fd3fc104fcb09b18aa factory/adapters/godot/tools/verify/versions
 file 837d36fb2560a97c005912574df3557c6b155fa3 factory/adapters/godot/verify-skill.sh
-file fb16f369aaa0f6c38ac618efc5f8f4f51f885bd3 factory/adapters/nextjs/ARCHITECTURE.md
+file c6379936ef06767a173bc59e677a575c92dae2d8 factory/adapters/nextjs/ARCHITECTURE.md
 file e62318aa9ef1771bc192f3efa2b858c79bc0a795 factory/adapters/nextjs/adopt.sh
 file 8ccad4f4850de6e8c6be795925d3f09c7a8e2e74 factory/adapters/nextjs/new/.gitignore.txt
 file a598fca41296fc48cc91cf77e4eb95112a617f3c factory/adapters/nextjs/new/.prettierrc.json.txt
@@ -100,7 +100,7 @@ file ff4ed6a04a1ed4e27b5aa2b83dab950624e50769 factory/adapters/nextjs/new/app/ap
 file 0bcd9a0e61b33334fa0661e1fe33aafc5e875c19 factory/adapters/nextjs/new/app/api/health/route.ts.txt
 file cb9ab19a17ce16c7289e15bab3f74eb1b8256ed3 factory/adapters/nextjs/new/app/layout.tsx.txt
 file eaa56e8b3ccac88ed148b68b63ff306f7406b64e factory/adapters/nextjs/new/app/page.tsx.txt
-file 468c6056fb88066fc1b63bfa91119e106f279aa2 factory/adapters/nextjs/new/eslint.config.mjs.txt
+file 7b88ea82b821dfbe1a9802f4e17d29fac122f49f factory/adapters/nextjs/new/eslint.config.mjs.txt
 file c88907fce92d8295fe67e38246a286255c96bcfd factory/adapters/nextjs/new/knip.json.txt
 file cb651cdc007c4c5087ea7b4e61981bb2733f7d92 factory/adapters/nextjs/new/next.config.ts.txt
 file 05397a10431d064b22ff3f67cbd2fec8d09788d6 factory/adapters/nextjs/new/package.json.txt
@@ -110,7 +110,7 @@ file e8f60a269f04b51955ac3e7e4a44f60cb33ac701 factory/adapters/nextjs/new/tsconf
 file 04873545a45eb3d63684d1b6dede7c4d97503c0b factory/adapters/nextjs/new/vitest.config.ts.txt
 file f60f2ac9fe9622bc62c77ee4aad9acc12aaf50cd factory/adapters/nextjs/skills/write-tests-nextjs/SKILL.md
 file 22c47ec07baf2eea3aac127586d6f362afd6e74c factory/adapters/nextjs/tests/adopt_test.sh
-file ad44256fad962ecf780f9d2879424513656deaa4 factory/adapters/nextjs/tests/arch_test.sh
+file 10a1c28d20b7b67c47a49604b8b532daec7ffae5 factory/adapters/nextjs/tests/arch_test.sh
 file a6055f50a18a77d8674a6254161c99acd125db28 factory/adapters/nextjs/tests/assert_counts_test.sh
 file 8568a47a8728f0b4887bc1b045a7c1f3f8744f2c factory/adapters/nextjs/tests/contact_sheet_test.sh
 file f110ff262f6d92ca83d8c322563a76f91689c3b5 factory/adapters/nextjs/tests/fixture/arch/actions.ts.txt
@@ -148,12 +148,14 @@ file dc5d80d2fa51b2e354e9a726923fbb45e4c547d8 factory/adapters/nextjs/tests/fixt
 file ae34344759bd1457db2be8ece11668df4c7f7e50 factory/adapters/nextjs/tests/fixture/layout/faults.html.txt
 file 8ff7e23aa61cd50791c02ff32ea0d53f5f17db69 factory/adapters/nextjs/tests/fixture/layout/pass.html.txt
 file d5da9d5418ea59ab431a5308b4e0bb3e4e0d4fb7 factory/adapters/nextjs/tests/fixture/layout/reported.html.txt
+file 0350fb5c3d450d3b2dc577d4e8d0a1780f0cbe04 factory/adapters/nextjs/tests/fixture/lint/asserted.ts.txt
 file fbf7b3059590b23125047db35ed58fff11c255d6 factory/adapters/nextjs/tests/fixture/lint/assertions.test.ts.txt
 file 71313508170249e568aee3addf179f19d9e70dca factory/adapters/nextjs/tests/fixture/lint/aws.md.txt
 file 0d70fa5e20f3e67d3714325271dbd5d026a1a835 factory/adapters/nextjs/tests/fixture/lint/fake_timers.test.ts.txt
 file 15e32966185eece34443072ef2b4dd35d9463da4 factory/adapters/nextjs/tests/fixture/lint/floating.ts.txt
 file 63995327b2b69a1b1d656232192d0fca4d8b8597 factory/adapters/nextjs/tests/fixture/lint/hooks.tsx.txt
 file a24e291fa71ac379c29d632d35df0e9897332ba2 factory/adapters/nextjs/tests/fixture/lint/img.tsx.txt
+file 00998e5f1d224ec27a24ff3fd2c8a96e7fceb7b3 factory/adapters/nextjs/tests/fixture/lint/impure.tsx.txt
 file c63629a9fdc185d31035957454c669244c83768a factory/adapters/nextjs/tests/fixture/lint/jsx.test.tsx.txt
 file fdfe90fe564d32ee2562bf7dc87ba8754d160f24 factory/adapters/nextjs/tests/fixture/lint/key-route.ts.txt
 file 2ddb4f38a17c13e6471167b5b41dfa71057fbc15 factory/adapters/nextjs/tests/fixture/lint/key.ts.txt
@@ -161,6 +163,7 @@ file 50377611d981fc11af68fbd7eca35bd5a53975ce factory/adapters/nextjs/tests/fixt
 file 9c0cd05046503d6696896811828543496d90e871 factory/adapters/nextjs/tests/fixture/lint/uses.tsx.txt
 file 5a3addc05f66f41ccb68c28d63c61c222e1cfafb factory/adapters/nextjs/tests/fixture/lint/util.ts.txt
 file 64f7998efc18105ec51d24bd60ad8645cfb92f13 factory/adapters/nextjs/tests/fixture/lint/waits.test.ts.txt
+file 373b695212c89eaf61f25899296294a83faced5b factory/adapters/nextjs/tests/fixture/lint/warnings.ts.txt
 file 320feb21b67da1bf5e24b70cf4323d924e90816e factory/adapters/nextjs/tests/fixture/mutate/cart.test.ts.txt
 file a0385c5d6b6a84b4de73b83cd7c9c63b957f4196 factory/adapters/nextjs/tests/fixture/mutate/cart.ts.txt
 file f881a9d27a5a834257baa7a193d1dd71e6cbd634 factory/adapters/nextjs/tests/fixture/mutate/cart_base.test.ts.txt
@@ -212,7 +215,7 @@ file d0a634a656f68932e85b95149139ed322572ec75 factory/adapters/nextjs/tests/name
 file 74950168c992a51a001ba7ce6538866e57fe2b51 factory/adapters/nextjs/tests/prime-store.sh
 file 0200456c77a96bac4101e6517d0a84b6e7aa13f4 factory/adapters/nextjs/tests/scenarios_test.sh
 file 3e1c69c39da90d9b6eece86f80d334b12b5cbd48 factory/adapters/nextjs/tests/smoke_test.sh
-file 1236b9376314f0c0398b470444eed1e2c2f5fbb4 factory/adapters/nextjs/tests/steps_test.sh
+file eae0202b23aef02098f1d29c88563c1fcbc1f04b factory/adapters/nextjs/tests/steps_test.sh
 file c487bf5174d84d8984bcb864e563d5b6fe9e07be factory/adapters/nextjs/tests/test_step_test.sh
 file b1263e8562d3789187f684d235540528848cc981 factory/adapters/nextjs/tests/verify_skill_test.sh
 file fd71d01a2e59bad8f58b2521523de79b7b7ec965 factory/adapters/nextjs/tools/verify/_arch_imports.mjs
