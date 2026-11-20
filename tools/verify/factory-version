@@ -266,7 +266,7 @@ file 87fcdf5af253f1622a5c8a03adc002276a2b7b65 factory/agents/asset-fetcher.md
 file c7edee82ecf0e81e33989e56bc8a74f2c510e479 factory/agents/check-editor-sonnet.log
 file 8890233f8acf2f28511fb4f0497d920083c5c208 factory/agents/check-editor-sonnet.sh
 file 5988c540d0f15d5d22ad4632604792b827676da5 factory/agents/designer.md
-file 1d26d6f7a8457125c0cf5d34b477bde1b268744c factory/agents/driver.md
+file cd47862e54046d5995b72b2eb4334237e2d440a4 factory/agents/driver.md
 file 4cafcac64eb6224f10c5243c6a25b0328ac762dd factory/agents/editor-sonnet.md
 file 8d7f38a74613b513f2fc09c720a18b183682b2ff factory/agents/verifier.md
 file 802083108998b7ab2cb52d5686967a4235200fc4 factory/core/adopt.sh
@@ -324,7 +324,7 @@ file 3626ab6689b2178032483d694a04d33d156bfed1 factory/core/scenarios.sh
 file f48ab0a64c19e082dea12087309272943c643647 factory/core/shell-lint.sh
 file f098838a554d9b40e1a478ea1e5e7c4df771b289 factory/core/skill-budget.sh
 file 8c1b2982f680b66a716dc19e0db6bed7ccf30d96 factory/core/skill-words
-file e0b85cd0b923edc988caa5fabe5d4f15deb8c245 factory/core/start.sh
+file dd0bddc75c0c9abec9dca19e4320d9ffd20da206 factory/core/start.sh
 file 373f0c027cc19f144b56e8f71b0ca9fb51b33c17 factory/core/state.sh
 file aaa300901890c786ba124263b1139deabc1adff9 factory/core/stress.sh
 file 277ee10f83aa33bc0a7d9b7882407d3ac87921b3 factory/core/sync.sh
@@ -377,7 +377,7 @@ file 0a29a79400e006c0135a0e541a17eecc45e98312 factory/core/tests/fixture/wait-gu
 file ee7ed90893d2d5677afc44dffe834a0e40c304fb factory/core/tests/hooks_test.sh
 file 3c323f7353738597e258927f7243a1bbc8892cb8 factory/core/tests/install_test.sh
 file ed39bc54484c83d3e63cc90c2a880660d0f14b5c factory/core/tests/keep_going_test.sh
-file a5361e5294685708c9f6b4f86ad6260d36bdc319 factory/core/tests/land_test.sh
+file f4c2b4137d43531eef6add27615b29ed6d23bc4b factory/core/tests/land_test.sh
 file 269a050be187658c88a7c40ffb6cc8ec2da3304d factory/core/tests/lib.sh
 file 94c0668ca0c91056b45398457516a734fee79ce5 factory/core/tests/lock_test.sh
 file 9d50580b5cbff41a6737b52b8d3edb3c0c83f0f4 factory/core/tests/mutate_test.sh
@@ -393,7 +393,7 @@ file 7520c88d1e0ecf471dcd8d9655137e84de0601a6 factory/core/tests/scenarios_test.
 file f7c6f957571acaf24420c39952c7bb49a4bf366e factory/core/tests/shell_lint_test.sh
 file 6a5c1087e50fc8062c46dbb06af4d390022358ad factory/core/tests/skill_budget_test.sh
 file 0e830d4ace5542ac7076d4bde061fc784ce8cc1d factory/core/tests/stamp_test.sh
-file 6c661823e1d4c61c079cba83b45277c2285d8bd1 factory/core/tests/start_test.sh
+file dce57e32c7b546acb4ac59da25a1a36fbd47dcf4 factory/core/tests/start_test.sh
 file 113935331537331c9df5de5de3b8668add996e80 factory/core/tests/state_test.sh
 file 67b450f2942913c89681e5da82b7e39a32df3f56 factory/core/tests/stress_test.sh
 file cab79c6642d10e1f92b72ee3c94d5df05c40adff factory/core/tests/sync_test.sh

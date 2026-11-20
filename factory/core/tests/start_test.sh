@@ -295,3 +295,117 @@ test_a_failing_prepare_fails_start_and_says_so() {
 	grep -q "start: bash tools/verify.sh prepare failed in .*issue-7" "$TEST_TMP/stderr" || fail "no reason on stderr: $(cat "$TEST_TMP/stderr")"
 	assert_eq "done" "$(git config branch.issue/7.factory-bootstrap)" "bootstrap passed and should stay done"
 }
+
+# #69: while origin/dev's Baseline holds findings, only a Kind: cleanup issue can
+# land, so start.sh refuses any other before it makes a worktree or branch.
+
+# baseline_on_dev <text>: commit the Baseline's text on dev and push it.
+baseline_on_dev() {
+	mkdir -p tools/verify/ratchet && printf '%s' "$1" > tools/verify/ratchet/baseline.txt
+	git add -A && git commit -q -m baseline && git push -q origin dev 2> /dev/null || fail "could not push the Baseline"
+}
+
+# no_start <n>: nothing of issue <n> was made: no worktree, branch or run state.
+no_start() {
+	[ ! -e ".claude/worktrees/issue-$1" ] || fail "a refused start made the worktree"
+	git show-ref --verify --quiet "refs/heads/issue/$1" && fail "a refused start made the branch"
+	git config --get-regexp "^branch\.issue/$1\." > /dev/null && fail "a refused start recorded run state"
+	[ ! -s "$BOOTSTRAP_LOG" ] || fail "a refused start ran bootstrap"
+	return 0
+}
+
+test_a_non_cleanup_issue_on_a_non_empty_baseline_is_refused_before_any_worktree() {
+	local kind
+	fixture_repo
+	baseline_on_dev $'# kept\nsrc/a.ts R15 too deep\nsrc/b.ts R15 too deep\n\nsrc/c.ts lint/no-x an x\r\n'
+	for kind in build bug amend; do
+		printf 'Part of #1\n\nKind: %s\n\nThe body.\n' "$kind" > "$TEST_TMP/body"
+		run_start 7 --title "Build it" < "$TEST_TMP/body"
+		assert_status 3
+		assert_eq "" "$out" "stdout should be empty on a refusal"
+		stderr_has "start: refused: #7 is Kind: $kind, and the Baseline (tools/verify/ratchet/baseline.txt on origin/dev) holds 3 findings (R15 2, lint/no-x 1)."
+		stderr_has "start: Run a Kind: cleanup issue first, this Spec's or the Adoption cleanup Spec's (the tracker doc's list command finds it), then start #7 again."
+		no_start 7
+	done
+}
+
+test_an_issue_with_no_kind_line_on_a_non_empty_baseline_is_refused() {
+	fixture_repo
+	baseline_on_dev $'src/a.ts R15 too deep\n'
+	printf 'Part of #1\n\nThe body names Kind: cleanup only inside a line.\n' > "$TEST_TMP/body"
+	run_start 7 --title "Build it" < "$TEST_TMP/body"
+	assert_status 3
+	stderr_has "start: refused: #7 has no Kind: line, and the Baseline (tools/verify/ratchet/baseline.txt on origin/dev) holds 1 findings (R15 1)."
+	no_start 7
+	run_start 7
+	assert_status 3
+	no_start 7
+}
+
+test_a_cleanup_issue_starts_on_a_non_empty_baseline() {
+	fixture_repo
+	baseline_on_dev $'src/a.ts R15 too deep\n'
+	printf 'Part of #1\r\n\r\nKind: cleanup\r\n' > "$TEST_TMP/body"
+	run_start 7 --title "Clean it" < "$TEST_TMP/body"
+	assert_status 0
+	[ "$out" -ef "$TEST_TMP/main/.claude/worktrees/issue-7" ] || fail "stdout is not the worktree path: $out"
+	# A resume without --title reads the Kind from the saved issue.
+	run_start 7
+	assert_status 0
+}
+
+test_any_kind_starts_on_an_empty_baseline() {
+	fixture_repo
+	baseline_on_dev $'# no findings left\n\n'
+	printf 'Kind: build\n' > "$TEST_TMP/body"
+	run_start 7 --title "Build it" < "$TEST_TMP/body"
+	assert_status 0
+	run_start 8
+	assert_status 0
+	[ -e .claude/worktrees/issue-8 ] || fail "an issue with no Kind did not start"
+}
+
+# The Baseline read is origin/dev's, fetched first: one pushed after the main
+# checkout last fetched refuses.
+test_the_baseline_read_is_the_freshly_fetched_origin_dev() {
+	fixture_repo
+	git clone -q -b dev "$TEST_TMP/origin.git" "$TEST_TMP/other" 2> /dev/null || fail "could not clone"
+	mkdir -p "$TEST_TMP/other/tools/verify/ratchet"
+	commit_in "$TEST_TMP/other" tools/verify/ratchet/baseline.txt "src/a.ts R15 too deep"
+	git -C "$TEST_TMP/other" push -q origin dev 2> /dev/null || fail "could not push"
+	printf 'Kind: build\n' > "$TEST_TMP/body"
+	run_start 7 --title "Build it" < "$TEST_TMP/body"
+	assert_status 3
+	no_start 7
+}
+
+# A resume of an issue already started is refused too: its gate still can't pass.
+test_a_resume_is_refused_once_the_baseline_holds_findings() {
+	local issue
+	fixture_repo
+	printf 'Kind: build\n' > "$TEST_TMP/body"
+	run_start 7 --title "Build it" < "$TEST_TMP/body"
+	assert_status 0
+	issue="$(issue_md .claude/worktrees/issue-7)"
+	commit_in .claude/worktrees/issue-7 c.txt work
+	baseline_on_dev $'src/a.ts R15 too deep\n'
+	run_start 7
+	assert_status 3
+	stderr_has "start: refused: #7 is Kind: build, and the Baseline (tools/verify/ratchet/baseline.txt on origin/dev) holds 1 findings (R15 1)."
+	printf 'Kind: build\n' > "$TEST_TMP/body"
+	run_start 7 --title "Build it" < "$TEST_TMP/body"
+	assert_status 3
+	assert_eq "#7: Build it
+
+Kind: build" "$(cat "$issue")" "a refused resume changed the saved issue"
+	assert_eq "work" "$(cat .claude/worktrees/issue-7/c.txt)" "a refused resume changed the worktree"
+	# The branch alone, its worktree gone, has no saved issue: no Kind, refused.
+	git worktree remove --force .claude/worktrees/issue-7 || fail "could not remove the worktree"
+	run_start 7
+	assert_status 3
+	[ ! -e .claude/worktrees/issue-7 ] || fail "a refused resume made the worktree"
+	# Its body says cleanup: it resumes.
+	printf 'Kind: cleanup\n' > "$TEST_TMP/body"
+	run_start 7 --title "Build it" < "$TEST_TMP/body"
+	assert_status 0
+}

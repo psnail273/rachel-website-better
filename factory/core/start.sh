@@ -36,6 +36,19 @@
 # Rerunning it resumes: an existing worktree or branch is reused, and a bootstrap
 # that passed once (run state `bootstrap`) is not run again.
 #
+# The Baseline's refusal (#69): while the Baseline holds findings, only a Kind:
+# cleanup issue can land (every other Kind gates on the full verify, red until
+# the Baseline is empty), so start.sh refuses any other issue, a resume too,
+# before it makes or touches a worktree, branch or run state, and exits 3. It
+# fetches origin/dev first, on a resume too (there a failed fetch reads the last
+# fetched copy), and reads origin/dev's tools/verify/ratchet/baseline.txt: its
+# lines that are not blank or # comments are its findings. The issue's Kind is
+# the first `Kind: <kind>` line of the body piped in with --title, else of the
+# worktree's saved issue.md; an issue with no Kind line is not a cleanup. The
+# message says how many findings the Baseline holds, by rule (an entry's second
+# word), and to run a Kind: cleanup issue first, the Spec's or the Adoption
+# cleanup Spec's.
+#
 # When it makes the branch it records the time, the run state's `started`, which
 # the stats line's minutes count from (lib/run.sh); a resume keeps it, and a
 # branch made before start.sh recorded it stays without one. The time is
@@ -44,7 +57,8 @@
 #
 # stdout is the worktree's path and nothing else; progress goes to stderr.
 # Exit codes: 0 ready, 1 a step failed (rerun to retry), 2 usage (a title that is
-# blank or more than one line, or a terminal for the body, among them).
+# blank or more than one line, or a terminal for the body, among them), 3 refused:
+# the Baseline holds findings and the issue is not Kind: cleanup.
 set -u
 
 core="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -101,6 +115,42 @@ cd "$main" || die "cannot enter the main checkout $main"
 branch="$(factory_issue_branch "$n")"
 wt="$(factory_issue_worktree "$main" "$n")"
 
+# The Baseline's refusal, before anything changes: origin/dev's Baseline, fetched
+# first, and the issue's Kind, from the body piped in, else the saved issue.md.
+base_ref="refs/remotes/$FACTORY_REMOTE/$FACTORY_BASE_BRANCH"
+fetched=1
+git fetch "$FACTORY_REMOTE" "$FACTORY_BASE_BRANCH" >&2 || fetched=0
+if [ "$fetched" -eq 0 ]; then
+	git show-ref --verify --quiet "refs/heads/$branch" ||
+		die "could not fetch $FACTORY_BASE_BRANCH from $FACTORY_REMOTE"
+	say "could not fetch $FACTORY_BASE_BRANCH from $FACTORY_REMOTE; reading the Baseline from the last fetched $base_ref"
+fi
+baseline="$FACTORY_STEPS_DIR/ratchet/baseline.txt"
+git show "$base_ref:$baseline" > "$tmp/baseline" 2> /dev/null || : > "$tmp/baseline"
+tr -d '\r' < "$tmp/baseline" | grep -v -e '^[[:space:]]*$' -e '^[[:space:]]*#' > "$tmp/findings"
+if [ -s "$tmp/findings" ]; then
+	kind_from=""
+	if [ -f "$tmp/body" ]; then
+		kind_from="$tmp/body"
+	elif [ -e "$wt/.git" ]; then
+		saved="$(git -C "$wt" rev-parse --path-format=absolute --git-dir 2> /dev/null)/factory/issue.md"
+		[ ! -f "$saved" ] || kind_from="$saved"
+	fi
+	kind=""
+	[ -z "$kind_from" ] ||
+		kind="$(tr -d '\r' < "$kind_from" | sed -n 's/^[[:space:]]*Kind:[[:space:]]*\([A-Za-z-]*\).*/\1/p' | head -n 1 | tr '[:upper:]' '[:lower:]')"
+	if [ "$kind" != cleanup ]; then
+		count="$(wc -l < "$tmp/findings" | tr -d ' ')"
+		rules="$(awk '{ print ($2 == "" ? "(no rule)" : $2) }' "$tmp/findings" | sort | uniq -c |
+			awk '{ printf "%s%s %s", sep, $2, $1; sep = ", " }')"
+		if [ -n "$kind" ]; then what="#$n is Kind: $kind"; else what="#$n has no Kind: line"; fi
+		say "refused: $what, and the Baseline ($baseline on $FACTORY_REMOTE/$FACTORY_BASE_BRANCH) holds $count findings ($rules)."
+		say "While it holds any, only a Kind: cleanup issue can land: every other Kind gates on the full verify, red until the Baseline is empty."
+		say "Run a Kind: cleanup issue first, this Spec's or the Adoption cleanup Spec's (the tracker doc's list command finds it), then start #$n again."
+		exit 3
+	fi
+fi
+
 # add_worktree <git worktree add arguments...>: add the worktree, leaving the
 # Scenario folder out of its checkout when the project names one.
 scenarios="$(factory_scenario_folder)" || scenarios=""
@@ -126,8 +176,6 @@ elif git show-ref --verify --quiet "refs/heads/$branch"; then
 	say "reusing the branch $branch"
 	add_worktree "$wt" "$branch" || die "could not add the worktree $wt"
 else
-	git fetch "$FACTORY_REMOTE" "$FACTORY_BASE_BRANCH" >&2 ||
-		die "could not fetch $FACTORY_BASE_BRANCH from $FACTORY_REMOTE"
 	add_worktree --no-track -b "$branch" "$wt" "refs/remotes/$FACTORY_REMOTE/$FACTORY_BASE_BRANCH" ||
 		die "could not create the worktree $wt"
 	factory_state_set "$branch" started "$(factory_now)" || die "could not record the run state"

@@ -4,9 +4,15 @@ run_land() {
 	run_cmd bash "$FACTORY_CORE/land.sh" "$@"
 }
 
-# started <n>: start issue <n> and set $wt to its worktree.
+# started <n> [kind]: start issue <n> and set $wt to its worktree; with a kind,
+# as an issue whose body is `Kind: <kind>` (start.sh starts only a cleanup while
+# the Baseline holds findings).
 started() {
-	wt="$(bash "$FACTORY_CORE/start.sh" "$1" 2> /dev/null)" || fail "start.sh failed"
+	if [ "$#" -ge 2 ]; then
+		wt="$(printf 'Kind: %s\n' "$2" | bash "$FACTORY_CORE/start.sh" "$1" --title "Issue $1" 2> /dev/null)" || fail "start.sh failed"
+	else
+		wt="$(bash "$FACTORY_CORE/start.sh" "$1" 2> /dev/null)" || fail "start.sh failed"
+	fi
 }
 
 # remote_dev: origin's dev SHA.
@@ -77,7 +83,7 @@ test_refuses_a_ratchet_symlink_and_a_gate_submodule() {
 	fixture_repo
 	mkdir -p tools/verify/ratchet && printf 'a\n' > tools/verify/ratchet/baseline.txt
 	git add -A && git commit -q -m baseline && git push -q origin dev 2> /dev/null || fail "could not push the Baseline"
-	started 7
+	started 7 cleanup
 	mkdir -p "$wt/src" && git -C "$wt" mv tools/verify/ratchet src/ratchet && printf 'a\nb\n' > "$wt/src/ratchet/baseline.txt" &&
 		ln -s ../../src/ratchet "$wt/tools/verify/ratchet" && git -C "$wt" add -A && git -C "$wt" commit -q -m move || fail "could not move the ratchet"
 	run_land 7
@@ -100,7 +106,7 @@ test_lands_a_branch_that_changes_only_ratchet_files() {
 	fixture_repo
 	mkdir -p tools/verify/ratchet && printf 'a\nb\n' > tools/verify/ratchet/baseline.txt
 	git add -A && git commit -q -m baseline && git push -q origin dev 2> /dev/null || fail "could not push the Baseline"
-	started 7
+	started 7 cleanup
 	commit_in "$wt" tools/verify/ratchet/baseline.txt a
 	run_land 7
 	assert_status 0
@@ -487,7 +493,7 @@ partial_repo() {
 test_partial_mode_lands_on_the_baseline_gate() {
 	partial_repo
 	export FACTORY_NOW=1000
-	started 7
+	started 7 cleanup
 	seal_stub --issue 7
 	bash "$FACTORY_CORE/state.sh" --issue 7 set phase partial
 	bash "$FACTORY_CORE/state.sh" --issue 7 incr rounds-partial > /dev/null
@@ -505,7 +511,7 @@ test_partial_mode_lands_on_the_baseline_gate() {
 
 test_partial_mode_refuses_a_finding_outside_the_baseline() {
 	partial_repo
-	started 7
+	started 7 cleanup
 	seal_stub --issue 7
 	bash "$FACTORY_CORE/state.sh" --issue 7 set phase partial
 	mkdir -p "$wt/.fixture"
