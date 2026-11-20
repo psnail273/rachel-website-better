@@ -1,12 +1,12 @@
-version 0.9.4
+version 0.10.0
 adapter nextjs
-tag v0.9.4
+tag v0.10.0
 upstream git@git.stuffworks.net:psnail273/factory.git
 file e69de29bb2d1d6434b8b29ae775ad8c2e48c5391 factory/.gdignore
 file 9a50e370f33449d84f1c91fad092990f0fe6b3d9 factory/.shellcheckrc
 file ddb1f63053d473ac13c7c480865ac71f12cb14e9 factory/CONTEXT.md
 file 41c7b0492275c85814561834161d88a1d002e4e9 factory/README.md
-file a602fc9e283389306d606c164ce73ac338999373 factory/VERSION
+file 78bc1abd14f2c1f6330989d876c4ee7d5daf7ff6 factory/VERSION
 file 5b71dbc61fcfb1d5513263ab5efc6ea6700bd781 factory/adapters/godot/ARCHITECTURE.md
 file d94afe65e8f8eebc9e32fc98fc1f4f222ce418dd factory/adapters/godot/adopt.sh
 file 0af181cfb5442f01fdce3df056639e861f574a84 factory/adapters/godot/new/.gitignore.txt
