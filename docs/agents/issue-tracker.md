@@ -37,7 +37,7 @@ A list filtered by a label the repo doesn't have fails with `label "<name>" does
 
 ## How an issue reads
 
-Every issue an agent files opens with its template's header lines (`Part of #<spec>`, `Kind: …`, and `Lane:` / `Tests only:` where they apply), then `## Synopsis`: two to four plain sentences saying what changes or is wrong, why it matters, and what done looks like.
+Every issue an agent files opens with its template's header lines (`Part of #<spec>`, `Kind: …`, `Touches: …` on a build, bug or cleanup slice, and `Lane:` / `Tests only:` where they apply), then `## Synopsis`: two to four plain sentences saying what changes or is wrong, why it matters, and what done looks like.
 
 An issue that waits on the human (`ready-for-human`, or `needs-triage` for their triage) ends its synopsis with a bold line (**Needs two decisions from you.**), then has `## What you need to do`: one numbered item per decision (a bold question, its options, a recommendation with its reason) or action (its steps), then how to reply and what happens next. The details come last.
 

@@ -89,8 +89,11 @@
 # reads (factory_gate_count, lib/run.sh): gate-runs, one caught-<step> for the
 # step that stopped a red run, and seconds-<step> for each step it shows (not a
 # SKIP), its own time from its start to its end, so steps run at once add up to
-# more than the run took, timed with EPOCHREALTIME (FACTORY_STEP_CLOCK names a file holding the
-# time instead: a test's clock). A run counts once per stamp key, the one it
+# more than the run took, timed with EPOCHREALTIME (FACTORY_STEP_CLOCK names a
+# file holding the time instead: a test's clock), less the time it waited for a
+# resource the machine's other gates share (the adapter's gate slots): each step
+# runs with FACTORY_STEP_WAIT_FILE naming its own wait record, which the step
+# adds to (lib/run.sh's factory_step_waited). A run counts once per stamp key, the one it
 # started with: a run on inputs a counted run had (lib/stamp.sh keeps their
 # keys) counts nothing, so a fresh rerun on the same tree, the stop hook's then
 # the Driver's or lock.sh record's, counts once, and so does a tree changed and
@@ -369,10 +372,13 @@ run_step() {
 		fi
 		if [ "$status" -eq 0 ]; then
 			[ "$step" = test ] && rm -f "$FACTORY_RESULTS_FILE"
+			# The step's wait record (lib/run.sh's factory_step_waited), set on
+			# its command line alone: an exported one would change the stamp key.
+			rm -f "$d/waited"
 			if [ "$step" = mutate ]; then
-				FACTORY_MUTATE_BASE="$MUTATE_BASE" bash "$script" > "$d/raw"
+				FACTORY_STEP_WAIT_FILE="$d/waited" FACTORY_MUTATE_BASE="$MUTATE_BASE" bash "$script" > "$d/raw"
 			else
-				bash "$script" > "$d/raw"
+				FACTORY_STEP_WAIT_FILE="$d/waited" bash "$script" > "$d/raw"
 			fi
 			code=$?
 			[ "$code" -ne "$FACTORY_TRANSIENT_EXIT" ] || : > "$d/transient"
@@ -535,7 +541,9 @@ for i in "${!steps[@]}"; do
 	fi
 	[ ! -f "$tmp/steps/$step/transient" ] || echo "$step" >> "$tmp/transient"
 	if [ -n "$count_branch" ] && ! grep -qxF "== $step SKIP" "$tmp/verdict"; then
-		step_seconds+=("$step=$(factory_seconds_between "$began" "$ended")")
+		waited="$(cat "$tmp/steps/$step/waited" 2> /dev/null)" || waited=0
+		case "$waited" in '' | *[!0-9]*) waited=0 ;; esac
+		step_seconds+=("$step=$(factory_seconds_between "$began" "$((ended - waited))")")
 	fi
 	if [ "$step_status" -ne 0 ]; then
 		[ -n "$failed_at" ] || failed_at="$step"

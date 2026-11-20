@@ -26,6 +26,7 @@ Each issue, in the order from step 3, labelled `ready-for-agent`, in the cleanup
 Part of #<spec>
 
 Kind: cleanup
+Touches: <the shared areas the findings sit in, as the spec skill's slicing.md names them; `none` when they sit in none>
 
 ## Synopsis
 

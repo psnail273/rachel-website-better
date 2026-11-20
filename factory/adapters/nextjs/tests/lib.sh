@@ -26,6 +26,9 @@ NEXTJS_FIXTURES="$NEXTJS_ADAPTER/tests/fixture"
 # Each test's next builds take a build lock of the test's own (_nextjs.sh), never
 # the machine's: a stand-in build blocking in one test holds up no real gate.
 [ -z "${TEST_TMP:-}" ] || export FACTORY_BUILD_LOCK="$TEST_TMP/next-build.lock"
+# So do their gate slots (_nextjs.sh's pool): a test's smoke or mutate never
+# waits on a real gate's, nor holds one up.
+[ -z "${TEST_TMP:-}" ] || export FACTORY_GATE_POOL="$TEST_TMP/gate-slots"
 
 # needs_node: skip unless Node and pnpm run here; fail unless that Node is the
 # one the adapter's tools/verify/pins names (node_is_pinned). From then on the

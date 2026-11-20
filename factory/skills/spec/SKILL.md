@@ -37,7 +37,7 @@ Create one issue labelled `spec` (the draft stays unapproved until step 5). Its 
 - **Amends**: the approved changes to `ARCHITECTURE.md` or an ADR.
 - **Assets**: every external file the slices need (sound, music, image, font, data), as a table: the path it gets in the project, its source URL, its licence, the slices that use it. Or None. A licence that asks more than a credit (share-alike, non-commercial, no derivatives) is a Human's call.
 - **Out of scope**.
-- **Slices**: a task list grouped by Feature; each line gives the title, Kind and dependencies. Slice with [`slicing.md`](slicing.md).
+- **Slices**: a task list by Feature; each line gives the title, Kind, `Touches:` areas and dependencies. Slice with [`slicing.md`](slicing.md).
 - From a map: a link to the map and its decision tickets.
 
 A **Feature** is a group of slices that ends in one Playtest; a Feature of cleanup issues only, such as an Adoption cleanup, may have none. Split Features where the human can first judge something new; a small spec has one.
@@ -57,7 +57,7 @@ Publish only on the human's explicit approval in this session. Then, in order:
 1. Post the comment `Approved by the human` on the Spec, quoting their words.
 2. Add the `approved` label. `/build` refuses a Spec without it.
 3. Create one milestone per Feature, named `#<spec> <n>. <feature>`, with the Feature's playtest checklist as its description (the tracker doc's milestone command). Number Features in the human's order.
-4. Publish the slices in dependency order (dependencies first), each in the shape `slicing.md` gives, labelled `ready-for-agent`, in its Feature's milestone (`--milestone`). Add each dependency as a native issue dependency.
+4. Publish the slices, dependencies first, each in the shape `slicing.md` gives, labelled `ready-for-agent`, in its Feature's milestone (`--milestone`). Add each dependency as a native issue dependency.
 5. Rewrite the Spec's Slices section as `- [ ] #<n> <title>` lines, still grouped by Feature, so the run ticks them as it closes issues.
 
 Done when every slice exists with its label, milestone and dependencies, and the Spec's task list names each one by number. Report the Spec and milestone links to the human.

@@ -14,7 +14,7 @@ Write the effort as the prompt file's first line, `factory-effort: <level>`, so 
 
 ## Mechanics
 
-- **Every command** runs in the foreground, with the Bash tool's timeout at 600000 ms: start, seal and the Core's other scripts each end well inside it. Verify, `lock.sh record` and land run past the 180 s after which the Bash tool backgrounds a command anyway: run them with `run_in_background` and wait for the notification, or on their PID with `tail --pid=<pid> -f /dev/null`, as `driver.md` says. Never wait with `sleep`, `until`, or a background command you poll.
+- **Every command** runs in the foreground, with the Bash tool's timeout at 600000 ms: start, seal and the Core's other scripts each end well inside it. Verify, `lock.sh record` and land run past the 180 s after which the Bash tool backgrounds a command anyway, and may wait for a machine-wide gate slot or the build lock while other issues' gates run: run them with `run_in_background` and wait for the notification, or on their PID with `tail --pid=<pid> -f /dev/null`, as `driver.md` says. Never wait with `sleep`, `until`, or a background command you poll.
 - **Worktree:** the absolute path of the issue's worktree under `.claude/worktrees/`, named on the prompt's last line.
 - **Prompt:** written to a file outside the worktree (your scratch or temp folder), as Prompts below says; the subagent gets its text unchanged.
 

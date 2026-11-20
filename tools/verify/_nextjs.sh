@@ -1,6 +1,6 @@
 # Shared by the Next.js adapter's step scripts. Sourced; its only side effects
-# are sourcing the Core's glob matcher and Scenario folder reader, reading the
-# Scenario folder and the build lock's path, putting local.env's Node and pnpm
+# are sourcing the Core's glob matcher, Scenario folder reader and run lib,
+# reading the Scenario folder, the build lock's path and the slot pool's, putting local.env's Node and pnpm
 # first on PATH and turning Next.js's telemetry off. Run from the project root.
 #
 # NODE_BIN and PNPM_BIN (local.env) name the Node and pnpm binaries; empty means
@@ -42,17 +42,20 @@ done
 unset nx_bin
 export PATH
 
-# The glob matcher is the Core's (lib/brief.sh), and so is the Scenario folder's
-# reader (lib/scenarios.sh). The runner exports FACTORY_CORE; run by hand, a step
-# finds the Core where adoption vendors it.
-if ! declare -F factory_glob_regex > /dev/null || ! declare -F factory_scenario_folder > /dev/null; then
+# The glob matcher is the Core's (lib/brief.sh), and so are the Scenario folder's
+# reader (lib/scenarios.sh) and a step's wait record (lib/run.sh's
+# factory_step_waited, which the slot pool keeps). The runner exports
+# FACTORY_CORE; run by hand, a step finds the Core where adoption vendors it.
+if ! declare -F factory_glob_regex > /dev/null || ! declare -F factory_scenario_folder > /dev/null ||
+	! declare -F factory_step_waited > /dev/null; then
 	if [ ! -f "${FACTORY_CORE:-factory/core}/lib/brief.sh" ]; then
 		echo "no factory Core at '${FACTORY_CORE:-factory/core}'; set FACTORY_CORE" >&2
 		exit 2
 	fi
 	declare -F factory_glob_regex > /dev/null || . "${FACTORY_CORE:-factory/core}/lib/brief.sh"
 	[ -n "${FACTORY_STEPS_DIR:-}" ] || . "${FACTORY_CORE:-factory/core}/lib/steps.sh"
-	. "${FACTORY_CORE:-factory/core}/lib/scenarios.sh"
+	declare -F factory_scenario_folder > /dev/null || . "${FACTORY_CORE:-factory/core}/lib/scenarios.sh"
+	declare -F factory_step_waited > /dev/null || . "${FACTORY_CORE:-factory/core}/lib/run.sh"
 fi
 
 # The Scenario folder (tools/verify/scenario-folder), or empty when there is none.
@@ -174,46 +177,62 @@ nx_build_lock() {
 	done
 }
 
-# nx_build_holder: print the build lock's holder pid; nothing when it names none.
-nx_build_holder() {
+# A lock folder (the build lock, each of the slot pool's slots) holds its
+# holder's pid in <lock>/pid.
+# nx_lock_holder <lock>: print its holder pid; nothing when it names none.
+nx_lock_holder() {
 	local holder
-	holder="$(cat "$NX_BUILD_LOCK/pid" 2> /dev/null)"
+	holder="$(cat "$1/pid" 2> /dev/null)"
 	case "$holder" in '' | *[!0-9]*) return 0 ;; esac
 	printf '%s\n' "$holder"
 }
 
-# nx_build_stale <holder>: true when the lock is stale: its holder is no process,
-# or it has named none for over a minute.
-nx_build_stale() {
-	if [ -n "$1" ]; then
-		! kill -0 "$1" 2> /dev/null
+# nx_lock_stale <lock> <holder>: true when the lock is stale: its holder is no
+# process, or it has named none for over a minute.
+nx_lock_stale() {
+	if [ -n "$2" ]; then
+		! kill -0 "$2" 2> /dev/null
 	else
-		[ -n "$(find "$NX_BUILD_LOCK" -maxdepth 0 -mmin +1 2> /dev/null)" ]
+		[ -n "$(find "$1" -maxdepth 0 -mmin +1 2> /dev/null)" ]
 	fi
 }
 
-# nx_build_takeover: take a stale build lock over, and hold it. Takeovers run one
-# at a time, under a guard folder beside the lock (<lock>.takeover), and each
-# judges the lock stale again under it: a waiter that saw the old holder gone
-# can't remove the lock another waiter has just taken over. A guard over a minute
-# old was left by a takeover cut short, and is removed. False when the guard is
-# busy or the lock is no longer stale (or gone: the next mkdir takes it).
-nx_build_takeover() {
-	local guard="$NX_BUILD_LOCK.takeover" holder taken=1
+# nx_lock_takeover <lock> <held>: take a stale lock folder over, set the variable
+# named <held> to 1 and hold it, the old holder's pid (or nothing) in
+# NX_LOCK_FORMER. Takeovers run one at a time, under a guard folder beside the
+# lock (<lock>.takeover), and each judges the lock stale again under it: a waiter
+# that saw the old holder gone can't remove the lock another waiter has just
+# taken over. A guard over a minute old was left by a takeover cut short, and is
+# removed. False when the guard is busy or the lock is no longer stale (or gone:
+# the next mkdir takes it).
+nx_lock_takeover() {
+	local guard="$1.takeover" holder taken=1
 	if ! mkdir "$guard" 2> /dev/null; then
 		[ -n "$(find "$guard" -maxdepth 0 -mmin +1 2> /dev/null)" ] &&
 			rmdir "$guard" 2> /dev/null && mkdir "$guard" 2> /dev/null || return 1
 	fi
-	holder="$(nx_build_holder)"
-	if [ -d "$NX_BUILD_LOCK" ] && nx_build_stale "$holder" &&
-		rm -rf "$NX_BUILD_LOCK" 2> /dev/null && mkdir "$NX_BUILD_LOCK" 2> /dev/null; then
-		NX_BUILD_HELD=1
-		echo "$$" > "$NX_BUILD_LOCK/pid"
-		echo "next build: took over the stale build lock $NX_BUILD_LOCK (its holder${holder:+, pid $holder,} is gone)" >&2
+	holder="$(nx_lock_holder "$1")"
+	if [ -d "$1" ] && nx_lock_stale "$1" "$holder" &&
+		rm -rf "$1" 2> /dev/null && mkdir "$1" 2> /dev/null; then
+		printf -v "$2" 1
+		echo "$$" > "$1/pid"
+		NX_LOCK_FORMER="$holder"
 		taken=0
 	fi
 	rmdir "$guard" 2> /dev/null
 	return "$taken"
+}
+
+# nx_build_holder, nx_build_stale <holder>, nx_build_takeover: the build lock's.
+nx_build_holder() {
+	nx_lock_holder "$NX_BUILD_LOCK"
+}
+nx_build_stale() {
+	nx_lock_stale "$NX_BUILD_LOCK" "$1"
+}
+nx_build_takeover() {
+	nx_lock_takeover "$NX_BUILD_LOCK" NX_BUILD_HELD || return 1
+	echo "next build: took over the stale build lock $NX_BUILD_LOCK (its holder${NX_LOCK_FORMER:+, pid $NX_LOCK_FORMER,} is gone)" >&2
 }
 
 # nx_build_unlock: release the build lock when this process holds it; else
@@ -273,6 +292,149 @@ nx_next_build() {
 	fi
 	rm -f "$log"
 	return "$status"
+}
+
+# The slot pool: the heavy gate steps, mutate's Stryker run and smoke's browser
+# checks, each run holding one of FACTORY_GATE_SLOTS slots on this machine,
+# whichever checkout (worktree or clone) runs them, so a Run's issues gated at
+# once queue for the cores instead of starving each other past their time
+# budgets (Stryker's per-mutant timeouts, FACTORY_SMOKE_TIMEOUT's waits). Each
+# slot is a lock folder like the build lock, <pool>/<n> for n from 1 to the
+# count, holding its holder's pid; a slot whose holder is gone is stale and taken
+# over, as the build lock is. The pool is the folder FACTORY_GATE_POOL
+# (local.env) names, by default /tmp/factory-gate-slots, beside the build lock
+# and fixed for the same reason.
+#
+# FACTORY_GATE_SLOTS (local.env; 1 to 999) is the count; empty means a quarter
+# of the cores (nproc), at least 1: two on 8 cores. Why a quarter: a slot is
+# about four cores' work, what smoke's three browsers and its server keep busy,
+# and on 8 cores two Stryker runs at mutate's default concurrency (STRYKER_JOBS,
+# half the cores) fill the machine. So the slots together keep the cores busy
+# without oversubscribing them, and the gates' other steps (typecheck, lint,
+# test), which take no slot, still get a share. On more cores, set STRYKER_JOBS
+# to the cores over the slots, or Stryker runs side by side oversubscribe them.
+#
+# A step waits for a slot up to FACTORY_GATE_SLOT_WAIT seconds (local.env; 0 to
+# 999999), saying so once on stderr; empty means 900, as the build lock's wait,
+# or 300 in the Editor's loop (FACTORY_GATE_LOOP=editor), whose stop hook gives
+# the whole gate 1800 seconds, the build lock's wait included. It waits before
+# any of its budgeted waits starts: the wait counts against none of them. It adds the wait to the
+# runner's record of it (factory_step_waited, factory/core/lib/run.sh), which
+# verify.sh takes off the step's seconds-<step>, so the Retro reads its own
+# time. A wait past the ceiling fails as a transient cause (NX_TRANSIENT): no
+# gate stamp is kept, and --reuse runs the step again. The step releases its
+# slot when its heavy part ends, and runs nx_slot_free from its EXIT trap too.
+NX_SLOT_POOL="${FACTORY_GATE_POOL:-/tmp/factory-gate-slots}"
+NX_SLOT=""
+NX_SLOT_HELD=0
+
+# nx_slot_count: set NX_SLOTS to the pool's slot count, FACTORY_GATE_SLOTS or a
+# quarter of the cores; false, with NX_SLOT_MSG set, when the setting isn't 1 to
+# 999.
+nx_slot_count() {
+	local n="${FACTORY_GATE_SLOTS:-}"
+	if [ -z "$n" ]; then
+		n=$(($(nproc 2> /dev/null || echo 4) / 4))
+		[ "$n" -ge 1 ] || n=1
+		NX_SLOTS="$n"
+		return 0
+	fi
+	case "$n" in *[!0-9]* | ????*) n=0 ;; esac
+	if [ "$((10#$n))" -lt 1 ]; then
+		NX_SLOT_MSG="FACTORY_GATE_SLOTS is '${FACTORY_GATE_SLOTS}', not a number of slots from 1 to 999"
+		return 1
+	fi
+	NX_SLOTS="$((10#$n))"
+}
+
+# nx_slot_take <step>: take one of the pool's slots, waiting up to
+# FACTORY_GATE_SLOT_WAIT seconds while all are held (one line on stderr when it
+# starts waiting), its wait added to the step's (factory_step_waited). False when
+# it can't, with NX_SLOT_WHY and NX_SLOT_MSG set:
+#   setting  FACTORY_GATE_SLOTS or FACTORY_GATE_SLOT_WAIT is out of its range
+#   pool     a slot's folder can't be made
+#   busy     every slot was held past the wait (the step exits NX_TRANSIENT)
+nx_slot_take() {
+	local slots wait began end i holder holders said="" gone=0
+	NX_SLOT_WHY="" NX_SLOT_MSG=""
+	nx_slot_count || {
+		NX_SLOT_WHY=setting
+		return 1
+	}
+	slots="$NX_SLOTS"
+	wait="${FACTORY_GATE_SLOT_WAIT:-}"
+	if [ -z "$wait" ]; then
+		wait=900
+		[ "${FACTORY_GATE_LOOP:-}" != editor ] || wait=300
+	fi
+	case "$wait" in
+		'' | *[!0-9]* | ???????*)
+			NX_SLOT_WHY=setting
+			NX_SLOT_MSG="FACTORY_GATE_SLOT_WAIT is '$wait', not a number of seconds from 0 to 999999"
+			return 1
+			;;
+	esac
+	wait=$((10#$wait))
+	mkdir -p "$NX_SLOT_POOL" 2> /dev/null
+	began="$(factory_clock_us)"
+	end=$((SECONDS + wait))
+	while :; do
+		holders=""
+		for ((i = 1; i <= slots; i++)); do
+			NX_SLOT="$NX_SLOT_POOL/$i"
+			if mkdir "$NX_SLOT" 2> /dev/null; then
+				NX_SLOT_HELD=1
+				echo "$$" > "$NX_SLOT/pid"
+				factory_step_waited "$began"
+				return 0
+			fi
+			# No slot after a failed mkdir: freed or taken over in between, so
+			# try again; five times running, and the folder can't be made.
+			if [ ! -d "$NX_SLOT" ]; then
+				gone=$((gone + 1))
+				if [ "$gone" -lt 5 ]; then
+					i=$((i - 1))
+					continue
+				fi
+				NX_SLOT="" NX_SLOT_WHY=pool
+				NX_SLOT_MSG="could not make the gate slot $NX_SLOT_POOL/$i; FACTORY_GATE_POOL in tools/verify/local.env names a folder to make, in a folder that exists"
+				factory_step_waited "$began"
+				return 1
+			fi
+			gone=0
+			holder="$(nx_lock_holder "$NX_SLOT")"
+			if nx_lock_stale "$NX_SLOT" "$holder" && nx_lock_takeover "$NX_SLOT" NX_SLOT_HELD; then
+				echo "$1: took over the stale gate slot $NX_SLOT (its holder${NX_LOCK_FORMER:+, pid $NX_LOCK_FORMER,} is gone)" >&2
+				factory_step_waited "$began"
+				return 0
+			fi
+			holders+="${holders:+ }${holder:-unknown}"
+		done
+		NX_SLOT=""
+		if [ "$SECONDS" -ge "$end" ]; then
+			NX_SLOT_WHY=busy
+			NX_SLOT_MSG="all $slots gate slots in $NX_SLOT_POOL (pids $holders) stayed held past FACTORY_GATE_SLOT_WAIT (${wait}s, tools/verify/local.env); run again once a gate ends, or remove a slot whose pid runs no gate"
+			factory_step_waited "$began"
+			return 1
+		fi
+		if [ -z "$said" ]; then
+			said=1
+			echo "$1: waiting for one of the $slots gate slots in $NX_SLOT_POOL, held by pids $holders (up to ${wait}s, FACTORY_GATE_SLOT_WAIT); the wait counts against no budget" >&2
+		fi
+		sleep 0.2
+	done
+}
+
+# nx_slot_free: release the slot this process holds; else nothing. A slot that
+# names no holder yet is this process's own, taken just now.
+nx_slot_free() {
+	[ "$NX_SLOT_HELD" -eq 1 ] || return 0
+	NX_SLOT_HELD=0
+	case "$(cat "$NX_SLOT/pid" 2> /dev/null)" in
+		"$$" | "") rm -rf "$NX_SLOT" 2> /dev/null ;;
+	esac
+	NX_SLOT=""
+	return 0
 }
 
 # nx_glob_rules <file>: the file's globs as `<+|-> <anchored regex>` lines, one per

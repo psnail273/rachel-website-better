@@ -11,7 +11,8 @@
 #   3. the caller's client (the smoke step's browser script, the driver's
 #      Playwright runs), started with nx_client.
 # nx_stop stops what was started, the server's whole process group and the
-# fixture server, and releases the build lock if a signal cut the build short:
+# fixture server, and releases the build lock if a signal cut the build short
+# (and the gate slot the smoke step holds, _nextjs.sh's pool):
 # the caller runs it from its EXIT trap (trap 'nx_stop; ...' EXIT, then
 # nx_on_signal), so it runs on a pass, a finding, an error, and on INT, TERM or
 # HUP.
@@ -70,6 +71,7 @@ nx_stop() {
 	[ -z "$NX_FIXTURES" ] || nx_halt "$NX_FIXTURES" "$NX_FIXTURES"
 	NX_FIXTURES=""
 	nx_build_unlock
+	nx_slot_free
 }
 
 # nx_on_signal: a signal ends the caller, and its EXIT trap stops what it started.

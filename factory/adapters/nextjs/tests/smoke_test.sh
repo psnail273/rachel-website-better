@@ -1038,6 +1038,175 @@ test_a_signal_mid_build_releases_the_lock_with_node() {
 	lock_gone
 }
 
+# --- the gate slots ---------------------------------------------------------------
+
+# slot_project: skeleton_project (nothing installed) with a next whose build
+# passes and whose start, the first thing smoke does in a gate slot, touches
+# $TEST_TMP/started and exits 3 (a smoke-start finding).
+slot_project() {
+	needs_node
+	skeleton_project
+	mkdir -p node_modules/.bin
+	cat > node_modules/.bin/next << SH
+#!/usr/bin/env bash
+[ "\$1" = build ] && exit 0
+: > $(printf '%q' "$TEST_TMP/started")
+exit 3
+SH
+	chmod 755 node_modules/.bin/next
+}
+
+# hold_slot <n> <pid>: gate slot n held by <pid>. (FACTORY_GATE_POOL is the
+# test's own, from tests/lib.sh.)
+# shellcheck disable=SC2153
+hold_slot() {
+	mkdir -p "$FACTORY_GATE_POOL/$1" && echo "$2" > "$FACTORY_GATE_POOL/$1/pid" || fail "could not hold slot $1"
+}
+
+# slots_held: the pool's slots, one per line, each as <n>=<its pid>.
+slots_held() {
+	local s
+	for s in "$FACTORY_GATE_POOL"/*; do
+		[ -d "$s" ] && echo "${s##*/}=$(cat "$s/pid" 2> /dev/null)"
+	done
+}
+
+started_line="package.json:1 smoke-start next start exited 3 before it answered (see stderr)"
+
+# Two slots, both held: a third smoke waits, its server unstarted, until one is
+# freed; it then takes that one and frees it when it ends.
+test_a_smoke_waits_for_a_gate_slot_until_one_frees_with_node() {
+	slot_project
+	hold_slot 1 "$BASHPID"
+	hold_slot 2 "$BASHPID"
+	FACTORY_GATE_SLOTS=2 smoke_apart
+	wait_until "smoke to wait for a slot" grep -qF "smoke: waiting for one of the 2 gate slots in $FACTORY_GATE_POOL, held by pids $BASHPID $BASHPID (up to 900s, FACTORY_GATE_SLOT_WAIT); the wait counts against no budget" "$TEST_TMP/smoke.err"
+	[ ! -e "$TEST_TMP/started" ] || fail "the server started with every slot held"
+	rm -rf "$FACTORY_GATE_POOL/2"
+	wait "$smoke"
+	assert_eq 1 "$?" "smoke's exit (its server exits 3)"
+	smoke=""
+	assert_eq "$started_line" "$(cat "$TEST_TMP/smoke.out")" "smoke's finding"
+	[ -e "$TEST_TMP/started" ] || fail "the server never started"
+	assert_eq "1=$BASHPID" "$(slots_held)" "the slots once smoke ended"
+}
+
+# A slot whose holder is gone is taken over; smoke frees it when it ends.
+test_a_gate_slot_whose_holder_is_gone_is_taken_over_with_node() {
+	slot_project
+	local dead
+	dead="$(bash -c 'echo $$')"
+	hold_slot 1 "$dead"
+	FACTORY_GATE_SLOTS=1 FACTORY_GATE_SLOT_WAIT=0 step smoke
+	assert_status 1
+	assert_eq "$started_line" "$out" "smoke's finding"
+	stderr_has "smoke: took over the stale gate slot $FACTORY_GATE_POOL/1 (its holder, pid $dead, is gone)"
+	assert_eq "" "$(slots_held)" "the slots once smoke ended"
+}
+
+# Every slot held by a running gate past FACTORY_GATE_SLOT_WAIT: a transient
+# finding (exit 75); no server starts, and the holder's slot stays.
+test_every_gate_slot_held_past_the_wait_is_a_transient_finding_with_node() {
+	slot_project
+	hold_slot 1 "$BASHPID"
+	FACTORY_GATE_SLOTS=1 FACTORY_GATE_SLOT_WAIT=0 step smoke
+	assert_status 75
+	assert_eq "package.json:1 smoke-slot all 1 gate slots in $FACTORY_GATE_POOL (pids $BASHPID) stayed held past FACTORY_GATE_SLOT_WAIT (0s, tools/verify/local.env); run again once a gate ends, or remove a slot whose pid runs no gate" "$out" "smoke's finding"
+	[ ! -e "$TEST_TMP/started" ] || fail "the server started with every slot held"
+	assert_eq "1=$BASHPID" "$(slots_held)" "the holder's slot"
+}
+
+test_the_gate_slot_settings_must_be_in_range_with_node() {
+	slot_project
+	local v
+	for v in 0 many 1.5 1000; do
+		FACTORY_GATE_SLOTS="$v" step smoke
+		assert_status 1
+		assert_eq "tools/verify/local.env:1 smoke-slot FACTORY_GATE_SLOTS is '$v', not a number of slots from 1 to 999" "$out" "smoke's finding for '$v'"
+	done
+	for v in soon -1 1234567; do
+		FACTORY_GATE_SLOT_WAIT="$v" step smoke
+		assert_status 1
+		assert_eq "tools/verify/local.env:1 smoke-slot FACTORY_GATE_SLOT_WAIT is '$v', not a number of seconds from 0 to 999999" "$out" "smoke's finding for '$v'"
+	done
+	: > "$TEST_TMP/file"
+	FACTORY_GATE_POOL="$TEST_TMP/file/slots" step smoke
+	assert_status 1
+	assert_eq "tools/verify/local.env:1 smoke-slot could not make the gate slot $TEST_TMP/file/slots/1; FACTORY_GATE_POOL in tools/verify/local.env names a folder to make, in a folder that exists" "$out" "smoke's finding for a pool it can't make"
+	[ ! -e "$TEST_TMP/started" ] || fail "the server started without a slot"
+}
+
+# Unset, the count is a quarter of the cores, at least 1.
+test_the_gate_slots_default_to_a_quarter_of_the_cores() {
+	skeleton_project
+	(
+		# shellcheck source=/dev/null
+		. tools/verify/_nextjs.sh
+		unset FACTORY_GATE_SLOTS
+		for cores in 16 8 7 4 3 1; do
+			# shellcheck disable=SC2317 # called by nx_slot_count
+			nproc() { echo "$cores"; }
+			nx_slot_count && echo "$cores=$NX_SLOTS"
+		done
+		FACTORY_GATE_SLOTS=012 nx_slot_count && echo "$NX_SLOTS"
+	) > "$TEST_TMP/count.out" 2>&1
+	assert_eq "16=4
+8=2
+7=1
+4=1
+3=1
+1=1
+12" "$(cat "$TEST_TMP/count.out")" "the slot count for each number of cores, then for 012"
+}
+
+# Unset, the wait for a slot is 900 seconds, or 300 in the Editor's loop, whose
+# stop hook gives the whole gate 1800; the waiting line says which.
+test_the_gate_slot_wait_defaults_to_900_or_300_in_the_editors_loop() {
+	skeleton_project
+	(
+		# shellcheck source=/dev/null
+		. tools/verify/_nextjs.sh
+		unset FACTORY_GATE_SLOT_WAIT FACTORY_GATE_LOOP
+		# shellcheck disable=SC2317 # called by nx_slot_take: the holder ends
+		sleep() { rm -rf "$NX_SLOT_POOL/1"; }
+		for loop in "" editor; do
+			mkdir -p "$NX_SLOT_POOL/1" && echo "$PPID" > "$NX_SLOT_POOL/1/pid"
+			FACTORY_GATE_SLOTS=1 FACTORY_GATE_LOOP="$loop" nx_slot_take smoke || echo "no slot: $NX_SLOT_MSG"
+			nx_slot_free
+		done
+	) > "$TEST_TMP/wait.out" 2>&1
+	local pool="$FACTORY_GATE_POOL"
+	assert_eq "smoke: waiting for one of the 1 gate slots in $pool, held by pids $PPID (up to 900s, FACTORY_GATE_SLOT_WAIT); the wait counts against no budget
+smoke: waiting for one of the 1 gate slots in $pool, held by pids $PPID (up to 300s, FACTORY_GATE_SLOT_WAIT); the wait counts against no budget" "$(cat "$TEST_TMP/wait.out")" "the waiting lines, outside the Editor's loop and in it"
+	assert_eq "" "$(slots_held)" "the slots once freed"
+}
+
+# The wait for a slot goes to the runner's wait record (factory_step_waited),
+# which verify.sh takes off seconds-<step>; a slot taken at once adds nothing.
+test_the_wait_for_a_gate_slot_is_kept_in_the_steps_wait_record() {
+	skeleton_project
+	echo 100 > "$TEST_TMP/clock"
+	(
+		# shellcheck source=/dev/null
+		. tools/verify/_nextjs.sh
+		export FACTORY_STEP_CLOCK="$TEST_TMP/clock" FACTORY_STEP_WAIT_FILE="$TEST_TMP/waited" FACTORY_GATE_SLOTS=1
+		nx_slot_take smoke || echo "no slot: $NX_SLOT_MSG"
+		[ ! -e "$FACTORY_STEP_WAIT_FILE" ] || echo "a slot taken at once kept a wait: $(cat "$FACTORY_STEP_WAIT_FILE")"
+		nx_slot_free
+		# shellcheck disable=SC2317 # called by nx_slot_take
+		sleep() {
+			echo 107.5 > "$FACTORY_STEP_CLOCK"
+			rm -rf "$NX_SLOT_POOL/1"
+		}
+		mkdir -p "$NX_SLOT_POOL/1" && echo "$PPID" > "$NX_SLOT_POOL/1/pid"
+		nx_slot_take smoke 2> /dev/null || echo "no slot: $NX_SLOT_MSG"
+		nx_slot_free
+	) > "$TEST_TMP/wait.out" 2>&1
+	assert_eq "" "$(cat "$TEST_TMP/wait.out")" "what went wrong taking the slots"
+	assert_eq 7500000 "$(cat "$TEST_TMP/waited")" "the wait record, in microseconds"
+	assert_eq "" "$(slots_held)" "the slots once freed"
+}
+
 # A request refused a connection (the server gone, or not yet up) is a transient
 # failure (exit 75); any other finding stays an ordinary one.
 test_a_refused_connection_is_a_transient_failure_with_node() {

@@ -14,6 +14,11 @@
 #   1. next build (offline: NEXT_TELEMETRY_DISABLED, and arch's R10 keeps fonts
 #      local), under the machine-wide build lock (_nextjs.sh's nx_next_build), so
 #      builds in other worktrees, Lands and playtests queue instead of colliding;
+#   1a. one of the machine's gate slots (_nextjs.sh's pool, FACTORY_GATE_SLOTS),
+#      held from here until the browsers are done, so the smoke steps and
+#      Stryker runs of the gates in flight share the cores instead of starving
+#      each other past FACTORY_SMOKE_TIMEOUT; the wait for one counts against
+#      no limit, and its ceiling is FACTORY_GATE_SLOT_WAIT;
 #   2. next start on 127.0.0.1, on a port the OS picks free (--port 0; the step
 #      reads the port from the URL next start prints), so runs side by side
 #      never meet; the step polls until the port takes a connection (1 and 2
@@ -160,11 +165,17 @@
 #   tools/verify/local.env:1 smoke-setting     FACTORY_SMOKE_TIMEOUT isn't a whole
 #                                              number of seconds, 1 to 999999, or
 #                                              FACTORY_BUILD_WAIT one, 0 to 999999
+#   package.json:1 smoke-slot all <n> gate slots ... stayed held ...
+#                                              no gate slot came free within
+#                                              FACTORY_GATE_SLOT_WAIT
+#   tools/verify/local.env:1 smoke-slot        FACTORY_GATE_SLOTS or
+#                                              FACTORY_GATE_SLOT_WAIT out of its
+#                                              range, or a slot can't be made
 #   (and node-missing or tool-missing, as _nextjs.sh has them)
 # Every message leaves the server's port out (_smoke_page.mjs has the details). Exits 1 on any finding; but 75
 # (NX_TRANSIENT) when the failure is no fault of the code, so verify --reuse
 # never keeps it and runs the step again: the build lock held past the wait,
-# next build finding another build running in the checkout (a smoke-build
+# every gate slot held past its wait (a smoke-slot finding), next build finding another build running in the checkout (a smoke-build
 # finding), or a request refused a connection (a finding naming
 # ERR_CONNECTION_REFUSED or ECONNREFUSED, Firefox's NS_ERROR_CONNECTION_REFUSED,
 # or WebKit's "Could not connect to <host>: Connection refused").
@@ -220,6 +231,18 @@ if [ "$status" -ne 0 ]; then
 	exit 1
 fi
 
+# A gate slot for the server and the browsers; nx_stop releases it on any exit.
+if ! nx_slot_take smoke; then
+	case "$NX_SLOT_WHY" in
+		busy)
+			echo "package.json:1 smoke-slot $NX_SLOT_MSG"
+			exit "$NX_TRANSIENT"
+			;;
+		*) echo "tools/verify/local.env:1 smoke-slot $NX_SLOT_MSG" ;;
+	esac
+	exit 1
+fi
+
 nx_start "$tmp/server.log"
 nx_await "$tmp/server.log"
 case $? in
@@ -240,6 +263,7 @@ engines=()
 nx_client 0 "${NODE_BIN:-node}" "$dir/_smoke_page.mjs" "http://127.0.0.1:$NX_PORT" "$NX_LIMIT" ${engines[@]+"${engines[@]}"} "${routes[@]}" > "$tmp/findings"
 nx_client_wait
 status=$?
+nx_slot_free
 cat "$tmp/server.log" >&2
 cat "$tmp/findings"
 if [ "$status" -ne 0 ] && [ ! -s "$tmp/findings" ]; then

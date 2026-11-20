@@ -107,7 +107,7 @@ _Avoid_: Roles list, editor/verifier choice
 ### Running
 
 **Run**:
-One unattended Opus session working a spec's ready issues, up to two at once, each in a driver subagent of its own, **Feature** by **Feature** from the first claim, each **Feature** ending in its **Playtest**.
+One unattended Opus session working a spec's ready issues, at once where their `Touches:` areas are apart, each in a driver subagent of its own, **Feature** by **Feature** from the first claim, each **Feature** ending in its **Playtest**.
 _Avoid_: Batch, pipeline, job
 
 **Build Brief**:

@@ -44,7 +44,8 @@
 #   gate-runs       counted gate runs, one per set of inputs
 #   caught-<step>   red runs that step stopped
 #   seconds-<step>  that step's run time over the counted runs, each run's
-#                   rounded to the whole second
+#                   rounded to the whole second, less what it waited for a
+#                   shared resource (factory_step_waited)
 #
 # The time now is FACTORY_NOW when that is a whole number of seconds since the
 # epoch (a test's clock), else the system clock (factory_now). A step's time is
@@ -204,6 +205,22 @@ factory_seconds_between() {
 	local d=$(($2 - $1))
 	[ "$d" -gt 0 ] || d=0
 	printf '%s\n' "$(((d + 500000) / 1000000))"
+}
+
+# factory_step_waited <from-us>: add the time since <from-us> (a factory_clock_us
+# time) to the step's wait record, the file FACTORY_STEP_WAIT_FILE names, in
+# microseconds; nothing when that is unset. A step script runs it after a wait
+# for a shared resource the machine's other gates hold (the adapter's slot pool):
+# verify.sh sets the file on each step's command line and takes what it holds
+# off the step's seconds-<step>, so the counts measure the step, not the queue.
+factory_step_waited() {
+	local d had=0
+	[ -n "${FACTORY_STEP_WAIT_FILE:-}" ] || return 0
+	d=$(($(factory_clock_us) - $1))
+	[ "$d" -gt 0 ] || return 0
+	had="$(cat -- "$FACTORY_STEP_WAIT_FILE" 2> /dev/null)" || had=0
+	case "$had" in '' | *[!0-9]*) had=0 ;; esac
+	printf '%s\n' "$((had + d))" > "$FACTORY_STEP_WAIT_FILE" 2> /dev/null || true
 }
 
 # factory_gate_count <branch> <step, or nothing> [<step>=<seconds>...]: count one

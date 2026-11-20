@@ -75,8 +75,16 @@
 #                                         still passes
 #   tools/verify/mutate:1 mutate-failed   Stryker failed or wrote no report (its
 #                                         output is on stderr); no survivors file
+#   tools/verify/mutate:1 mutate-slot     every gate slot stayed held past
+#                                         FACTORY_GATE_SLOT_WAIT: a transient
+#                                         cause (exit 75), run again
+#   tools/verify/local.env:1 mutate-slot  a pool setting out of its range
 #   (and node-missing or tool-missing, as _nextjs.sh has them)
-# Exits 0 with the survivors file written, whatever survived; 1 when it can't run.
+# Stryker runs holding one of the machine's gate slots (_nextjs.sh's pool,
+# FACTORY_GATE_SLOTS in local.env), shared with the smoke steps of every gate on
+# the machine; its wait for one isn't the step's time (seconds-mutate).
+# Exits 0 with the survivors file written, whatever survived; 1 when it can't run;
+# 75 (NX_TRANSIENT) when no slot came free in time.
 set -u
 
 dir="$(dirname "${BASH_SOURCE[0]}")"
@@ -88,7 +96,7 @@ if [ -z "${FACTORY_SURVIVORS_FILE:-}" ] || [ -z "${FACTORY_MUTATE_BASE:-}" ]; th
 fi
 
 tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"' EXIT
+trap 'nx_slot_free; rm -rf "$tmp"' EXIT
 
 tool_ready stryker || exit 1
 version="$(tool stryker --version 2> /dev/null | tr -d '\r' | sed -n 's/^\([0-9][0-9.]*\)$/\1/p' | head -n 1)"
@@ -257,6 +265,20 @@ if [ -s "$tmp/mutate" ]; then
 		echo "stryker.config.json:1 mutate-failed could not read stryker.config.json (see stderr)"
 		exit 1
 	}
+	# Stryker runs in one of the machine's gate slots (_nextjs.sh's pool), so
+	# the Stryker runs and smoke steps of the gates in flight share the cores
+	# instead of pushing each other's mutants past Stryker's timeouts; the wait
+	# for one counts against nothing, up to FACTORY_GATE_SLOT_WAIT.
+	if ! nx_slot_take mutate; then
+		case "$NX_SLOT_WHY" in
+			busy)
+				echo "tools/verify/mutate:1 mutate-slot $NX_SLOT_MSG"
+				exit "$NX_TRANSIENT"
+				;;
+			*) echo "tools/verify/local.env:1 mutate-slot $NX_SLOT_MSG" ;;
+		esac
+		exit 1
+	fi
 	reused=""
 	if [ -n "$loop" ]; then
 		# The kept results, when their key is this run's; a run that fails on
@@ -283,6 +305,7 @@ if [ -s "$tmp/mutate" ]; then
 		run_stryker
 		status=$?
 	fi
+	nx_slot_free
 	if [ "$status" -ne 0 ] || [ ! -s "$tmp/report.json" ]; then
 		echo "tools/verify/mutate:1 mutate-failed Stryker exited $status mutating $(tr '\n' ' ' < "$tmp/sources" | sed 's/ $//') (its output is on stderr)"
 		exit 1

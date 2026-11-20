@@ -1,6 +1,6 @@
 ---
 name: build
-description: Work an approved Spec's ready-for-agent issues, up to two at once and Feature by Feature, from Build Brief through the red and green phases to Land, the Editor writing all code.
+description: Work an approved Spec's ready-for-agent issues, several at once and Feature by Feature, from Build Brief through the red and green phases to Land, the Editor writing all code.
 disable-model-invocation: true
 effort: low
 ---
@@ -17,10 +17,10 @@ A session can end at any point, so all state lives outside it: the branch's run 
 `/build <spec>` refuses a Spec without the `approved` label. Work its first open Feature (its tracker milestone), and the next one while the first's Playtest waits ([`playtest.md`](playtest.md)). At the Run's start, in the main checkout, take up the factory's patch releases. When the session's update check said it is syncing one, wait for the last line of its log, `<git common dir>/factory/update-sync.log`: `update-check: synced` or `failed`. Otherwise run `bash factory/core/sync.sh check`; on `newer` with a patch release (the same major.minor) and no `.claude/worktrees/issue-*`, run `bash factory/core/sync.sh <tag>` and commit it on dev as `Sync factory <new> (from <old>)`. After either sync, push dev, since issues are cut from `origin/dev`, and say so in one line. A failed sync, an adapter-template diff it printed to port into `tools/verify/`, or any other `newer`: ask the human before the first issue.
 
 1. **Playtest intake** first: an open `playtest` issue waits on the human. Sort the human's findings, from this session or its comments, with [`playtest.md`](playtest.md); with none yet, it waits: go on with the next Feature.
-2. **Resume:** an issue with a worktree `.claude/worktrees/issue-<n>` and no `ready-for-human` label is in progress: dispatch it again. Its run state and comments say where it stopped; its driver reruns an Editor round or a Verifier check whose result was lost. A worktree `.claude/worktrees/brief-<n>` is the snapshot that issue's brief review reads; `.claude/worktrees/drift-<spec>` is a Drift sweep under way.
-3. Otherwise take the first open, unblocked `ready-for-agent` issue in the Spec's order, skipping parked ones, and claim it: assign it and comment that the Run has it.
+2. **Resume:** an issue with a worktree `.claude/worktrees/issue-<n>` and no `ready-for-human` label is in progress: dispatch it again. Its run state and comments say where it stopped; its driver reruns a lost Editor round or Verifier check. A worktree `.claude/worktrees/brief-<n>` is the snapshot that issue's brief review reads; `.claude/worktrees/drift-<spec>` is a Drift sweep under way.
+3. Otherwise take the open, unblocked `ready-for-agent` issues in the Spec's order, skipping parked ones and those whose `Touches:` areas overlap a worktree's issue, parked or not ([`parallel.md`](parallel.md)), and claim each: assign it and comment that the Run has it.
 
-Every issue but an asset slice (`Kind: asset`: the `asset-fetcher` subagent fetches the Spec's Assets, with no Editor, as [`assets.md`](assets.md) says) goes to a `driver` subagent of its own, resumed after each `needs` report, even when it is the only one in flight, and never to a fork. The main session dispatches up to two at once and keeps Playtest intake, asset slices, the Drift sweep, the retro, the `needs` subagents and every question for the human: [`parallel.md`](parallel.md). A driver follows Per issue and the sections after it.
+Every issue but an asset slice (`Kind: asset`: the `asset-fetcher` subagent fetches the Spec's Assets, with no Editor, as [`assets.md`](assets.md) says) goes to a `driver` subagent of its own, resumed after each `needs` report, even when it is the only one in flight, and never to a fork. The main session dispatches them and keeps Playtest intake, asset slices, the Drift sweep, the retro, the `needs` subagents and every question for the human: [`parallel.md`](parallel.md). A driver follows Per issue and the sections after it.
 
 ## End of run
 

@@ -220,6 +220,26 @@ seconds-prepare=2
 seconds-smoke=3" "$(gate_counts)" "the counts"
 }
 
+# A step's wait for a resource other gates share (the adapter's gate slots),
+# kept in its wait record (factory_step_waited), is no part of its seconds: smoke
+# runs from 106.5 to 149.5, 40 of it waiting.
+test_a_steps_wait_for_a_shared_resource_is_left_out_of_its_seconds() {
+	issue_project
+	{
+		printf '. %q\n' "$FACTORY_CORE/lib/run.sh"
+		echo 'from="$(factory_clock_us)"'
+		printf 'echo 146.5 > %q\n' "$TEST_TMP/clock"
+		echo 'factory_step_waited "$from"'
+		printf 'echo 149.5 > %q\n' "$TEST_TMP/clock"
+	} > .fixture/run-smoke
+	run_verify
+	assert_status 0
+	assert_eq "gate-runs=1
+seconds-lint=5
+seconds-prepare=1
+seconds-smoke=3" "$(gate_counts)" "the counts"
+}
+
 # The stop hook's run, then the Driver's or lock.sh record's fresh one on the same
 # inputs: the second counts nothing. Inputs that change count again.
 test_a_fresh_rerun_on_the_same_inputs_counts_nothing_more() {

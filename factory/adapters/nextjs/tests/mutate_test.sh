@@ -188,6 +188,55 @@ test_mutate_needs_the_runner_and_stryker_with_node() {
 	assert_eq "package.json:1 tool-missing node_modules/.bin/stryker is not installed; run bash tools/verify.sh prepare (on a new machine, bash tools/verify/bootstrap first)" "$out" "without Stryker"
 }
 
+# --- the gate slots (_nextjs.sh's pool) ---
+
+# slot_stryker_project: skeleton_project (nothing installed), its base committed,
+# then lib/a.ts added; a stand-in Stryker that writes the pool's slots, each as
+# <n>=<its pid>, to $TEST_TMP/slots-in-run, and its parent's pid (the step's) to
+# $TEST_TMP/step.pid, and fails.
+slot_stryker_project() {
+	needs_node
+	skeleton_project
+	git add -A && git commit -q -m base || fail "commit failed"
+	MUTATE_BASE="$(git rev-parse HEAD)"
+	mkdir -p lib node_modules/.bin
+	echo 'export const a = 1;' > lib/a.ts
+	cat > node_modules/.bin/stryker << SH
+#!/usr/bin/env bash
+[ "\$1" = --version ] && { echo 9.0.0; exit 0; }
+for s in $(printf '%q' "$FACTORY_GATE_POOL")/*; do
+	[ -d "\$s" ] && echo "\${s##*/}=\$(cat "\$s/pid")"
+done > $(printf '%q' "$TEST_TMP/slots-in-run")
+echo "\$PPID" > $(printf '%q' "$TEST_TMP/step.pid")
+exit 1
+SH
+	chmod 755 node_modules/.bin/stryker
+}
+
+# Stryker runs holding one gate slot, freed when it ends.
+test_mutate_runs_stryker_in_a_gate_slot_with_node() {
+	slot_stryker_project
+	mkdir -p "$FACTORY_GATE_POOL/1" && echo "$BASHPID" > "$FACTORY_GATE_POOL/1/pid" || fail "could not hold slot 1"
+	FACTORY_GATE_SLOTS=2 run_mutate
+	assert_status 1
+	assert_eq "tools/verify/mutate:1 mutate-failed Stryker exited 1 mutating lib/a.ts (its output is on stderr)" "$out" "the step's finding"
+	assert_eq "1=$BASHPID
+2=$(cat "$TEST_TMP/step.pid")" "$(cat "$TEST_TMP/slots-in-run")" "the slots while Stryker ran"
+	assert_eq "1" "$(ls "$FACTORY_GATE_POOL")" "the slots once the step ended"
+}
+
+# Every slot held past FACTORY_GATE_SLOT_WAIT: a transient finding (exit 75),
+# and Stryker doesn't run.
+test_mutate_with_every_gate_slot_held_past_the_wait_is_transient_with_node() {
+	slot_stryker_project
+	mkdir -p "$FACTORY_GATE_POOL/1" && echo "$BASHPID" > "$FACTORY_GATE_POOL/1/pid" || fail "could not hold slot 1"
+	FACTORY_GATE_SLOTS=1 FACTORY_GATE_SLOT_WAIT=0 run_mutate
+	assert_status 75
+	assert_eq "tools/verify/mutate:1 mutate-slot all 1 gate slots in $FACTORY_GATE_POOL (pids $BASHPID) stayed held past FACTORY_GATE_SLOT_WAIT (0s, tools/verify/local.env); run again once a gate ends, or remove a slot whose pid runs no gate" "$out" "the step's finding"
+	[ ! -e "$TEST_TMP/slots-in-run" ] || fail "Stryker ran with every slot held"
+	assert_eq "$BASHPID" "$(cat "$FACTORY_GATE_POOL/1/pid")" "the holder's slot"
+}
+
 # --- the Editor's loop (FACTORY_GATE_LOOP=editor): Stryker incremental ---
 
 KEPT=.git/factory/stryker-incremental.json
