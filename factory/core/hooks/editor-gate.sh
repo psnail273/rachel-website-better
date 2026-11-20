@@ -29,6 +29,11 @@
 #      gate's: the Driver's `verify.sh --reuse`, the Verifier's, lock.sh record
 #      and Land never print it as theirs. The red and partial phases, and a
 #      branch with no phase, run without it, as the Driver's gate does;
+#      A red gate whose every failing step failed for a transient cause alone
+#      (FACTORY_TRANSIENT_EXIT, which verify.sh names on stderr) with only a
+#      wait's findings (a rule ending in -slot or -build-lock: a gate slot or
+#      the build lock held past its wait by the machine's other gates) judged
+#      nothing of the code: it exits 4, busy, not 1;
 #   3. once that gate is green, finds what is still uncommitted: what the gate's
 #      tools wrote as they ran.
 #      Land refuses a dirty tree, so each one is an `editor-uncommitted` finding and
@@ -58,7 +63,8 @@
 # stderr. Everything else goes to stderr.
 #
 # Exit codes: 0 green on a clean tree, 1 red or uncommitted files, 2 usage,
-# 3 the small lane moved on to the green phase.
+# 3 the small lane moved on to the green phase, 4 busy: the gate failed on a
+# slot or lock wait alone (step 2), so run it again; no fix round.
 set -u
 
 core="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -153,8 +159,52 @@ else
 	unset FACTORY_GATE_LOOP
 fi
 gate_head="$(git rev-parse HEAD 2> /dev/null)" || gate_head=""
-factory_gate "$phase" "$core/verify.sh" --removes --all-static > "$tmp/gate"
+factory_gate "$phase" "$core/verify.sh" --removes --all-static > "$tmp/gate" 2> "$tmp/gate-err"
 gate=$?
+cat "$tmp/gate-err" >&2
+
+# busy: true when the gate judged nothing of the code: every step it failed
+# (its `== <step> FAIL` lines) is one verify.sh names as failed for a transient
+# cause (on stderr), and every finding those steps printed is a wait's: a rule
+# ending in -slot or -build-lock, a gate slot or the build lock held past its
+# wait by the machine's other gates. Any other transient cause (a build that
+# collided, a refused connection) stays red: a fix round looks at it. The
+# partial phase's `baseline.sh gate` prints verify's output on stderr, each line
+# under a `  verify: ` prefix, so stderr's prefixed lines are read too, each
+# stream on its own.
+busy() {
+	local line transient
+	line="$(tr -d '\r' < "$tmp/gate-err" | sed -E 's/^[[:space:]]*verify: (verify: )/\1/' |
+		grep -E '^verify: no gate stamp: step .+ failed for a transient cause' | tail -n 1)"
+	[ -n "$line" ] || return 1
+	transient="${line#verify: no gate stamp: step }"
+	transient=" ${transient%% failed for a transient cause*} "
+	tr -d '\r' < "$tmp/gate" > "$tmp/busy-out"
+	# On stderr only verify's own lines count: a step's raw stderr (Stryker's
+	# log, say) may hold lines shaped like findings.
+	tr -d '\r' < "$tmp/gate-err" | sed -n -E 's/^[[:space:]]*verify: //p' > "$tmp/busy-err"
+	awk -v re="$FACTORY_FINDING_RE" -v transient="$transient" '
+		function close_step() {
+			if (failed && !seen) bad = 1
+			failed = 0
+		}
+		FNR == 1 { close_step() }
+		/^== [^ ]+ (PASS|FAIL|SKIP)$/ {
+			close_step()
+			failed = ($3 == "FAIL"); seen = 0
+			if (failed) {
+				any = 1
+				if (index(transient, " " $2 " ") == 0) bad = 1
+			}
+			next
+		}
+		failed && $0 ~ re {
+			seen = 1
+			if ($2 !~ /-(slot|build-lock)$/) bad = 1
+		}
+		END { close_step(); exit (any && !bad) ? 0 : 1 }
+	' "$tmp/busy-out" "$tmp/busy-err"
+}
 
 {
 	if [ -s "$tmp/format" ]; then
@@ -165,6 +215,7 @@ gate=$?
 } > "$tmp/out"
 if [ "$gate" -ne 0 ]; then
 	cat "$tmp/out"
+	! busy || exit 4
 	exit 1
 fi
 

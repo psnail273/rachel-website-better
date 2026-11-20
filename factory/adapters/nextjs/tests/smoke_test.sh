@@ -1159,30 +1159,69 @@ test_the_gate_slots_default_to_a_quarter_of_the_cores() {
 12" "$(cat "$TEST_TMP/count.out")" "the slot count for each number of cores, then for 012"
 }
 
-# Unset, the wait for a slot is 900 seconds, or 300 in the Editor's loop, whose
-# stop hook gives the whole gate 1800; the waiting line says which.
-test_the_gate_slot_wait_defaults_to_900_or_300_in_the_editors_loop() {
+# Unset, the wait for a slot is 900 seconds, in the Editor's loop too; in the
+# Editor's stop hook (its gate wait record, FACTORY_GATE_WAITS, lib/run.sh) it is
+# cut to the time left until the record's `until`, and the waiting line says so.
+# shellcheck disable=SC2030,SC2031 # each test sets its clock in a subshell of its own
+test_the_gate_slot_wait_defaults_to_900_cut_in_the_editors_stop_hook() {
 	skeleton_project
+	mkdir -p "$TEST_TMP/record"
+	echo 1000 > "$TEST_TMP/clock"
+	echo 1100500000 > "$TEST_TMP/record/until"
 	(
 		# shellcheck source=/dev/null
 		. tools/verify/_nextjs.sh
-		unset FACTORY_GATE_SLOT_WAIT FACTORY_GATE_LOOP
+		unset FACTORY_GATE_SLOT_WAIT FACTORY_GATE_LOOP FACTORY_GATE_WAITS
+		export FACTORY_STEP_CLOCK="$TEST_TMP/clock"
 		# shellcheck disable=SC2317 # called by nx_slot_take: the holder ends
 		sleep() { rm -rf "$NX_SLOT_POOL/1"; }
-		for loop in "" editor; do
+		for loop in "" editor stop-hook; do
 			mkdir -p "$NX_SLOT_POOL/1" && echo "$PPID" > "$NX_SLOT_POOL/1/pid"
-			FACTORY_GATE_SLOTS=1 FACTORY_GATE_LOOP="$loop" nx_slot_take smoke || echo "no slot: $NX_SLOT_MSG"
+			[ "$loop" != stop-hook ] || export FACTORY_GATE_WAITS="$TEST_TMP/record"
+			FACTORY_GATE_SLOTS=1 FACTORY_GATE_LOOP="${loop:+editor}" nx_slot_take smoke || echo "no slot: $NX_SLOT_MSG"
 			nx_slot_free
 		done
 	) > "$TEST_TMP/wait.out" 2>&1
 	local pool="$FACTORY_GATE_POOL"
 	assert_eq "smoke: waiting for one of the 1 gate slots in $pool, held by pids $PPID (up to 900s, FACTORY_GATE_SLOT_WAIT); the wait counts against no budget
-smoke: waiting for one of the 1 gate slots in $pool, held by pids $PPID (up to 300s, FACTORY_GATE_SLOT_WAIT); the wait counts against no budget" "$(cat "$TEST_TMP/wait.out")" "the waiting lines, outside the Editor's loop and in it"
+smoke: waiting for one of the 1 gate slots in $pool, held by pids $PPID (up to 900s, FACTORY_GATE_SLOT_WAIT); the wait counts against no budget
+smoke: waiting for one of the 1 gate slots in $pool, held by pids $PPID (up to 100s, FACTORY_GATE_SLOT_WAIT's 900s, cut to the Editor's stop hook's time left for waits); the wait counts against no budget" "$(cat "$TEST_TMP/wait.out")" "the waiting lines: outside the Editor's loop, in it, and in its stop hook"
+	assert_eq "1000000000 1000000000" "$(cat "$TEST_TMP/record/waits")" "the stop hook's wait record"
 	assert_eq "" "$(slots_held)" "the slots once freed"
+}
+
+# Once the stop hook's time for waits has run out, a held slot and the build
+# lock are each a busy (transient) failure at once, whatever their settings,
+# and the wait goes in the hook's record.
+# shellcheck disable=SC2030,SC2031 # each test sets its clock in a subshell of its own
+test_slot_and_build_lock_waits_end_at_once_past_the_stop_hooks_time_for_waits() {
+	skeleton_project
+	mkdir -p "$TEST_TMP/record"
+	echo 1000 > "$TEST_TMP/clock"
+	echo 999000000 > "$TEST_TMP/record/until"
+	(
+		# shellcheck source=/dev/null
+		. tools/verify/_nextjs.sh
+		export FACTORY_STEP_CLOCK="$TEST_TMP/clock" FACTORY_GATE_WAITS="$TEST_TMP/record" FACTORY_GATE_SLOT_WAIT=900
+		# shellcheck disable=SC2317 # called by a wait: none may happen
+		sleep() { echo "waited"; }
+		mkdir -p "$NX_SLOT_POOL/1" && echo "$PPID" > "$NX_SLOT_POOL/1/pid"
+		FACTORY_GATE_SLOTS=1 nx_slot_take smoke && echo "took a held slot"
+		echo "slot: $NX_SLOT_MSG"
+		mkdir "$NX_BUILD_LOCK" && echo "$PPID" > "$NX_BUILD_LOCK/pid"
+		nx_build_lock 900 && echo "took a held lock"
+		echo "lock: $NX_BUILD_WHY: $NX_BUILD_MSG"
+	) > "$TEST_TMP/wait.out" 2>&1
+	assert_eq "slot: all 1 gate slots in $FACTORY_GATE_POOL (pids $PPID) stayed held past FACTORY_GATE_SLOT_WAIT's 900s, cut to the Editor's stop hook's time left for waits (0s, tools/verify/local.env); run again once a gate ends, or remove a slot whose pid runs no gate
+lock: busy: another next build held the build lock $FACTORY_BUILD_LOCK (pid $PPID) past FACTORY_BUILD_WAIT's 900s, cut to the Editor's stop hook's time left for waits (0s, tools/verify/local.env); run again once it ends, or remove the lock if no build is running" "$(cat "$TEST_TMP/wait.out")" "the failures"
+	assert_eq "1000000000 1000000000
+1000000000 1000000000" "$(cat "$TEST_TMP/record/waits")" "the stop hook's wait record"
+	rm -rf "$FACTORY_GATE_POOL/1" "$FACTORY_BUILD_LOCK"
 }
 
 # The wait for a slot goes to the runner's wait record (factory_step_waited),
 # which verify.sh takes off seconds-<step>; a slot taken at once adds nothing.
+# shellcheck disable=SC2030,SC2031 # each test sets its clock in a subshell of its own
 test_the_wait_for_a_gate_slot_is_kept_in_the_steps_wait_record() {
 	skeleton_project
 	echo 100 > "$TEST_TMP/clock"

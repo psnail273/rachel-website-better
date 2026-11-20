@@ -323,6 +323,17 @@ test_reuse_runs_fresh_after_a_named_base_moves() {
 	stderr_has "this checkout can't be keyed"
 }
 
+# The Editor's stop hook gives each gate a wait record of its own
+# (FACTORY_GATE_WAITS, lib/run.sh): the key leaves it out, so the Driver's run
+# without one reuses the stop hook's verdict.
+test_the_gate_wait_record_is_left_out_of_the_key() {
+	mkdir -p "$TEST_TMP/waits.1"
+	FACTORY_GATE_WAITS="$TEST_TMP/waits.1" stamped
+	run_verify --reuse
+	assert_status 0
+	assert_reused
+}
+
 test_a_factory_variable_from_local_env_keeps_the_stamp() {
 	fixture_git_project
 	echo "FACTORY_BASE_BRANCH=dev" >> tools/verify/local.env

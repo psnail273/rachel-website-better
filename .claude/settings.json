@@ -32,7 +32,7 @@
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/factory/core/hooks/claude-subagent-stop.sh\"",
-            "timeout": 1800
+            "timeout": 3600
           }
         ]
       }
@@ -67,7 +67,7 @@
           {
             "type": "command",
             "command": "bash \"$CLAUDE_PROJECT_DIR/factory/core/hooks/claude-subagent-stop.sh\"",
-            "timeout": 1800
+            "timeout": 3600
           }
         ]
       }

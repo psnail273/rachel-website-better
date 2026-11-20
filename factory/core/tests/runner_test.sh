@@ -240,6 +240,50 @@ seconds-prepare=1
 seconds-smoke=3" "$(gate_counts)" "the counts"
 }
 
+# The gate's wait record (lib/run.sh), as the Editor's stop hook keeps it: a
+# step's wait goes in it (factory_wait_begin, then factory_step_waited), and the
+# time waited is the union of its waits, ended and going, within the span asked.
+# shellcheck disable=SC2030,SC2031 # each test sets its clock in a subshell of its own
+test_the_gate_wait_record_counts_overlapping_waits_once() {
+	mkdir -p "$TEST_TMP/record"
+	echo 100 > "$TEST_TMP/clock"
+	(
+		. "$FACTORY_CORE/lib/run.sh"
+		export FACTORY_STEP_CLOCK="$TEST_TMP/clock" FACTORY_GATE_WAITS="$TEST_TMP/record"
+		factory_wait_begin from
+		[ -e "$TEST_TMP/record/waiting.$$.$from" ] || fail "no mark for the wait going"
+		echo 130 > "$TEST_TMP/clock"
+		factory_step_waited "$from"
+		[ -e "$TEST_TMP/record/waiting.$$.$from" ] && fail "the ended wait's mark stayed"
+		assert_eq "100000000 130000000" "$(cat "$TEST_TMP/record/waits")" "the ended wait"
+		echo "120000000 140000000" >> "$TEST_TMP/record/waits"
+		: > "$TEST_TMP/record/waiting.1.150000000"
+		assert_eq 60000000 "$(factory_gate_waited_us "$TEST_TMP/record" 90000000 170000000)" "100-140 and 150-170"
+		assert_eq 35000000 "$(factory_gate_waited_us "$TEST_TMP/record" 115000000 160000000)" "115-140 and 150-160"
+		assert_eq 0 "$(factory_gate_waited_us "$TEST_TMP/no-record" 0 170000000)" "no record"
+	)
+}
+
+# A wait's setting is cut to the seconds left until the record's `until`; without
+# a record, or once `until` has passed, it is the setting, or 0.
+# shellcheck disable=SC2030,SC2031 # each test sets its clock in a subshell of its own
+test_a_wait_is_cut_to_the_records_time_left() {
+	mkdir -p "$TEST_TMP/record"
+	echo 1000 > "$TEST_TMP/clock"
+	(
+		. "$FACTORY_CORE/lib/run.sh"
+		export FACTORY_STEP_CLOCK="$TEST_TMP/clock"
+		assert_eq 900 "$(factory_wait_cap 900)" "no record"
+		export FACTORY_GATE_WAITS="$TEST_TMP/record"
+		assert_eq 900 "$(factory_wait_cap 900)" "a record without until"
+		echo 1100500000 > "$TEST_TMP/record/until"
+		assert_eq 100 "$(factory_wait_cap 900)" "100.5 s left"
+		assert_eq 30 "$(factory_wait_cap 30)" "a setting under the time left"
+		echo 1200 > "$TEST_TMP/clock"
+		assert_eq 0 "$(factory_wait_cap 900)" "until passed"
+	)
+}
+
 # The stop hook's run, then the Driver's or lock.sh record's fresh one on the same
 # inputs: the second counts nothing. Inputs that change count again.
 test_a_fresh_rerun_on_the_same_inputs_counts_nothing_more() {

@@ -71,6 +71,19 @@
 # small lane moves the issue on to green it takes a fresh one, since the Lock and
 # the phase it sets are the gate's, not the round's.
 #
+# Its time (lib/run.sh, the Editor's stop hook and its time): Claude Code kills
+# it at claude-hooks.json's timeout (3600 s), so from its start every wait, for
+# a gate in flight here or for what the machine's other gates hold (the
+# adapter's gate slots and build lock, cut to the time left through the gate's
+# wait record, FACTORY_GATE_WAITS), ends by 1500 s in, and the gate gets 1800 s
+# of work, its waits left out (factory_gate_budget_run). A gate past that budget
+# (or still running 3300 s in) is stopped, and the hook lets the subagent stop,
+# saying so, as the timeout would have, with no stamp kept: prompt.sh verifier
+# and lock.sh record run the gate again. A gate that failed only because a step
+# waited past its cap (editor-gate.sh's exit 4) is busy, not red: the hook
+# blocks with a busy message, which asks for no fix, and counts it toward the
+# limit so the loop still ends.
+#
 # It does nothing (exit 0) for another agent or tool, and when the prompt names
 # no worktree.
 #
@@ -80,8 +93,18 @@ set -u
 core="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 . "$core/lib/json.sh"
 . "$core/lib/bounded.sh"
+. "$core/lib/run.sh"
 limit="${FACTORY_EDITOR_LOOP_LIMIT:-5}"
 wait_limit="${FACTORY_EDITOR_GATE_WAIT:-900}"
+case "$wait_limit" in '' | *[!0-9]* | ???????*) wait_limit=900 ;; esac
+wait_limit=$((10#$wait_limit))
+
+# The hook's time (lib/run.sh): every wait ends by waits_end, and the gate is
+# stopped by gate_stop at the latest.
+hook_began="$(factory_clock_us)"
+# shellcheck disable=SC2154 # the factory_editor_ bounds: lib/run.sh
+waits_end=$((hook_began + (factory_editor_hook_timeout - factory_editor_hook_margin - factory_editor_gate_budget) * 1000000))
+gate_stop=$((hook_began + (factory_editor_hook_timeout - factory_editor_hook_margin) * 1000000))
 
 input="$(cat)"
 
@@ -142,7 +165,8 @@ fi
 count="$(cat "$counter" 2> /dev/null)" || count=0
 case "$count" in '' | *[!0-9]*) count=0 ;; esac
 
-# counted <why>: keep this block's count, and why it blocked (quote, else red).
+# counted <why>: keep this block's count, and why it blocked (round, quote,
+# busy, else red).
 counted() {
 	mkdir -p "$(dirname "$counter")" && printf '%s\n' "$count" > "$counter" && printf '%s\n' "$1" > "$counter.why"
 }
@@ -230,12 +254,22 @@ read_result() {
 	[ "$s" != 3 ] || rm -f "$gatedir/result"
 }
 
-# wait_in_flight: wait, up to the wait limit, for the run holding the gate to
+# wait_for: set it to the wait for a gate in flight: the wait limit cut to the
+# hook's time left for waits, at least 1 s.
+wait_for=""
+wait_for() {
+	local left=$(((waits_end - $(factory_clock_us)) / 1000000))
+	wait_for="$wait_limit"
+	[ "$left" -ge "$wait_for" ] || wait_for="$left"
+	[ "$wait_for" -ge 1 ] || wait_for=1
+}
+
+# wait_in_flight: wait, up to wait_for, for the run holding the gate to
 # end: its folder gone, or its pid no longer running (it was killed; its folder
 # is then removed). False when the wait ran out.
 wait_in_flight() {
 	# shellcheck disable=SC2016 # the loop's own variables
-	factory_run_bounded "$wait_limit" bash -c '
+	factory_run_bounded "$wait_for" bash -c '
 		while [ -d "$1" ]; do
 			pid="$(cat "$1/pid" 2> /dev/null)"
 			[ -z "$pid" ] || kill -0 "$pid" 2> /dev/null || exit 0
@@ -253,9 +287,14 @@ wait_in_flight() {
 # the wait limit, let the subagent stop, saying so.
 await_gate() {
 	[ -d "$gatedir/running" ] || return 1
-	echo "editor-sonnet stop hook: a gate is already running in $worktree; waiting for it (up to ${wait_limit}s)" >&2
+	wait_for
+	echo "editor-sonnet stop hook: a gate is already running in $worktree; waiting for it (up to ${wait_for}s)" >&2
 	if ! wait_in_flight; then
-		echo "editor-sonnet stop hook: a gate already running in $worktree ran past FACTORY_EDITOR_GATE_WAIT (${wait_limit}s), so this stop has no result; letting the subagent stop" >&2
+		if [ "$wait_for" -lt "$wait_limit" ]; then
+			echo "editor-sonnet stop hook: a gate already running in $worktree ran past this stop's time left for waits (${wait_for}s of FACTORY_EDITOR_GATE_WAIT's ${wait_limit}s: the rest is its own gate's), so this stop has no result; letting the subagent stop" >&2
+		else
+			echo "editor-sonnet stop hook: a gate already running in $worktree ran past FACTORY_EDITOR_GATE_WAIT (${wait_limit}s), so this stop has no result; letting the subagent stop" >&2
+		fi
 		rm -f "$snap"
 		release
 	fi
@@ -286,6 +325,8 @@ if [ "$count" -ge "$limit" ]; then
 		echo "editor-sonnet stop hook: the round still changes what the factory protects after $limit tries ($gitdir/factory/round-changed); letting the subagent stop" >&2
 	elif [ "$(cat "$counter.why" 2> /dev/null)" = quote ]; then
 		echo "editor-sonnet stop hook: the final message still doesn't quote the gate's result after $limit tries; letting the subagent stop" >&2
+	elif [ "$(cat "$counter.why" 2> /dev/null)" = busy ]; then
+		echo "editor-sonnet stop hook: the gate was still busy after $limit tries (the machine's other gates held its gate slots or the build lock past their waits), so it never judged the code; letting the subagent stop" >&2
 	else
 		echo "editor-sonnet stop hook: the gate is still red after $limit tries; letting the subagent stop" >&2
 	fi
@@ -321,10 +362,24 @@ for _ in 1 2 3; do
 	# it runs leaves both to the next one; after the small lane's move to green
 	# it takes the round's fresh snapshot too, or the next stop would count the
 	# gate's Lock and phase as the round's.
+	# The gate runs under its work budget (lib/run.sh), with a wait record of
+	# its own; one stopped there leaves status 124 and why as its output.
 	(
 		cd "$worktree" || exit 1
-		gate_out="$(bash "$core/hooks/editor-gate.sh" 2> /dev/null)"
+		waits="$gatedir/waits.$BASHPID"
+		rm -rf "$waits"
+		mkdir -p "$waits" && echo "$waits_end" > "$waits/until"
+		gate_out="$(factory_gate_budget_run "$waits" "$factory_editor_gate_budget" "$gate_stop" bash "$core/hooks/editor-gate.sh" 2> /dev/null)"
 		gate_status=$?
+		if [ "$gate_status" = 124 ]; then
+			read -r over waited < "$waits/over" 2> /dev/null || over=stop waited=0
+			if [ "$over" = budget ]; then
+				gate_out="editor-sonnet stop hook: the gate ran past its work budget ($factory_editor_gate_budget s of work, not counting the ${waited:-0}s its steps waited for gate slots or the build lock), so it was stopped and this stop has no result; letting the subagent stop, as the hook's timeout would have. No stamp is kept: prompt.sh verifier and lock.sh record run the Editor's gate again"
+			else
+				gate_out="editor-sonnet stop hook: the gate was still running $((factory_editor_hook_timeout - factory_editor_hook_margin))s after this stop began (the hook's ${factory_editor_hook_timeout}s timeout less its ${factory_editor_hook_margin}s margin), so it was stopped and this stop has no result; letting the subagent stop. No stamp is kept: prompt.sh verifier and lock.sh record run the Editor's gate again"
+			fi
+		fi
+		rm -rf "$waits"
 		if [ "$gate_status" = 3 ] && [ -n "$snap" ]; then
 			round snapshot 2> /dev/null || rm -f "$snap"
 		fi
@@ -383,6 +438,20 @@ case "$status" in
 		rm -f "$counter" "$counter.why"
 		printf '%s\n' "$out" | tail -n +2 >&2
 		exit 2
+		;;
+	4)
+		counted busy
+		{
+			echo "The gate was busy, not red (block $count of $limit): a step could not get a gate slot or the build lock, held by the machine's other gates, before its wait ran out, so the gate did not judge the code. There is nothing to fix for it: stop again to run the gate again:"
+			printf '%s\n' "$out"
+			[ -z "$notes" ] || printf '%s\n' "$notes"
+		} >&2
+		exit 2
+		;;
+	124)
+		printf '%s\n' "$out" >&2
+		rm -f "$snap"
+		release
 		;;
 esac
 

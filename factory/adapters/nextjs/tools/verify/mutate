@@ -268,7 +268,8 @@ if [ -s "$tmp/mutate" ]; then
 	# Stryker runs in one of the machine's gate slots (_nextjs.sh's pool), so
 	# the Stryker runs and smoke steps of the gates in flight share the cores
 	# instead of pushing each other's mutants past Stryker's timeouts; the wait
-	# for one counts against nothing, up to FACTORY_GATE_SLOT_WAIT.
+	# for one counts against nothing, up to FACTORY_GATE_SLOT_WAIT (cut in the
+	# Editor's stop hook to its time left for waits, _nextjs.sh's nx_wait_cap).
 	if ! nx_slot_take mutate; then
 		case "$NX_SLOT_WHY" in
 			busy)

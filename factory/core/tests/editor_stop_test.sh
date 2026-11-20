@@ -923,6 +923,199 @@ test_stop_hook_stops_waiting_after_the_gate_wait() {
 	assert_eq 1 "$(smoke_runs)" "the gate ran twice"
 }
 
+# --- the hook's time: waits, the work budget and a busy gate (lib/run.sh) ------
+
+# clocked_project: the git fixture as editor_project, on the stand-in clock at
+# 1000 s (FACTORY_STEP_CLOCK), as the hook starts.
+clocked_project() {
+	editor_project
+	echo 1000 > "$TEST_TMP/clock"
+	export FACTORY_STEP_CLOCK="$TEST_TMP/clock"
+}
+
+# smoke_waits_then <wait-to> <clock-after> [command]: the gate's smoke step waits
+# (as the adapter's slot wait does: factory_wait_begin, then factory_step_waited)
+# from the clock's time then until <wait-to> seconds, then sets the clock to
+# <clock-after> and runs <command> (by default nothing).
+smoke_waits_then() {
+	{
+		printf '. %q\n' "$FACTORY_CORE/lib/run.sh"
+		echo 'factory_wait_begin from'
+		printf 'echo %s > %q\n' "$1" "$TEST_TMP/clock"
+		echo 'factory_step_waited "$from"'
+		printf 'echo %s > %q\n' "$2" "$TEST_TMP/clock"
+		[ -z "${3:-}" ] || printf '%s\n' "$3"
+	} > .fixture/run-smoke
+}
+
+# gate_work_is <seconds>: the running gate's watchdog last measured <seconds> of
+# work (its wait record's work file).
+gate_work_is() {
+	local f
+	for f in "$(git rev-parse --git-dir)"/factory/editor-gate/waits.*/work; do
+		[ "$(cat "$f" 2> /dev/null)" = "$1" ] && return 0
+	done
+	return 1
+}
+
+# A gate whose steps waited 1400 s for gate slots gets its whole work budget:
+# 2100 s after it began, past the 1800 s, it has done 700 s of work, and it
+# goes on to pass.
+test_a_gate_whose_steps_waited_gets_its_whole_work_budget() {
+	clocked_project
+	blocking_stand_in "$TEST_TMP/hang" "$TEST_TMP/release"
+	smoke_waits_then 2400 3100 "$(printf '%q' "$TEST_TMP/hang")"
+	start_held_hook
+	wait_until "the watchdog to measure 700 s of work" gate_work_is 700
+	touch "$TEST_TMP/release"
+	wait "$held"
+	# shellcheck disable=SC2034 # read by assert_status
+	status=$?
+	assert_status 0
+	grep -qF "work budget" "$TEST_TMP/held.stderr" && fail "the gate was stopped: $(cat "$TEST_TMP/held.stderr")"
+	assert_eq "- $(git rev-parse HEAD)" "$(git config branch.work.factory-editor-gate)" "the green gate kept no stamp"
+}
+
+# Past 1800 s of work (no waits) the gate is stopped, and the stop goes through
+# with the budget's message, as the hook's timeout would have let it, with no
+# stamp.
+test_a_gate_past_its_work_budget_is_stopped_with_the_budget_message() {
+	clocked_project
+	blocking_stand_in "$TEST_TMP/hang" "$TEST_TMP/release"
+	printf 'echo 2801 > %q\n%q\n' "$TEST_TMP/clock" "$TEST_TMP/hang" > .fixture/run-smoke
+	run_stop_hook
+	assert_status 0
+	stderr_has "editor-sonnet stop hook: the gate ran past its work budget (1800 s of work, not counting the 0s its steps waited for gate slots or the build lock), so it was stopped and this stop has no result; letting the subagent stop, as the hook's timeout would have."
+	git config branch.work.factory-editor-gate > /dev/null && fail "a stopped gate left a stamp"
+	wait_until "the gate to free" gate_free
+	assert_eq "" "$(cat "$(git rev-parse --git-dir)/factory/subagent-stop/agent-1" 2> /dev/null)" "the stop counted a block"
+}
+
+# The waits are left out, but not the hook's own end: a gate still running
+# 3300 s after the hook began (its 3600 s timeout less the 300 s margin) is
+# stopped, however long its steps waited.
+test_a_gate_still_running_at_the_hooks_stop_time_is_stopped() {
+	clocked_project
+	blocking_stand_in "$TEST_TMP/hang" "$TEST_TMP/release"
+	smoke_waits_then 4250 4300 "$(printf '%q' "$TEST_TMP/hang")"
+	run_stop_hook
+	assert_status 0
+	stderr_has "editor-sonnet stop hook: the gate was still running 3300s after this stop began (the hook's 3600s timeout less its 300s margin), so it was stopped"
+	git config branch.work.factory-editor-gate > /dev/null && fail "a stopped gate left a stamp"
+	return 0
+}
+
+# The Editor loop's wait cap: a step's wait is cut to the time left until the
+# hook's waits end, so that wait, the work budget and the margin fit inside the
+# harness timeout: 1400 s in, a 900 s slot wait is cut to 100 s, and
+# 1400 + 100 + 1800 + 300 = 3600.
+test_a_steps_wait_is_cut_so_waits_and_work_fit_the_hooks_timeout() {
+	clocked_project
+	{
+		printf '. %q\n' "$FACTORY_CORE/lib/run.sh"
+		printf 'echo 2400 > %q\n' "$TEST_TMP/clock"
+		printf 'factory_wait_cap 900 > %q\n' "$TEST_TMP/cap"
+		printf 'echo 1000 > %q\n' "$TEST_TMP/clock"
+	} > .fixture/run-smoke
+	run_stop_hook
+	assert_status 0
+	assert_eq 100 "$(cat "$TEST_TMP/cap")" "the cut wait"
+	(
+		. "$FACTORY_CORE/lib/run.sh"
+		# shellcheck disable=SC2154 # the factory_editor_ bounds: lib/run.sh
+		assert_eq "$factory_editor_hook_timeout" "$((1400 + $(cat "$TEST_TMP/cap") + factory_editor_gate_budget + factory_editor_hook_margin))" "waits, work and margin against the timeout"
+	)
+}
+
+# The wait for a gate in flight is cut the same way: FACTORY_EDITOR_GATE_WAIT's
+# 2000 s is cut to the hook's 1500 s for waits.
+test_the_wait_for_a_gate_in_flight_is_cut_to_the_hooks_time_for_waits() {
+	clocked_project
+	small_red
+	hold_the_gate
+	start_held_hook
+	hook_input
+	FACTORY_EDITOR_GATE_WAIT=2000 bash "$STOP_HOOK" < "$TEST_TMP/input.now" > /dev/null 2> "$TEST_TMP/stderr" &
+	second=$!
+	wait_until "the second hook to wait for the gate, or end" second_hook_waits_or_ends
+	touch "$TEST_TMP/release"
+	wait "$second"
+	wait "$held"
+	stderr_has "a gate is already running in $PWD; waiting for it (up to 1500s)"
+}
+
+# A step that failed only for a transient cause, a gate slot or the build lock
+# held past its wait (its finding's rule ends in -slot), leaves a busy gate: editor-gate.sh exits 4, and the hook
+# blocks with no fix round asked.
+test_a_gate_failed_only_for_a_transient_cause_is_busy_not_red() {
+	editor_project
+	echo "package.json:1 smoke-slot all 2 gate slots stayed held" > .fixture/transient-smoke
+	run_cmd bash "$EDITOR_GATE"
+	assert_status 4
+	run_stop_hook
+	assert_status 2
+	stderr_has "The gate was busy, not red (block 1 of 5): a step could not get a gate slot or the build lock"
+	stderr_has "package.json:1 smoke-slot all 2 gate slots stayed held"
+	grep -qF "The gate is red" "$TEST_TMP/stderr" && fail "a busy gate was a fix round: $(cat "$TEST_TMP/stderr")"
+	assert_eq busy "$(cat "$(git rev-parse --git-dir)/factory/subagent-stop/agent-1.why")" "the block's why"
+	git config branch.work.factory-editor-gate > /dev/null && fail "a busy gate left a stamp"
+	return 0
+}
+
+# The partial phase's baseline.sh gate prints verify's output on stderr under a
+# `  verify: ` prefix: a step that waited past its slot there is busy too.
+test_a_gate_busy_in_the_partial_phase_is_busy_not_red() {
+	fixture_git_project
+	mkdir -p tools/verify/ratchet && : > tools/verify/ratchet/baseline.txt
+	git add -A && git commit -q -m "the Baseline"
+	mkdir -p .git/factory && printf '%s\n' '```factory-brief' 'scope src/**' '```' > .git/factory/brief.md
+	git config branch.work.factory-phase partial
+	echo "package.json:1 smoke-slot all 2 gate slots stayed held" > .fixture/transient-smoke
+	run_cmd bash "$EDITOR_GATE"
+	assert_status 4
+	stderr_has "  verify: package.json:1 smoke-slot all 2 gate slots stayed held"
+	git config branch.work.factory-editor-gate > /dev/null && fail "a busy gate left a stamp"
+	return 0
+}
+
+# A step's own stderr is no finding: a tool's log line shaped like one (Stryker
+# prints `10:31:02 (4242) INFO ...`) after the last failed step leaves a gate
+# that failed only on a slot wait busy.
+test_a_steps_log_on_stderr_leaves_a_busy_gate_busy() {
+	editor_project
+	echo "10:31:02 (4242) INFO ProjectReader Found 1 of 40 file(s) to be mutated." > .fixture/stderr-smoke
+	echo "package.json:1 smoke-slot all 2 gate slots stayed held" > .fixture/transient-smoke
+	run_cmd bash "$EDITOR_GATE"
+	assert_status 4
+	stderr_has "10:31:02 (4242) INFO ProjectReader"
+}
+
+# Only a wait's findings make a gate busy: a step that failed for another
+# transient cause (a refused connection, a build that collided) is red, a fix
+# round, and its count ends the loop.
+test_a_gate_failed_for_a_transient_cause_other_than_a_wait_is_red() {
+	editor_project
+	echo "package.json:1 smoke-request-failed GET http://127.0.0.1:9/x.png net::ERR_CONNECTION_REFUSED" > .fixture/transient-smoke
+	run_cmd bash "$EDITOR_GATE"
+	assert_status 1
+	run_stop_hook
+	assert_status 2
+	stderr_has "The gate is red (block 1 of 5)"
+	stderr_has "package.json:1 smoke-request-failed"
+}
+
+# A transient step beside a red one is a red gate: the code has findings.
+test_a_gate_with_a_red_step_beside_a_transient_one_is_red() {
+	editor_project
+	echo "package.json:1 mutate-slot held" > .fixture/transient-lint
+	echo "src/a.txt:1 typecheck-bad a finding" > .fixture/fail-typecheck
+	run_cmd bash "$EDITOR_GATE"
+	assert_status 1
+	run_stop_hook
+	assert_status 2
+	stderr_has "The gate is red (block 1 of 5)"
+}
+
 # --- the round's snapshot and its compare (lib/round.sh) ------------------------------
 
 # start_round [agent_type]: run the SubagentStart hook for subagent agent-1, its cwd
@@ -1188,6 +1381,8 @@ test_generated_settings_wire_the_stop_hook_to_editor_sonnet() {
 	assert_status 0
 	tr -d ' \n' < .claude/settings.json | grep -qF '"SubagentStop":[{"matcher":"editor-sonnet","hooks":[{"type":"command","command":"bash\"$CLAUDE_PROJECT_DIR/factory/core/hooks/claude-subagent-stop.sh\""' ||
 		fail "no SubagentStop hook for editor-sonnet in:"$'\n'"$(cat .claude/settings.json)"
+	assert_eq "$(. "$FACTORY_CORE/lib/run.sh" && echo "$factory_editor_hook_timeout")" \
+		"$(factory_json_get "hooks.SubagentStop.0.hooks.0.timeout" < .claude/settings.json)" "its limit, the hook's own"
 }
 
 test_generated_settings_wire_the_stop_hook_to_every_subagent_handback() {
@@ -1204,7 +1399,8 @@ test_generated_settings_wire_the_stop_hook_to_every_subagent_handback() {
 	[ -n "$index" ] || fail "no PreToolUse hook on SubagentHandback in:"$'\n'"$(cat .claude/settings.json)"
 	assert_eq 'bash "$CLAUDE_PROJECT_DIR/factory/core/hooks/claude-subagent-stop.sh"' \
 		"$(factory_json_get "hooks.PreToolUse.$index.hooks.0.command" < .claude/settings.json)" "its command"
-	assert_eq 1800 "$(factory_json_get "hooks.PreToolUse.$index.hooks.0.timeout" < .claude/settings.json)" "its limit"
+	assert_eq "$(. "$FACTORY_CORE/lib/run.sh" && echo "$factory_editor_hook_timeout")" \
+		"$(factory_json_get "hooks.PreToolUse.$index.hooks.0.timeout" < .claude/settings.json)" "its limit, the hook's own"
 }
 
 # --- the recorded events (#60) ----------------------------------------------------

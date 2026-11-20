@@ -18,7 +18,8 @@
 #      held from here until the browsers are done, so the smoke steps and
 #      Stryker runs of the gates in flight share the cores instead of starving
 #      each other past FACTORY_SMOKE_TIMEOUT; the wait for one counts against
-#      no limit, and its ceiling is FACTORY_GATE_SLOT_WAIT;
+#      no limit, and its ceiling is FACTORY_GATE_SLOT_WAIT, cut in the Editor's
+#      stop hook to the hook's time left for waits (_nextjs.sh's nx_wait_cap);
 #   2. next start on 127.0.0.1, on a port the OS picks free (--port 0; the step
 #      reads the port from the URL next start prints), so runs side by side
 #      never meet; the step polls until the port takes a connection (1 and 2
@@ -69,7 +70,8 @@
 # server's start, each page's load (each route in each view, in each engine),
 # each page check and each link's request, and the stop of the server and the
 # browser after TERM, when each is killed. FACTORY_BUILD_WAIT (local.env;
-# seconds, default 900) bounds the wait for the build lock.
+# seconds, default 900) bounds the wait for the build lock, cut as the slot's
+# in the Editor's stop hook.
 #
 # Findings, on stdout (next's output goes to stderr). A page finding (console,
 # page-error, response, request-failed, load, a11y, layout, reflow,

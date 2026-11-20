@@ -112,6 +112,35 @@ assert_settings() {
 	assert_eq "${1//@HOOKS@/"$block"}" "$(cat .claude/settings.json)" "${2:-values differ}"
 }
 
+# --- the Editor's stop hook's timeout ---------------------------------------------
+
+# Claude Code kills the Editor's stop hook at its timeout in claude-hooks.json, so
+# each of its entries (SubagentStop and the hand-back's PreToolUse) holds the
+# hook's own bound (lib/run.sh): the time it splits into waits, the gate's work
+# budget and a margin, with time left for waits.
+# shellcheck disable=SC2154 # the factory_editor_ bounds: lib/run.sh
+test_the_stop_hooks_timeout_is_the_bound_the_hook_keeps_to() {
+	local event i limits=""
+	. "$FACTORY_CORE/lib/json.sh"
+	for event in PreToolUse SubagentStop; do
+		for i in 0 1 2 3 4 5; do
+			case "$(factory_json_get "$event.$i.hooks.0.command" < "$FACTORY_CORE/hooks/claude-hooks.json")" in
+				*claude-subagent-stop.sh*)
+					limits="$limits$(factory_json_get "$event.$i.hooks.0.timeout" < "$FACTORY_CORE/hooks/claude-hooks.json")"$'\n'
+					;;
+			esac
+		done
+	done
+	(
+		. "$FACTORY_CORE/lib/run.sh"
+		assert_eq "$factory_editor_hook_timeout
+$factory_editor_hook_timeout" "${limits%$'\n'}" "the stop hook's limits in claude-hooks.json"
+		[ $((factory_editor_hook_timeout - factory_editor_hook_margin - factory_editor_gate_budget)) -ge 900 ] ||
+			fail "the hook's ${factory_editor_hook_timeout}s leave under 900s for waits beside the ${factory_editor_gate_budget}s budget and ${factory_editor_hook_margin}s margin"
+		assert_eq 1800 "$factory_editor_gate_budget" "the work budget"
+	)
+}
+
 # --- generate and check -------------------------------------------------------
 
 test_generate_writes_the_settings_hooks_model_and_effort_keys() {

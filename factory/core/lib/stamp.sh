@@ -40,8 +40,9 @@
 #            (editor-gate), which no step reads: a run that counts itself, or
 #            that the Editor's gate stamps as it passes, keeps its stamp
 #   env      each exported FACTORY_ variable but FACTORY_CORE (the runner sets
-#            it), FACTORY_RESULTS_FILE, FACTORY_SURVIVORS_FILE and
-#            FACTORY_NO_STAMP
+#            it), FACTORY_RESULTS_FILE, FACTORY_SURVIVORS_FILE,
+#            FACTORY_NO_STAMP and FACTORY_GATE_WAITS (the Editor's stop hook's
+#            wait record for its gate, a folder of its own each run: lib/run.sh)
 #   local    tools/verify/local.env's hash, or none: the machine's tool paths
 # What the key leaves out is taken as unchanged: the tools installed (prepare's
 # pin check guards their versions), ignored files such as an engine's caches,
@@ -178,7 +179,7 @@ factory_stamp_env() {
 	local name
 	while IFS= read -r name; do
 		case "$name" in
-			FACTORY_CORE | FACTORY_RESULTS_FILE | FACTORY_SURVIVORS_FILE | FACTORY_NO_STAMP) continue ;;
+			FACTORY_CORE | FACTORY_RESULTS_FILE | FACTORY_SURVIVORS_FILE | FACTORY_NO_STAMP | FACTORY_GATE_WAITS) continue ;;
 		esac
 		printf '%s=%q\n' "$name" "${!name}"
 	done < <(compgen -e | grep '^FACTORY_' | LC_ALL=C sort)

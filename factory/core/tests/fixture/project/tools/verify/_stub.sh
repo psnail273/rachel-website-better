@@ -5,6 +5,7 @@
 #   transient-<step>  the step prints this file's findings and fails for a
 #                  transient cause (exit 75, FACTORY_TRANSIENT_EXIT)
 #   output-<step>  the step prints this file's lines and passes
+#   stderr-<step>  the step prints this file's lines on stderr, as a tool's log
 #   vary-<step>    the step prints a finding that changes on every run
 #   args-<step>    written by the stub: the arguments the step got, one per line,
 #                  when it got any (the format step passes its own on)
@@ -44,6 +45,9 @@ if [ "$step" = mutate ]; then
 			echo "# no mutants" > "$FACTORY_SURVIVORS_FILE"
 		fi
 	fi
+fi
+if [ -f ".fixture/stderr-$step" ]; then
+	cat ".fixture/stderr-$step" >&2
 fi
 if [ -f ".fixture/run-$step" ]; then
 	bash ".fixture/run-$step" > /dev/null 2>&1

@@ -640,6 +640,22 @@ test_verifier_without_a_stamp_refuses_when_the_editors_gate_fails() {
 	return 0
 }
 
+# A gate that failed only for a gate slot or the build lock held past its wait
+# (a transient cause with only a wait's findings) was busy, not red: no fix round for the Editor.
+test_verifier_without_a_stamp_says_a_busy_gate_is_no_fix_round() {
+	gate_project
+	echo "package.json:1 smoke-slot all 2 gate slots stayed held" > .fixture/transient-smoke
+	run_cmd bash "$FACTORY_CORE/prompt.sh" verifier green
+	assert_status 1
+	assert_eq "" "$out" "printed a prompt"
+	stderr_has "prompt: the Editor's gate was busy at $(git rev-parse --short HEAD), not red: a step failed only because a gate slot or the build lock stayed held by the machine's other gates past its wait"
+	stderr_has "this is no fix round: run this again once the machine is less busy"
+	stderr_has "package.json:1 smoke-slot all 2 gate slots stayed held"
+	grep -qF "as a fix round" "$TEST_TMP/stderr" && fail "sent a busy gate to the Editor: $(cat "$TEST_TMP/stderr")"
+	git config branch.work.factory-editor-gate > /dev/null && fail "a busy gate left a stamp"
+	return 0
+}
+
 # A brief changed after its seal stops the Editor's gate, but it is the Driver's
 # to seal again: no fix round for the Editor.
 test_verifier_without_a_stamp_sends_a_changed_brief_back_to_the_driver() {

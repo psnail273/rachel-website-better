@@ -47,7 +47,7 @@ export PATH
 # factory_step_waited, which the slot pool keeps). The runner exports
 # FACTORY_CORE; run by hand, a step finds the Core where adoption vendors it.
 if ! declare -F factory_glob_regex > /dev/null || ! declare -F factory_scenario_folder > /dev/null ||
-	! declare -F factory_step_waited > /dev/null; then
+	! declare -F factory_wait_cap > /dev/null; then
 	if [ ! -f "${FACTORY_CORE:-factory/core}/lib/brief.sh" ]; then
 		echo "no factory Core at '${FACTORY_CORE:-factory/core}'; set FACTORY_CORE" >&2
 		exit 2
@@ -55,7 +55,7 @@ if ! declare -F factory_glob_regex > /dev/null || ! declare -F factory_scenario_
 	declare -F factory_glob_regex > /dev/null || . "${FACTORY_CORE:-factory/core}/lib/brief.sh"
 	[ -n "${FACTORY_STEPS_DIR:-}" ] || . "${FACTORY_CORE:-factory/core}/lib/steps.sh"
 	declare -F factory_scenario_folder > /dev/null || . "${FACTORY_CORE:-factory/core}/lib/scenarios.sh"
-	declare -F factory_step_waited > /dev/null || . "${FACTORY_CORE:-factory/core}/lib/run.sh"
+	declare -F factory_wait_cap > /dev/null || . "${FACTORY_CORE:-factory/core}/lib/run.sh"
 fi
 
 # The Scenario folder (tools/verify/scenario-folder), or empty when there is none.
@@ -124,7 +124,10 @@ tool() {
 # holder's pid, at FACTORY_BUILD_LOCK (local.env), by default
 # /tmp/factory-next-build.lock: a fixed path, not $TMPDIR, so sessions with temp
 # folders of their own still meet there. A build waits for it up to
-# FACTORY_BUILD_WAIT seconds (local.env; 0 to 999999, default 900), then gives up.
+# FACTORY_BUILD_WAIT seconds (local.env; 0 to 999999, default 900), then gives up
+# (a transient cause, NX_TRANSIENT). In the Editor's stop hook the wait is cut
+# to the hook's time left for waits (nx_wait_cap), and the hook leaves it out
+# of the gate's work budget, as it does a slot's.
 # A lock whose holder is no process, or that names no holder a minute after it
 # was made, is stale and taken over (nx_build_takeover, one waiter at a time). The build releases it when it ends; a caller
 # runs nx_build_unlock from its EXIT trap too, so a signal mid-build releases it.
@@ -138,16 +141,33 @@ NX_BUILD_HELD=0
 # shellcheck disable=SC2034 # read by the steps that source this
 NX_TRANSIENT=75
 
-# nx_build_lock <wait>: take the build lock, waiting up to <wait> seconds while
-# another build holds it (one line on stderr when it starts waiting). False when
-# it can't, with NX_BUILD_WHY and NX_BUILD_MSG set: busy (held past the wait) or
-# lock (the folder can't be made).
+# nx_wait_cap <setting> <seconds>: set NX_WAIT to <seconds>, the wait setting
+# <setting> holds, cut to the time left for waits in the Editor's stop hook
+# (factory_wait_cap, factory/core/lib/run.sh: the hook's gate wait record), and
+# NX_WAIT_SAYS to how a message names that wait: `<setting>` alone, or, when
+# cut, `<setting>'s <seconds>s, cut to the Editor's stop hook's time left for
+# waits`.
+nx_wait_cap() {
+	NX_WAIT="$(factory_wait_cap "$2")"
+	NX_WAIT_SAYS="$1"
+	[ "$NX_WAIT" -ge "$2" ] || NX_WAIT_SAYS="$1's ${2}s, cut to the Editor's stop hook's time left for waits"
+}
+
+# nx_build_lock <wait>: take the build lock, waiting up to <wait> seconds (cut by
+# nx_wait_cap) while another build holds it (one line on stderr when it starts
+# waiting), its wait kept in the wait records (factory_wait_begin,
+# factory_step_waited). False when it can't, with NX_BUILD_WHY and NX_BUILD_MSG
+# set: busy (held past the wait) or lock (the folder can't be made).
 nx_build_lock() {
-	local end=$((SECONDS + $1)) holder said="" gone=0
+	local end holder said="" gone=0 began
+	nx_wait_cap FACTORY_BUILD_WAIT "$1"
+	end=$((SECONDS + NX_WAIT))
+	factory_wait_begin began
 	while :; do
 		if mkdir "$NX_BUILD_LOCK" 2> /dev/null; then
 			NX_BUILD_HELD=1
 			echo "$$" > "$NX_BUILD_LOCK/pid"
+			factory_step_waited "$began"
 			return 0
 		fi
 		# No lock after a failed mkdir: released or taken over in between, so try
@@ -157,21 +177,24 @@ nx_build_lock() {
 			[ "$gone" -ge 5 ] || continue
 			NX_BUILD_WHY=lock
 			NX_BUILD_MSG="could not make the build lock $NX_BUILD_LOCK; FACTORY_BUILD_LOCK in tools/verify/local.env names a folder to make, in a folder that exists"
+			factory_step_waited "$began"
 			return 1
 		fi
 		gone=0
 		holder="$(nx_build_holder)"
 		if nx_build_stale "$holder" && nx_build_takeover; then
+			factory_step_waited "$began"
 			return 0
 		fi
 		if [ "$SECONDS" -ge "$end" ]; then
 			NX_BUILD_WHY=busy
-			NX_BUILD_MSG="another next build held the build lock $NX_BUILD_LOCK (pid ${holder:-unknown}) past FACTORY_BUILD_WAIT (${1}s, tools/verify/local.env); run again once it ends, or remove the lock if no build is running"
+			NX_BUILD_MSG="another next build held the build lock $NX_BUILD_LOCK (pid ${holder:-unknown}) past $NX_WAIT_SAYS (${NX_WAIT}s, tools/verify/local.env); run again once it ends, or remove the lock if no build is running"
+			factory_step_waited "$began"
 			return 1
 		fi
 		if [ -z "$said" ]; then
 			said=1
-			echo "next build: waiting for the build lock $NX_BUILD_LOCK, held by pid ${holder:-unknown} (up to ${1}s, FACTORY_BUILD_WAIT)" >&2
+			echo "next build: waiting for the build lock $NX_BUILD_LOCK, held by pid ${holder:-unknown} (up to ${NX_WAIT}s, $NX_WAIT_SAYS)" >&2
 		fi
 		sleep 0.2
 	done
@@ -315,14 +338,18 @@ nx_next_build() {
 # to the cores over the slots, or Stryker runs side by side oversubscribe them.
 #
 # A step waits for a slot up to FACTORY_GATE_SLOT_WAIT seconds (local.env; 0 to
-# 999999), saying so once on stderr; empty means 900, as the build lock's wait,
-# or 300 in the Editor's loop (FACTORY_GATE_LOOP=editor), whose stop hook gives
-# the whole gate 1800 seconds, the build lock's wait included. It waits before
-# any of its budgeted waits starts: the wait counts against none of them. It adds the wait to the
-# runner's record of it (factory_step_waited, factory/core/lib/run.sh), which
-# verify.sh takes off the step's seconds-<step>, so the Retro reads its own
-# time. A wait past the ceiling fails as a transient cause (NX_TRANSIENT): no
-# gate stamp is kept, and --reuse runs the step again. The step releases its
+# 999999), saying so once on stderr; empty means 900, as the build lock's wait.
+# In the Editor's stop hook both waits are cut to the hook's time left for waits
+# (nx_wait_cap): Claude Code kills the hook at its 3600 s timeout, and the hook
+# gives every wait the first 1500 s, the gate 1800 s of work with its waits left
+# out, and keeps 300 s in hand (factory/core/lib/run.sh). It waits before any of
+# its budgeted waits starts: the wait counts against none of them. It adds the
+# wait to the runner's records of it (factory_wait_begin, factory_step_waited),
+# which verify.sh takes off the step's seconds-<step>, so the Retro reads its
+# own time, and the Editor's stop hook off the gate's work. A wait past the
+# ceiling fails as a transient cause (NX_TRANSIENT): no gate stamp is kept,
+# --reuse runs the step again, and the Editor's stop hook calls the gate busy,
+# not red. The step releases its
 # slot when its heavy part ends, and runs nx_slot_free from its EXIT trap too.
 NX_SLOT_POOL="${FACTORY_GATE_POOL:-/tmp/factory-gate-slots}"
 NX_SLOT=""
@@ -348,7 +375,7 @@ nx_slot_count() {
 }
 
 # nx_slot_take <step>: take one of the pool's slots, waiting up to
-# FACTORY_GATE_SLOT_WAIT seconds while all are held (one line on stderr when it
+# FACTORY_GATE_SLOT_WAIT seconds (cut by nx_wait_cap) while all are held (one line on stderr when it
 # starts waiting), its wait added to the step's (factory_step_waited). False when
 # it can't, with NX_SLOT_WHY and NX_SLOT_MSG set:
 #   setting  FACTORY_GATE_SLOTS or FACTORY_GATE_SLOT_WAIT is out of its range
@@ -362,11 +389,7 @@ nx_slot_take() {
 		return 1
 	}
 	slots="$NX_SLOTS"
-	wait="${FACTORY_GATE_SLOT_WAIT:-}"
-	if [ -z "$wait" ]; then
-		wait=900
-		[ "${FACTORY_GATE_LOOP:-}" != editor ] || wait=300
-	fi
+	wait="${FACTORY_GATE_SLOT_WAIT:-900}"
 	case "$wait" in
 		'' | *[!0-9]* | ???????*)
 			NX_SLOT_WHY=setting
@@ -374,9 +397,10 @@ nx_slot_take() {
 			return 1
 			;;
 	esac
-	wait=$((10#$wait))
+	nx_wait_cap FACTORY_GATE_SLOT_WAIT "$((10#$wait))"
+	wait="$NX_WAIT"
 	mkdir -p "$NX_SLOT_POOL" 2> /dev/null
-	began="$(factory_clock_us)"
+	factory_wait_begin began
 	end=$((SECONDS + wait))
 	while :; do
 		holders=""
@@ -413,13 +437,13 @@ nx_slot_take() {
 		NX_SLOT=""
 		if [ "$SECONDS" -ge "$end" ]; then
 			NX_SLOT_WHY=busy
-			NX_SLOT_MSG="all $slots gate slots in $NX_SLOT_POOL (pids $holders) stayed held past FACTORY_GATE_SLOT_WAIT (${wait}s, tools/verify/local.env); run again once a gate ends, or remove a slot whose pid runs no gate"
+			NX_SLOT_MSG="all $slots gate slots in $NX_SLOT_POOL (pids $holders) stayed held past $NX_WAIT_SAYS (${wait}s, tools/verify/local.env); run again once a gate ends, or remove a slot whose pid runs no gate"
 			factory_step_waited "$began"
 			return 1
 		fi
 		if [ -z "$said" ]; then
 			said=1
-			echo "$1: waiting for one of the $slots gate slots in $NX_SLOT_POOL, held by pids $holders (up to ${wait}s, FACTORY_GATE_SLOT_WAIT); the wait counts against no budget" >&2
+			echo "$1: waiting for one of the $slots gate slots in $NX_SLOT_POOL, held by pids $holders (up to ${wait}s, $NX_WAIT_SAYS); the wait counts against no budget" >&2
 		fi
 		sleep 0.2
 	done

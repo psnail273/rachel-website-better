@@ -176,6 +176,19 @@ test_record_without_a_stamp_refuses_when_the_editors_gate_fails() {
 	return 0
 }
 
+# No stamp, and the Editor's gate was busy (a step failed only on the build
+# lock's wait): nothing is locked, and it is no fix round.
+test_record_without_a_stamp_says_a_busy_gate_is_no_fix_round() {
+	red_commit
+	echo "package.json:1 smoke-build-lock the build lock stayed held" > .fixture/transient-smoke
+	run_cmd bash "$FACTORY_CORE/lock.sh" record
+	assert_status 1
+	stderr_has "lock: the Editor's gate was busy at $(git rev-parse --short HEAD), not red"
+	grep -qF "as a fix round" "$TEST_TMP/stderr" && fail "sent a busy gate to the Editor: $(cat "$TEST_TMP/stderr")"
+	git config branch.work.factory-red-commit > /dev/null && fail "recorded a Lock anyway"
+	return 0
+}
+
 # No stamp in the small lane: the Editor's gate records the Lock itself and moves
 # the issue to green; record says so and prints the locked files.
 test_record_without_a_stamp_in_the_small_lane_takes_the_gates_lock() {

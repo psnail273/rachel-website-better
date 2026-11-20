@@ -210,18 +210,175 @@ factory_seconds_between() {
 # factory_step_waited <from-us>: add the time since <from-us> (a factory_clock_us
 # time) to the step's wait record, the file FACTORY_STEP_WAIT_FILE names, in
 # microseconds; nothing when that is unset. A step script runs it after a wait
-# for a shared resource the machine's other gates hold (the adapter's slot pool):
-# verify.sh sets the file on each step's command line and takes what it holds
-# off the step's seconds-<step>, so the counts measure the step, not the queue.
+# for a shared resource the machine's other gates hold (the adapter's slot pool
+# and build lock): verify.sh sets the file on each step's command line and takes
+# what it holds off the step's seconds-<step>, so the counts measure the step,
+# not the queue. With FACTORY_GATE_WAITS set it also ends the wait in the gate's
+# wait record: the wait's `<from-us> <to-us>` line, and its mark
+# (factory_wait_begin) removed.
 factory_step_waited() {
-	local d had=0
+	local now d had=0
+	now="$(factory_clock_us)"
+	if [ -n "${FACTORY_GATE_WAITS:-}" ] && [ -d "$FACTORY_GATE_WAITS" ]; then
+		printf '%s %s\n' "$1" "$now" >> "$FACTORY_GATE_WAITS/waits" 2> /dev/null
+		rm -f "$FACTORY_GATE_WAITS/waiting.$$.$1"
+	fi
 	[ -n "${FACTORY_STEP_WAIT_FILE:-}" ] || return 0
-	d=$(($(factory_clock_us) - $1))
+	d=$((now - $1))
 	[ "$d" -gt 0 ] || return 0
 	had="$(cat -- "$FACTORY_STEP_WAIT_FILE" 2> /dev/null)" || had=0
 	case "$had" in '' | *[!0-9]*) had=0 ;; esac
 	printf '%s\n' "$((had + d))" > "$FACTORY_STEP_WAIT_FILE" 2> /dev/null || true
 }
+
+# --- the Editor's stop hook and its time ---------------------------------------
+#
+# Claude Code kills the Editor's stop hook (hooks/claude-subagent-stop.sh) at its
+# timeout in hooks/claude-hooks.json, a hard limit that leaves nothing out. So
+# the hook splits that time three ways, from its own start:
+#   waits   every wait for what the machine's other gates hold (a gate in flight
+#           in the same worktree, the adapter's gate slots and build lock) ends
+#           by the timeout less the margin and the work budget: 1500 s in.
+#           A step's wait is cut to the time left (factory_wait_cap) and, past
+#           it, fails for a transient cause (FACTORY_TRANSIENT_EXIT): a busy
+#           gate, not a red one (editor-gate.sh's exit 4);
+#   work    the gate's work budget, 1800 s: its run time less the time some
+#           wait in its record went on (factory_gate_budget_run);
+#   margin  300 s, for what the hook does around the gate and for stopping a
+#           gate past its budget.
+# The waits end by 1500 s in and the work after them takes 1800 s at most, so
+# the gate ends by 3300 s in, whatever the queue; the hook also stops it there
+# (its `stop`), should it start late. hooks_test checks claude-hooks.json's
+# timeout against these three.
+# shellcheck disable=SC2034 # read by the hook and the tests
+factory_editor_hook_timeout=3600
+# shellcheck disable=SC2034
+factory_editor_gate_budget=1800
+# shellcheck disable=SC2034
+factory_editor_hook_margin=300
+
+# The gate's wait record: FACTORY_GATE_WAITS, when set (the Editor's stop hook
+# sets it for its gate; lib/stamp.sh leaves it out of the stamp key), names a
+# folder holding
+#   until                    the factory_clock_us time by which every wait ends
+#   waits                    a `<from-us> <to-us>` line per wait that ended
+#   waiting.<pid>.<from-us>  a wait still going, begun at <from-us>
+#   work                     the gate's work in whole seconds at
+#                            factory_gate_budget_run's last check
+#   over                     written by factory_gate_budget_run when it stops
+#                            the gate: `budget|stop <waited-s>`
+
+# factory_wait_begin <var>: set the variable named <var> to the time now
+# (factory_clock_us) and, with FACTORY_GATE_WAITS set, mark a wait as going in
+# the gate's wait record. factory_step_waited "$<var>" ends it.
+factory_wait_begin() {
+	local now
+	now="$(factory_clock_us)"
+	printf -v "$1" '%s' "$now"
+	if [ -n "${FACTORY_GATE_WAITS:-}" ] && [ -d "$FACTORY_GATE_WAITS" ]; then
+		: > "$FACTORY_GATE_WAITS/waiting.$$.$now" 2> /dev/null
+	fi
+	return 0
+}
+
+# factory_wait_cap <seconds>: <seconds>, a wait's setting, cut to the whole
+# seconds left until the gate's wait record's `until` (0 once it has passed);
+# <seconds> itself without a record or an `until`.
+factory_wait_cap() {
+	local until left
+	until="$(cat -- "${FACTORY_GATE_WAITS:-/nonexistent}/until" 2> /dev/null)" || until=""
+	case "$until" in '' | *[!0-9]*)
+		printf '%s\n' "$1"
+		return 0
+		;;
+	esac
+	left=$(((until - $(factory_clock_us)) / 1000000))
+	[ "$left" -gt 0 ] || left=0
+	[ "$left" -lt "$1" ] || left="$1"
+	printf '%s\n' "$left"
+}
+
+# factory_gate_waited_us <waits> <from-us> <to-us>: the time from <from-us> to
+# <to-us> during which some wait in the record <waits> went on (the union of its
+# waits, ended and going), in microseconds. Waits that overlap count once.
+factory_gate_waited_us() {
+	local f
+	{
+		cat -- "$1/waits" 2> /dev/null
+		for f in "$1"/waiting.*; do
+			[ -e "$f" ] && printf '%s %s\n' "${f##*.}" "$3"
+		done
+	} | awk -v lo="$2" -v hi="$3" '$1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]+$/ {
+		a = $1 + 0; b = $2 + 0
+		if (a < lo + 0) a = lo + 0
+		if (b > hi + 0) b = hi + 0
+		if (b > a) printf "%.0f %.0f\n", a, b
+	}' | LC_ALL=C sort -n -k1,1 | awk '
+		{ a = $1 + 0; b = $2 + 0
+		  if (n && a <= e) { if (b > e) e = b }
+		  else { if (n) t += e - s; s = a; e = b; n = 1 } }
+		END { if (n) t += e - s; printf "%.0f\n", t }'
+}
+
+# factory_gate_budget_run <waits> <budget-s> <stop-us> <command...>: run
+# <command>, with FACTORY_GATE_WAITS=<waits> exported to it, in a process group
+# of its own (job control on just for its start), its stdout and stderr its own,
+# and return its status. Beside it a watchdog checks each second: once the
+# command's work, the time since it started less the time some wait in <waits>
+# went on (factory_gate_waited_us), passes <budget-s>, or the clock
+# (factory_clock_us) reaches <stop-us>, it writes `budget` or `stop` and the
+# seconds waited to <waits>/over, sends TERM and CONT to the command's group,
+# and KILL 10 s later to whatever of the group is left; the call then returns
+# 124. As in factory_run_bounded's fallback (lib/bounded.sh), the watchdog,
+# once it fires, ignores TERM, and the call ends it and its sleep with KILL.
+factory_gate_budget_run() (
+	set +e
+	waits="$1" budget="$2" stop="$3"
+	shift 3
+	export FACTORY_GATE_WAITS="$waits"
+	rm -f "$waits/over"
+	began="$(factory_clock_us)"
+	set -m
+	"$@" <&0 &
+	pid=$!
+	(
+		while sleep 1; do
+			now="$(factory_clock_us)"
+			waited="$(factory_gate_waited_us "$waits" "$began" "$now")"
+			case "$waited" in '' | *[!0-9]*) waited=0 ;; esac
+			echo "$(((now - began - waited) / 1000000))" > "$waits/work" 2> /dev/null
+			if [ "$now" -ge "$stop" ]; then
+				over=stop
+			elif [ $((now - began - waited)) -gt $((budget * 1000000)) ]; then
+				over=budget
+			else
+				continue
+			fi
+			trap '' TERM
+			echo "$over $(((waited + 500000) / 1000000))" > "$waits/over" 2> /dev/null
+			kill -TERM -"$pid" 2> /dev/null
+			kill -CONT -"$pid" 2> /dev/null
+			n=0
+			while [ "$n" -lt 10 ] && kill -0 -"$pid" 2> /dev/null; do
+				sleep 1
+				n=$((n + 1))
+			done
+			kill -KILL -"$pid" 2> /dev/null
+			exit 0
+		done
+		exit 1
+	) < /dev/null > /dev/null 2>&1 &
+	watchdog=$!
+	set +m
+	wait "$pid"
+	status=$?
+	kill -TERM -"$watchdog" 2> /dev/null
+	if wait "$watchdog"; then
+		status=124
+	fi
+	kill -KILL -"$watchdog" 2> /dev/null
+	exit "$status"
+)
 
 # factory_gate_count <branch> <step, or nothing> [<step>=<seconds>...]: count one
 # gate run in the branch's run state (verify.sh says which runs count): a catch
@@ -338,7 +495,10 @@ factory_editor_gate_current() {
 #      the gate to get it, else empty
 #   1  no stamp, and the gate fails: its findings are the Editor's next fix
 #      round (or it passed but HEAD moved while it ran: run the check again; or
-#      the brief changed after its seal: the Driver seals it again)
+#      the brief changed after its seal: the Driver seals it again; or it was
+#      busy, editor-gate.sh's exit 4: a step failed only for a transient cause
+#      with only a wait's findings, a gate slot or the build lock held past its
+#      wait: no fix round, run the check again)
 #   3  the small lane's gate passed in the red phase: it recorded the Lock and
 #      moved the issue to green (editor-gate.sh's exit 3); the Editor's next round
 #      is the green one
@@ -371,6 +531,13 @@ factory_editor_gate_check() {
 			return 3
 			;;
 	esac
+	if [ "$status" = 4 ]; then
+		{
+			echo "$who: the Editor's gate was busy at $short, not red: a step failed only because a gate slot or the build lock stayed held by the machine's other gates past its wait, so it judged nothing of the code; this is no fix round: run this again once the machine is less busy. Its output:"
+			printf '%s\n' "$out"
+		} >&2
+		return 1
+	fi
 	if [ "$(printf '%s\n' "$out" | head -n 1)" = "gate: the Build Brief's seal" ]; then
 		{
 			echo "$who: the Build Brief changed after its seal, so the Editor's gate stops on it: the brief is yours, so this is no Editor round; seal it again (bash factory/core/brief.sh seal in this worktree), then run this again:"
