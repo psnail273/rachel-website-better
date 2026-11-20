@@ -213,7 +213,7 @@ file 0200456c77a96bac4101e6517d0a84b6e7aa13f4 factory/adapters/nextjs/tests/scen
 file 86340ec7a053686774672cbd92ba5f31c10b7652 factory/adapters/nextjs/tests/smoke_test.sh
 file 1236b9376314f0c0398b470444eed1e2c2f5fbb4 factory/adapters/nextjs/tests/steps_test.sh
 file c487bf5174d84d8984bcb864e563d5b6fe9e07be factory/adapters/nextjs/tests/test_step_test.sh
-file 05d678310165db988ef683f8eeec4758e15c6dbb factory/adapters/nextjs/tests/verify_skill_test.sh
+file b1263e8562d3789187f684d235540528848cc981 factory/adapters/nextjs/tests/verify_skill_test.sh
 file fd71d01a2e59bad8f58b2521523de79b7b7ec965 factory/adapters/nextjs/tools/verify/_arch_imports.mjs
 file 20e22cb79c1d3f4471f62861ac87a1e80ff24759 factory/adapters/nextjs/tools/verify/_axe.mjs
 file 6fb70b351c92baec0956c9bc12f92d79c1e4b137 factory/adapters/nextjs/tools/verify/_contact_sheet.mjs
@@ -260,7 +260,9 @@ file 9d7038ae1fb3b217e9f9a0c3d956fa9701107add factory/adapters/nextjs/tools/veri
 file ff59c0048e4fc2051d2576d528277e68375f4fb0 factory/adapters/nextjs/tools/verify/test-paths
 file 6b470e67ecf3c1ac93c39dda3d653a132aeb542a factory/adapters/nextjs/tools/verify/typecheck
 file 6a9569c8bdc86c4657a679f3dd08ace6849b6768 factory/adapters/nextjs/tools/verify/versions
-file 6bf6995a4bc1c236f486697f26636fc65782707b factory/adapters/nextjs/verify-skill.sh
+file 8e630b60bd60671a8056e1255911a81af0b882f4 factory/adapters/nextjs/verify-skill-helpers/app.sh
+file 29cb45c27dd5bc66002d8d4858cb56bd3e2763c4 factory/adapters/nextjs/verify-skill-helpers/contrast.mjs
+file 9b74a224a04f165a31f03ae54cb026a935f96fa5 factory/adapters/nextjs/verify-skill.sh
 file a85e94dc7bf8f422f24d09ea49701cd8dfbec438 factory/agents/amend-builder.md
 file 87fcdf5af253f1622a5c8a03adc002276a2b7b65 factory/agents/asset-fetcher.md
 file c7edee82ecf0e81e33989e56bc8a74f2c510e479 factory/agents/check-editor-sonnet.log
