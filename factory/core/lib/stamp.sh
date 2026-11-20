@@ -35,9 +35,10 @@
 #   base     the diff base's commit (lib/diff.sh), or none; a base that names no
 #            commit gets no key
 #   state    each run-state key=value of the checked-out branch but
-#            rounds-<phase> and the gate's counts (gate-runs,
-#            caught-<step>, seconds-<step>), which no step reads: a run that
-#            counts itself keeps its stamp
+#            rounds-<phase>, the gate's counts (gate-runs,
+#            caught-<step>, seconds-<step>) and the Editor's gate stamp
+#            (editor-gate), which no step reads: a run that counts itself, or
+#            that the Editor's gate stamps as it passes, keeps its stamp
 #   env      each exported FACTORY_ variable but FACTORY_CORE (the runner sets
 #            it), FACTORY_RESULTS_FILE, FACTORY_SURVIVORS_FILE and
 #            FACTORY_NO_STAMP
@@ -215,7 +216,7 @@ factory_stamp_key() {
 		printf 'base %s\n' "$base"
 		if branch="$(factory_current_branch)"; then
 			factory_state_list "$branch" | grep -v -e '^rounds-' \
-				-e '^gate-runs=' -e '^caught-' -e '^seconds-' | sed 's/^/state /'
+				-e '^gate-runs=' -e '^caught-' -e '^seconds-' -e '^editor-gate=' | sed 's/^/state /'
 		fi
 		factory_stamp_env | sed 's/^/env /'
 		printf 'local %s\n' "$local_env"

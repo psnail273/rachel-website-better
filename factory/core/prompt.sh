@@ -37,8 +37,15 @@
 # one, and any other <...> in a template, such as `<path or rule>`, is left as it is.
 # Nothing is printed unless every input is there and readable.
 #
+# A Verifier check comes after an Editor round, so verifier also needs the
+# Editor's gate to have passed at HEAD: the run state's stamp for HEAD, which the
+# Editor's stop hook records (factory_editor_gate_check, lib/run.sh). Without
+# it, verifier runs that gate itself, once its inputs are there, and prints the
+# prompt only when the gate passes; when it fails, it prints nothing and puts
+# the gate's findings on stderr, for the Driver to send the Editor as a fix round.
+#
 # Exit codes: 0 ok, 1 an input is missing, unreadable or malformed (it names the
-# file) or rubric.sh failed, 2 usage.
+# file), rubric.sh failed or the Editor's gate fails (verifier), 2 usage.
 set -u
 
 core="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -46,6 +53,7 @@ core="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$core/lib/findings.sh"
 . "$core/lib/brief.sh"
 . "$core/lib/diff.sh"
+. "$core/lib/run.sh"
 
 prompts="$core/../skills/build/prompts"
 
@@ -174,6 +182,7 @@ fill() {
 			need_brief
 			need_base
 			need_rubric
+			factory_editor_gate_check prompt || exit 1
 			fill "$prompts/verifier.md"
 			;;
 		brief-review)

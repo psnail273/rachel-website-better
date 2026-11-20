@@ -20,6 +20,13 @@
 #   started         when start.sh made the branch, in seconds since the epoch
 #   began-<phase>   when the branch first entered that phase, in seconds since the
 #                   epoch (factory_state_set_phase)
+#   editor-gate     the Editor's gate stamp, `<phase> <sha>`: the run state's phase
+#                   (- for none) and HEAD's full commit when the Editor's gate
+#                   (hooks/editor-gate.sh) last passed there on a clean tree. Only
+#                   that gate writes it, clearing it as each run starts; the small
+#                   lane's handoff to green (its exit 3) writes none. The check
+#                   after an Editor round (factory_editor_gate_check) reads it;
+#                   state.sh doesn't set it
 # and the counts the retro reads (factory_stats_line), each a whole number:
 #   fails-<phase>   the Verifier's FAILs in that phase
 #   fails-brief     the brief review's FAILs: the Verifier's check of a sealed
@@ -96,7 +103,7 @@ factory_current_branch() {
 # factory_state_key_ok <key>: true when <key> is a run-state key.
 factory_state_key_ok() {
 	case "$1" in
-		phase | red-commit | issue | bootstrap | brief-sha | lane | started) return 0 ;;
+		phase | red-commit | issue | bootstrap | brief-sha | lane | started | editor-gate) return 0 ;;
 		rejected | uncounted | escalations | self-ruled | lifts | gate-runs) return 0 ;;
 		rounds-* | fails-* | began-* | caught-* | seconds-*) case "${1#*-}" in '' | *[!a-z]*) return 1 ;; esac ;;
 		*) return 1 ;;
@@ -127,6 +134,10 @@ factory_state_value_ok() {
 		lane) [ "$2" = small ] ;;
 		issue) case "$2" in '' | *[!0-9]*) return 1 ;; esac ;;
 		brief-sha) case "$2" in '' | *[!0-9a-f]*) return 1 ;; esac ;;
+		editor-gate)
+			case "${2%% *}" in red | green | partial | -) ;; *) return 1 ;; esac
+			case "${2#* }" in '' | *[!0-9a-f]* | "$2") return 1 ;; esac
+			;;
 		*)
 			if factory_state_is_count "$1" || factory_state_is_time "$1"; then
 				case "$2" in '' | *[!0-9]*) return 1 ;; esac
@@ -279,6 +290,82 @@ factory_gate() {
 			;;
 		*) bash "$verify" "${flags[@]}" < /dev/null ;;
 	esac
+}
+
+# factory_editor_gate_stamp <branch> <phase> <sha>: record that the Editor's gate
+# (hooks/editor-gate.sh) passed at <sha> in <phase> (- for none), as the run
+# state's editor-gate.
+factory_editor_gate_stamp() {
+	factory_state_set "$1" editor-gate "${2:--} $3"
+}
+
+# factory_editor_gate_current <branch>: true when the run state holds the Editor's
+# gate's stamp for HEAD in the branch's phase now.
+factory_editor_gate_current() {
+	local phase head
+	phase="$(factory_state_get "$1" phase 2> /dev/null)" || phase=""
+	head="$(git rev-parse --verify -q HEAD)" || return 1
+	[ "$(factory_state_get "$1" editor-gate 2> /dev/null)" = "${phase:--} $head" ]
+}
+
+# factory_editor_gate_check <who>: the check after an Editor round, before the
+# Verifier's prompt (prompt.sh verifier) and the Lock (lock.sh record), run in
+# the issue's worktree: the Editor's gate must have passed at HEAD. The Editor's
+# stop hook (claude-subagent-stop.sh) runs that gate, which records its stamp as
+# it passes. Without the stamp for HEAD in the phase now (the hook did not run,
+# or a commit came after it), the check runs the gate itself, from the
+# worktree's root, and goes on when it passes; the Driver never runs it by hand.
+# What it says goes to stderr, its own lines headed `<who>: `, then the gate's stdout
+# when the gate fails or moved the small lane on.
+#   0  the stamp holds for HEAD; FACTORY_EDITOR_GATE_RAN is 1 when the check ran
+#      the gate to get it, else empty
+#   1  no stamp, and the gate fails: its findings are the Editor's next fix
+#      round (or it passed but HEAD moved while it ran: run the check again; or
+#      the brief changed after its seal: the Driver seals it again)
+#   3  the small lane's gate passed in the red phase: it recorded the Lock and
+#      moved the issue to green (editor-gate.sh's exit 3); the Editor's next round
+#      is the green one
+factory_editor_gate_check() {
+	local who="$1" branch top core short out status
+	FACTORY_EDITOR_GATE_RAN=""
+	branch="$(factory_current_branch)" || {
+		echo "$who: HEAD is detached; check out the issue's branch" >&2
+		return 1
+	}
+	factory_editor_gate_current "$branch" && return 0
+	top="$(git rev-parse --show-toplevel)" || return 1
+	core="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || return 1
+	short="$(git rev-parse --short HEAD 2> /dev/null)" || short=HEAD
+	echo "$who: the run state holds no Editor's gate stamp for $short (the Editor's stop hook records one when its gate passes there), so it runs the Editor's gate now" >&2
+	FACTORY_EDITOR_GATE_RAN=1
+	out="$(cd "$top" && bash "$core/hooks/editor-gate.sh" < /dev/null 2> /dev/null)"
+	status=$?
+	case "$status" in
+		0)
+			factory_editor_gate_current "$branch" && return 0
+			echo "$who: the Editor's gate passed, but HEAD moved while it ran, so no stamp holds for HEAD; run this again" >&2
+			return 1
+			;;
+		3)
+			{
+				echo "$who: the Editor's gate passed in the small lane's red phase, so it recorded the Lock and moved the issue to green; send the Editor the green round that 'bash factory/core/prompt.sh green' prints, as editor.md says. Its output:"
+				printf '%s\n' "$out"
+			} >&2
+			return 3
+			;;
+	esac
+	if [ "$(printf '%s\n' "$out" | head -n 1)" = "gate: the Build Brief's seal" ]; then
+		{
+			echo "$who: the Build Brief changed after its seal, so the Editor's gate stops on it: the brief is yours, so this is no Editor round; seal it again (bash factory/core/brief.sh seal in this worktree), then run this again:"
+			printf '%s\n' "$out"
+		} >&2
+		return 1
+	fi
+	{
+		echo "$who: the Editor's gate fails at $short, so this does not go on; send these findings to the Editor as a fix round, then run this again:"
+		printf '%s\n' "$out"
+	} >&2
+	return 1
 }
 
 # factory_state_list <branch>: print every key=value, sorted by key.

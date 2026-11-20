@@ -193,6 +193,40 @@ test_gate_runs_the_baseline_gate_in_the_partial_phase() {
 	assert_last_line "baseline: PASS"
 }
 
+# A gate that passes stamps HEAD in the run state (editor-gate), for prompt.sh
+# verifier and lock.sh record; a run clears an earlier stamp, and one that fails
+# leaves none.
+test_gate_stamps_head_as_it_passes() {
+	fixture_git_project
+	run_cmd bash "$EDITOR_GATE"
+	assert_status 0
+	assert_eq "- $(git rev-parse HEAD)" "$(git config branch.work.factory-editor-gate)"
+	git config branch.work.factory-phase green
+	run_cmd bash "$EDITOR_GATE"
+	assert_status 0
+	assert_eq "green $(git rev-parse HEAD)" "$(git config branch.work.factory-editor-gate)"
+	red_lint
+	run_cmd bash "$EDITOR_GATE"
+	assert_status 1
+	git config branch.work.factory-editor-gate > /dev/null && fail "a failing gate left a stamp: $(git config branch.work.factory-editor-gate)"
+	rm .fixture/fail-lint
+	echo uncommitted > src/b.txt
+	run_cmd bash "$EDITOR_GATE"
+	assert_status 1
+	git config branch.work.factory-editor-gate > /dev/null && fail "a dirty tree got a stamp"
+	return 0
+}
+
+# HEAD moved while the gate ran: the gate never judged it, so no stamp.
+test_gate_stamps_nothing_when_head_moved_while_it_ran() {
+	fixture_git_project
+	printf '%s\n' 'echo moved >> src/a.txt && git commit -q -am moved' > .fixture/run-lint
+	run_cmd bash "$EDITOR_GATE"
+	assert_status 0
+	git config branch.work.factory-editor-gate > /dev/null && fail "stamped a HEAD the gate did not judge: $(git config branch.work.factory-editor-gate)"
+	return 0
+}
+
 # record_loop <step>: the step appends the FACTORY_GATE_LOOP it got (or `none`)
 # to .fixture/loop.
 record_loop() {
@@ -1171,4 +1205,94 @@ test_generated_settings_wire_the_stop_hook_to_every_subagent_handback() {
 	assert_eq 'bash "$CLAUDE_PROJECT_DIR/factory/core/hooks/claude-subagent-stop.sh"' \
 		"$(factory_json_get "hooks.PreToolUse.$index.hooks.0.command" < .claude/settings.json)" "its command"
 	assert_eq 1800 "$(factory_json_get "hooks.PreToolUse.$index.hooks.0.timeout" < .claude/settings.json)" "its limit"
+}
+
+# --- the recorded events (#60) ----------------------------------------------------
+# Claude Code's own events and transcript (fixture/subagent-events): a prompt sent
+# by reference ("Read the file ... It is your whole prompt.") holds its worktree
+# line only in a tool result, after Claude Code's records of the system prompt,
+# whose sample line names no worktree. Taking that first line, the hooks ran no
+# gate on any such round of #41 to #60.
+
+EVENTS="$FACTORY_CORE/tests/fixture/subagent-events"
+RECORDED_AGENT=a7a3358651159bebb
+
+# recorded_events [sample]: the recorded transcript where Claude Code keeps it,
+# its prompt file naming this checkout; with <sample>, the system prompt's
+# records name that path instead of editor-sonnet.md's sample.
+recorded_events() {
+	local session="$TEST_TMP/session" sample="${1:-}"
+	mkdir -p "$session/subagents"
+	sed -e "s|@SESSION@|$session|g" -e "s|@CWD@|$PWD|g" -e "s|@PROMPT@|$TEST_TMP/7-red-1.md|g" \
+		-e "s|@WORKTREE@|$PWD|g" "$EVENTS/transcript.jsonl" > "$session/subagents/agent-$RECORDED_AGENT.jsonl"
+	if [ -n "$sample" ]; then
+		sed -i "s|C:/absolute/path/to/.claude/worktrees/issue-<n>|$sample|g" "$session/subagents/agent-$RECORDED_AGENT.jsonl"
+	fi
+}
+
+# recorded <event> [message] [agent_type]: run the stop hook on the recorded
+# event (handback or stop), its hand-back message <message> (default quoting).
+recorded() {
+	sed -e "s|@SESSION@|$TEST_TMP/session|g" -e "s|@CWD@|$PWD|g" \
+		-e "s|@MESSAGE@|${2:-$(quoting)}|g" -e "s|\"agent_type\":\"editor-sonnet\"|\"agent_type\":\"${3:-editor-sonnet}\"|g" \
+		"$EVENTS/$1.json" > "$TEST_TMP/recorded.json"
+	run_cmd bash "$STOP_HOOK" < "$TEST_TMP/recorded.json"
+}
+
+test_recorded_handback_gates_a_prompt_sent_by_reference() {
+	local runs
+	fixture_git_project
+	recorded_events
+	red_lint
+	recorded handback "Done."
+	assert_status 2
+	stderr_has "The gate is red (block 1 of 5)"
+	stderr_has "src/a.txt:1 lint-bad a lint finding"
+	rm .fixture/fail-lint
+	recorded handback
+	assert_status 0
+	runs="$(grep -cx lint .fixture/ran)"
+	# The SubagentStop that follows the hand-back it let through ends at once.
+	recorded stop
+	assert_status 0
+	assert_eq "$runs" "$(grep -cx lint .fixture/ran)" "the stop after the hand-back ran the gate again"
+}
+
+test_recorded_subagent_stop_gates_a_prompt_sent_by_reference() {
+	fixture_git_project
+	recorded_events
+	red_lint
+	recorded stop
+	assert_status 2
+	stderr_has "The gate is red (block 1 of 5)"
+	stderr_has "src/a.txt:1 lint-bad a lint finding"
+	rm .fixture/fail-lint
+	# No last_assistant_message: a green gate asks for its result line.
+	recorded stop
+	assert_status 2
+	stderr_has "your final message doesn't quote its result"
+}
+
+# Claude Code's records of the system prompt are not the prompt, even when the
+# line there names a git worktree.
+test_recorded_system_prompt_names_no_worktree_the_hook_takes() {
+	fixture_git_project
+	git init -q "$TEST_TMP/other" || fail "git init failed"
+	recorded_events "$TEST_TMP/other"
+	red_lint
+	recorded handback "Done."
+	assert_status 2
+	stderr_has "Fix these findings in $PWD, commit"
+	stderr_has "src/a.txt:1 lint-bad a lint finding"
+}
+
+test_recorded_events_of_another_agent_run_no_gate() {
+	fixture_git_project
+	recorded_events
+	red_lint
+	recorded handback "Done." general-purpose
+	assert_status 0
+	recorded stop "" general-purpose
+	assert_status 0
+	[ ! -f .fixture/ran ] || fail "the gate ran for another agent"
 }

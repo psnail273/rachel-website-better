@@ -16,6 +16,13 @@
 # over code that now passes. It locks only when that gate passes and
 # leaves HEAD and the tracked files as they were. It overwrites an earlier Lock.
 # The deviation step runs the same check as `check`.
+# Before its gate, record needs the Editor's gate to have passed at HEAD, as
+# prompt.sh verifier does (factory_editor_gate_check, lib/run.sh): without that
+# gate's stamp for HEAD it runs the Editor's gate, and refuses when it fails,
+# its findings the Editor's next fix round. When that run was the red phase's,
+# it was the fresh red gate, so record does not run it a second time; when it
+# was the small lane's, that gate recorded the Lock itself and moved the issue
+# to green, and record prints the locked files.
 #
 # lift moves the Lock when a locked test is wrong, in any lane: the Driver's own
 # call when the test contradicts the sealed brief, else on the human's yes
@@ -68,9 +75,25 @@ case "$1" in
 		factory_lock_record_check "$base" || exit 1
 		head="$(git rev-parse HEAD)" || exit 1
 		phase="$(factory_state_get "$branch" phase)" || phase=""
-		echo "lock: running $(factory_gate_name "$phase") fresh at $(git rev-parse --short HEAD)" >&2
-		factory_gate "$phase" "$core/verify.sh" > "$findings" 2> /dev/null
-		gate=$?
+		factory_editor_gate_check lock
+		case "$?" in
+			0) ;;
+			3)
+				echo "lock: the small lane's gate recorded the Lock; the locked files:" >&2
+				factory_lock_files "$(factory_lock_red_commit)" "$base"
+				exit 0
+				;;
+			*) exit 1 ;;
+		esac
+		if [ -n "$FACTORY_EDITOR_GATE_RAN" ] && [ "$phase" = red ]; then
+			# The Editor's gate just ran the red gate fresh at HEAD, as below would.
+			echo "lock: the Editor's gate just ran $(factory_gate_name "$phase") fresh at $(git rev-parse --short HEAD), so it is not run again" >&2
+			gate=0
+		else
+			echo "lock: running $(factory_gate_name "$phase") fresh at $(git rev-parse --short HEAD)" >&2
+			factory_gate "$phase" "$core/verify.sh" > "$findings" 2> /dev/null
+			gate=$?
+		fi
 		if [ "$gate" -ne 0 ]; then
 			echo "lock: that gate fails at $(git rev-parse --short HEAD), so nothing is locked:" >&2
 			tr -d '\r' < "$findings" >&2

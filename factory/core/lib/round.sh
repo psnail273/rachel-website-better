@@ -28,7 +28,9 @@
 #                                  left out: git sets them as worktrees are made)
 #   state   <branch> <key>=<value> each branch's run state, its gate counts
 #                                  (gate-runs, caught-*, seconds-*) left out, since
-#                                  any verify run adds to them
+#                                  any verify run adds to them, and the Editor's
+#                                  gate stamp (editor-gate), which the round's own
+#                                  gate writes as it passes
 #   ref     local|remote <ref> <commit or none>  dev (FACTORY_BASE_BRANCH) and main,
 #                                  here and on FACTORY_REMOTE (git ls-remote);
 #                                  `remote unreachable` when that fails or
@@ -175,7 +177,7 @@ factory_round_config() {
 				k = name; sub(/.*\./, "", k)
 				b = substr(name, 8, length(name) - 7 - length(k) - 1)
 				if (k !~ /^factory-/) next
-				if (k ~ /^factory-(gate-runs|caught-|seconds-)/) next
+				if (k ~ /^factory-(gate-runs|caught-|seconds-|editor-gate$)/) next
 				printf "state\t%s\t%s%s\n", b, k, substr($0, eq)
 				next
 			}

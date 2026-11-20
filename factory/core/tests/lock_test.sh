@@ -15,9 +15,22 @@ result() {
 	printf '%s\t%s\t%s\n' "$1" "$2" "$3" >> .fixture/results
 }
 
+# editor_gate_stamped: the run state holds the Editor's gate's stamp for HEAD in
+# the phase now, as its stop hook leaves it after a green round.
+editor_gate_stamped() {
+	git config branch.work.factory-editor-gate "$(git config branch.work.factory-phase || echo -) $(git rev-parse HEAD)"
+}
+
 # red_branch [status of test_new]: the red commit in the red phase, its results
-# giving test_new that status (default FAILURE); not locked.
+# giving test_new that status (default FAILURE), the Editor's gate stamped; not
+# locked.
 red_branch() {
+	red_commit "$@"
+	editor_gate_stamped
+}
+
+# red_commit [status of test_new]: red_branch, with no stamp.
+red_commit() {
 	fixture_git_project
 	git config branch.work.factory-phase red
 	brief "scope tests/**" "scope src/**" "test test_new" "seam src/a.txt A.stub"
@@ -89,6 +102,7 @@ test_record_never_reuses_a_kept_verdict() {
 test_record_runs_the_full_verify_in_the_green_phase() {
 	red_branch PASS
 	git config branch.work.factory-phase green
+	editor_gate_stamped
 	run_cmd bash "$FACTORY_CORE/lock.sh" record
 	assert_status 0
 	stderr_has "lock: running verify (the green phase: every step must pass) fresh at $(git rev-parse --short HEAD)"
@@ -100,6 +114,79 @@ test_record_runs_the_full_verify_in_the_green_phase() {
 	stderr_has "src/a.txt:1 fixture-lint broken"
 	git config branch.work.factory-red-commit > /dev/null && fail "recorded a Lock anyway"
 	return 0
+}
+
+# --- the Editor's gate stamp (#60) -------------------------------------------------
+# record goes on only with the Editor's gate's stamp for HEAD; without it, it runs
+# that gate itself.
+
+# A current stamp: the Editor's gate does not run again, only the Lock's own gate.
+test_record_with_the_stamp_for_head_runs_only_its_own_gate() {
+	red_branch
+	run_cmd bash "$FACTORY_CORE/lock.sh" record
+	assert_status 0
+	[ ! -s "$TEST_TMP/stderr" ] || ! grep -qF "Editor's gate" "$TEST_TMP/stderr" || fail "the Editor's gate ran: $(cat "$TEST_TMP/stderr")"
+	assert_eq "prepare format typecheck lint deviation test smoke" "$(ran_steps)" "the gate's steps"
+}
+
+# No stamp (the Editor's stop hook did not run): record runs the Editor's gate,
+# which is the red gate run fresh, so it is not run twice, and locks.
+test_record_without_a_stamp_runs_the_editors_gate_and_locks_when_it_passes() {
+	red_commit
+	run_cmd bash "$FACTORY_CORE/lock.sh" record
+	assert_status 0
+	stderr_has "lock: the run state holds no Editor's gate stamp for $(git rev-parse --short HEAD)"
+	stderr_has "lock: the Editor's gate just ran verify --red"
+	assert_eq "tests/a_test.txt" "$out"
+	assert_eq "$(git rev-parse HEAD)" "$(git config branch.work.factory-red-commit)"
+	assert_eq "red $(git rev-parse HEAD)" "$(git config branch.work.factory-editor-gate)"
+	assert_eq 1 "$(grep -cx test .fixture/ran)" "the red gate's test step ran other than once"
+}
+
+# A stamp for an older commit is no stamp for HEAD.
+test_record_with_a_stale_stamp_runs_the_editors_gate() {
+	red_commit
+	git config branch.work.factory-editor-gate "red $(git rev-parse HEAD~1)"
+	run_cmd bash "$FACTORY_CORE/lock.sh" record
+	assert_status 0
+	stderr_has "lock: the run state holds no Editor's gate stamp for $(git rev-parse --short HEAD)"
+	assert_eq "$(git rev-parse HEAD)" "$(git config branch.work.factory-red-commit)"
+	# A stamp of another phase is none either.
+	git config --unset branch.work.factory-red-commit
+	git config branch.work.factory-editor-gate "green $(git rev-parse HEAD)"
+	: > .fixture/ran
+	run_cmd bash "$FACTORY_CORE/lock.sh" record
+	assert_status 0
+	stderr_has "lock: the run state holds no Editor's gate stamp for $(git rev-parse --short HEAD)"
+	assert_eq 1 "$(grep -cx test .fixture/ran)" "the red gate's test step ran other than once"
+}
+
+# No stamp, and the Editor's gate fails: nothing is locked, and its findings are
+# the Editor's next round.
+test_record_without_a_stamp_refuses_when_the_editors_gate_fails() {
+	red_commit
+	echo "src/a.txt:1 fixture-lint broken" > .fixture/fail-lint
+	run_cmd bash "$FACTORY_CORE/lock.sh" record
+	assert_status 1
+	assert_eq "" "$out"
+	stderr_has "lock: the Editor's gate fails at $(git rev-parse --short HEAD), so this does not go on; send these findings to the Editor as a fix round, then run this again:"
+	stderr_has "src/a.txt:1 fixture-lint broken"
+	git config branch.work.factory-red-commit > /dev/null && fail "recorded a Lock anyway"
+	git config branch.work.factory-editor-gate > /dev/null && fail "a failing gate left a stamp"
+	return 0
+}
+
+# No stamp in the small lane: the Editor's gate records the Lock itself and moves
+# the issue to green; record says so and prints the locked files.
+test_record_without_a_stamp_in_the_small_lane_takes_the_gates_lock() {
+	red_commit
+	git config branch.work.factory-lane small
+	run_cmd bash "$FACTORY_CORE/lock.sh" record
+	assert_status 0
+	stderr_has "send the Editor the green round that 'bash factory/core/prompt.sh green' prints"
+	assert_eq "tests/a_test.txt" "$out"
+	assert_eq "$(git rev-parse HEAD)" "$(git config branch.work.factory-red-commit)"
+	assert_eq green "$(git config branch.work.factory-phase)"
 }
 
 test_record_refuses_uncommitted_changes() {

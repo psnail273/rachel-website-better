@@ -218,6 +218,30 @@ test_the_small_lane_comes_from_the_brief_and_shows_in_the_stats() {
 	assert_eq "factory-stats: issue=7 lane=standard rounds-red=0 rounds-green=0 rounds-partial=0 fails-red=0 fails-green=0 fails-partial=0 fails-brief=0 rejected=0 uncounted=0 escalations=0 self-ruled=0 lifts=1" "$out"
 }
 
+# The Editor's gate's stamp is that gate's to record (#60): set refuses it, get
+# and unset take it, and the stats line leaves it out.
+test_the_editors_gate_stamp_is_the_gates_alone() {
+	local sha
+	fixture_repo
+	git checkout -q -b issue/7
+	sha="$(git rev-parse HEAD)"
+	run_state set editor-gate "- $sha"
+	assert_status 2
+	stderr_has "state: editor-gate is the Editor's gate's stamp: only that gate records it as it passes"
+	run_state get editor-gate
+	assert_status 1
+	git config branch.issue/7.factory-editor-gate "- $sha"
+	run_state get editor-gate
+	assert_status 0
+	assert_eq "- $sha" "$out"
+	run_state stats
+	assert_eq "factory-stats: issue=7 lane=standard rounds-red=0 rounds-green=0 rounds-partial=0 fails-red=0 fails-green=0 fails-partial=0 fails-brief=0 rejected=0 uncounted=0 escalations=0 self-ruled=0" "$out"
+	run_state unset editor-gate
+	assert_status 0
+	git config branch.issue/7.factory-editor-gate > /dev/null && fail "unset left the stamp"
+	return 0
+}
+
 # The stats line's minutes read when each phase began: the first set of it.
 test_set_phase_records_when_the_branch_first_entered_each_phase() {
 	fixture_repo

@@ -97,7 +97,7 @@ AMEND_LINE="green, amend: make the change the brief describes, and where it chan
 
 # prompt_repo: a git repo on branch work, a commit ahead of dev, with one
 # review-tagged rule, the issue as Start saves it and a brief. Both hold text
-# that looks like placeholders.
+# that looks like placeholders. The Editor's gate is stamped at HEAD.
 prompt_repo() {
 	isolate_git
 	git init -q -b dev . || fail "git init failed"
@@ -132,6 +132,13 @@ scope src/a.gd
 test test_it_works
 ```
 MD
+	editor_gate_stamped
+}
+
+# editor_gate_stamped: the run state holds the Editor's gate's stamp for HEAD in
+# the phase now, as its stop hook leaves it after a green round.
+editor_gate_stamped() {
+	git config branch.work.factory-editor-gate "$(git config branch.work.factory-phase || echo -) $(git rev-parse HEAD)"
 }
 
 # slurp <file>: set REPLY to the file's text, its final newline kept, for exact checks.
@@ -565,4 +572,96 @@ test_usage_exits_2() {
 		assert_eq "" "$out" "'$args' printed a prompt"
 		stderr_has "usage: bash factory/core/prompt.sh editor"
 	done
+}
+
+# --- the Editor's gate stamp (#60) -------------------------------------------------
+# The Verifier comes after an Editor round whose gate passed at HEAD: without that
+# gate's stamp for HEAD, verifier runs the gate itself, on the fixture project's
+# stub steps.
+
+# gate_project: the git fixture project, with the issue, the brief and a rule as
+# prompt_repo has them, and no stamp.
+gate_project() {
+	fixture_git_project
+	printf '**R1.** Alpha holds.\nEnforced by: `review`\n' > ARCHITECTURE.md
+	git add -A && git commit -q -m rule || fail "could not commit"
+	brief "scope src/**" "test test_it_works"
+	printf '#7: Fix the bug\n\nKind: build\n' > .git/factory/issue.md
+}
+
+test_verifier_with_the_stamp_for_head_runs_no_gate() {
+	gate_project
+	editor_gate_stamped
+	run_cmd bash "$FACTORY_CORE/prompt.sh" verifier green
+	assert_status 0
+	assert_eq "" "$(ran_steps)" "a gate ran"
+	printf '%s\n' "$out" | head -n 1 | grep -qF "You are the Verifier for issue #7" || fail "no Verifier prompt: $out"
+}
+
+test_verifier_without_a_stamp_runs_the_editors_gate_and_goes_on_when_it_passes() {
+	gate_project
+	run_cmd bash "$FACTORY_CORE/prompt.sh" verifier green
+	assert_status 0
+	stderr_has "prompt: the run state holds no Editor's gate stamp for $(git rev-parse --short HEAD)"
+	grep -qx smoke .fixture/ran || fail "the Editor's gate did not run: $(ran_steps)"
+	printf '%s\n' "$out" | head -n 1 | grep -qF "You are the Verifier for issue #7" || fail "no Verifier prompt: $out"
+	assert_eq "- $(git rev-parse HEAD)" "$(git config branch.work.factory-editor-gate)"
+	# The stamp it left holds: the next call runs no gate.
+	: > .fixture/ran
+	run_cmd bash "$FACTORY_CORE/prompt.sh" verifier green
+	assert_status 0
+	assert_eq "" "$(ran_steps)" "a gate ran with the stamp for HEAD"
+}
+
+# A stamp for an older commit, or another phase, is no stamp for HEAD.
+test_verifier_with_a_stale_stamp_runs_the_editors_gate() {
+	gate_project
+	git config branch.work.factory-editor-gate "- $(git rev-parse HEAD~1)"
+	run_cmd bash "$FACTORY_CORE/prompt.sh" verifier green
+	assert_status 0
+	stderr_has "prompt: the run state holds no Editor's gate stamp for $(git rev-parse --short HEAD)"
+	grep -qx smoke .fixture/ran || fail "the Editor's gate did not run: $(ran_steps)"
+	git config branch.work.factory-editor-gate "red $(git rev-parse HEAD)"
+	: > .fixture/ran
+	run_cmd bash "$FACTORY_CORE/prompt.sh" verifier green
+	assert_status 0
+	grep -qx smoke .fixture/ran || fail "the Editor's gate did not run for a stamp of another phase: $(ran_steps)"
+}
+
+test_verifier_without_a_stamp_refuses_when_the_editors_gate_fails() {
+	gate_project
+	echo "src/a.txt:1 lint-bad a lint finding" > .fixture/fail-lint
+	run_cmd bash "$FACTORY_CORE/prompt.sh" verifier green
+	assert_status 1
+	assert_eq "" "$out" "printed a prompt"
+	stderr_has "prompt: the Editor's gate fails at $(git rev-parse --short HEAD), so this does not go on; send these findings to the Editor as a fix round, then run this again:"
+	stderr_has "src/a.txt:1 lint-bad a lint finding"
+	git config branch.work.factory-editor-gate > /dev/null && fail "a failing gate left a stamp"
+	return 0
+}
+
+# A brief changed after its seal stops the Editor's gate, but it is the Driver's
+# to seal again: no fix round for the Editor.
+test_verifier_without_a_stamp_sends_a_changed_brief_back_to_the_driver() {
+	gate_project
+	git config branch.work.factory-phase green
+	git config branch.work.factory-brief-sha "$(git hash-object --no-filters .git/factory/brief.md)"
+	brief "scope **" "test test_it_works"
+	run_cmd bash "$FACTORY_CORE/prompt.sh" verifier green
+	assert_status 1
+	assert_eq "" "$out" "printed a prompt"
+	stderr_has "prompt: the Build Brief changed after its seal, so the Editor's gate stops on it: the brief is yours, so this is no Editor round; seal it again (bash factory/core/brief.sh seal in this worktree), then run this again:"
+	stderr_has "brief-changed the Build Brief changed after the Driver sealed it"
+	grep -qF "as a fix round" "$TEST_TMP/stderr" && fail "sent the Driver's seal to the Editor: $(cat "$TEST_TMP/stderr")"
+	return 0
+}
+
+# The inputs are checked first: a missing brief costs no gate.
+test_verifier_checks_its_inputs_before_the_gate() {
+	gate_project
+	rm .git/factory/brief.md
+	run_cmd bash "$FACTORY_CORE/prompt.sh" verifier green
+	assert_status 1
+	stderr_has "no Build Brief at .git/factory/brief.md"
+	assert_eq "" "$(ran_steps)" "a gate ran"
 }

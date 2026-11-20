@@ -33,7 +33,13 @@
 #      tools wrote as they ran.
 #      Land refuses a dirty tree, so each one is an `editor-uncommitted` finding and
 #      the gate counts as red. A red gate skips this: its findings come first.
-#   4. in the small lane (run state lane small, from the sealed brief), a red
+#   4. records the gate's stamp in the run state (editor-gate, lib/run.sh: the
+#      phase and HEAD's commit) when it exits 0 with HEAD where step 2 found it;
+#      a run first clears the stamp of an earlier one. prompt.sh verifier and
+#      lock.sh record go on only with the stamp for HEAD, and run this gate
+#      themselves without it (factory_editor_gate_check), so a round whose stop
+#      hook did not run is still gated;
+#   5. in the small lane (run state lane small, from the sealed brief), a red
 #      phase green on a clean tree moves on in the same chat: it records the Lock
 #      at HEAD (factory_lock_record, lib/lock.sh; step 2 was the fresh run of the
 #      red gate that lock.sh record would run again), sets the phase to green
@@ -71,6 +77,10 @@ fi
 phase=""
 if branch="$(factory_current_branch)"; then
 	phase="$(factory_state_get "$branch" phase)" || phase=""
+	# A run voids the stamp of an earlier one until it passes itself.
+	factory_state_unset "$branch" editor-gate 2> /dev/null
+else
+	branch=""
 fi
 
 # 0. The brief is the Driver's: a changed one stops the round.
@@ -169,7 +179,11 @@ if [ -s "$tmp/uncommitted" ]; then
 fi
 
 # 4. The small lane: a green red phase locks its tests and goes on to green.
+# Else the gate passed: its stamp, for HEAD as the gate judged it.
 if [ "$phase" != red ] || [ "$(factory_state_get "$branch" lane 2> /dev/null)" != small ]; then
+	if [ -n "$branch" ] && [ -n "$gate_head" ] && [ "$(git rev-parse HEAD 2> /dev/null)" = "$gate_head" ]; then
+		factory_editor_gate_stamp "$branch" "$phase" "$gate_head" 2> /dev/null
+	fi
 	cat "$tmp/out"
 	exit 0
 fi

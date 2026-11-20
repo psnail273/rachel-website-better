@@ -18,9 +18,11 @@
 # always was.
 #
 # It runs the Editor's gate (editor-gate.sh) in the subagent's worktree, the one
-# named by the `factory-worktree: <path>` line of the subagent's prompt, read from
-# its transcript (agent_transcript_path at SubagentStop; at the PreToolUse, the
-# session's transcript_path with .jsonl dropped, then subagents/agent-<agent_id>.jsonl).
+# named by the `factory-worktree: <path>` line of the subagent's prompt (the
+# first such line naming a git worktree, past Claude Code's own records of the
+# system prompt), read from its transcript (agent_transcript_path at
+# SubagentStop; at the PreToolUse, the session's transcript_path with .jsonl
+# dropped, then subagents/agent-<agent_id>.jsonl).
 # While the gate is red it blocks: it exits 2 with the gate's output on stderr,
 # which Claude Code hands the subagent as its next instruction. When the small
 # lane moved the issue on to the green phase (editor-gate.sh's exit 3), it blocks
@@ -104,12 +106,24 @@ else
 	transcript="${transcript//\\//}"
 fi
 
-# The worktree line of the prompt: its first occurrence in the transcript, where
-# the prompt is a JSON string (so a backslash in the path appears doubled).
+# The worktree line of the prompt, where the prompt is a JSON string (so a
+# backslash in the path appears doubled): the first such line in the transcript
+# that names a git worktree. Claude Code records the subagent's system prompt in
+# its transcript too, ahead of the prompt (a prompt_snapshot attachment, and
+# api-request lines), and editor-sonnet.md's sample line there names no
+# worktree; a prompt sent by reference ("Read the file ...") holds its line only
+# in a later tool result. So those records are skipped, and a line naming no
+# worktree is passed over (#60: taking the first line, the sample, no gate ran).
 worktree=""
 if [ -f "$transcript" ]; then
-	worktree="$(grep -o 'factory-worktree: \([^"\\]\|\\\\\)*' "$transcript" | head -n 1 |
-		sed 's/^factory-worktree: //; s/\\\\/\//g; s/[[:space:]]*$//')"
+	while IFS= read -r candidate; do
+		if [ -n "$candidate" ] && git -C "$candidate" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+			worktree="$candidate"
+			break
+		fi
+	done < <(grep -v -e '"type":"prompt_snapshot"' -e '^{"type":"api-request' "$transcript" |
+		grep -o 'factory-worktree: \([^"\\]\|\\\\\)*' |
+		sed 's/^factory-worktree: //; s/\\\\/\//g; s/[[:space:]]*$//' | awk '!seen[$0]++')
 fi
 if [ -z "$worktree" ] || ! git -C "$worktree" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
 	echo "editor-sonnet stop hook: the prompt names no worktree (a 'factory-worktree: <path>' line), so no gate ran" >&2

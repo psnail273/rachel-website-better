@@ -16,7 +16,7 @@
 # which verify.sh keeps (lib/run.sh). A phase's counted rounds stop at the ceiling
 # of 4 (FACTORY_ROUNDS_CEILING): incr refuses a 5th and leaves the count as it was,
 # since past it comes the Sonnet Takeover or an escalation (the build skill's SKILL.md).
-# The lane is the sealed brief's: brief.sh seal sets it, not set.
+# set refuses lane, the sealed brief's (brief.sh seal), and editor-gate, the Editor's gate's.
 # set phase also records when the branch first entered that phase (began-<phase>),
 # which the stats line's minutes read; stats counts them up to now. Now is
 # FACTORY_NOW when that is a whole number of seconds since the epoch (a test's
@@ -86,6 +86,10 @@ case "$cmd" in
 		}
 		if [ "$1" = lane ]; then
 			echo "state: the lane is the Build Brief's; add 'lane small' to its block and run bash factory/core/brief.sh seal" >&2
+			exit 2
+		fi
+		if [ "$1" = editor-gate ]; then
+			echo "state: editor-gate is the Editor's gate's stamp: only that gate records it as it passes (prompt.sh verifier and lock.sh record run it when the stamp is missing)" >&2
 			exit 2
 		fi
 		if [ "$1" = phase ] && ! factory_state_get "$branch" brief-sha > /dev/null; then
